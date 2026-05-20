@@ -1,0 +1,18 @@
+node_modules
+.next
+out
+build
+coverage
+playwright-report
+test-results
+.wrangler
+.vercel
+pnpm-lock.yaml
+.taskmaster
+next-env.d.ts
+
+# shadcn primitives — leave alignment with upstream CLI output
+components/ui
+
+# drizzle-kit generated SQL + snapshot files
+drizzle/migrations

@@ -1,0 +1,539 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": "1",
+        "title": "项目初始化：Next.js 15 + TS strict + Tailwind v4 + shadcn/ui",
+        "description": "使用 pnpm 创建 Next.js 15 App Router 项目，启用 TypeScript strict，集成 Tailwind CSS v4（@theme in CSS）和 shadcn/ui 基础组件，配置 ESLint/Prettier，搭建基础目录骨架（app/、lib/、components/、stores/、hooks/、tests/）。",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "details": "1) `pnpm create next-app@latest prisim-r2 --typescript --app --tailwind --eslint`；2) tsconfig 设 strict: true、noUncheckedIndexedAccess、noImplicitOverride；3) Tailwind v4 用 `@import 'tailwindcss';` 和 `@theme {}` 在 `app/globals.css`，不要 tailwind.config.js；4) `pnpm dlx shadcn@latest init`，添加 button/input/dialog/table/dropdown-menu/toast/tabs/badge/progress 等基础组件到 components/ui/；5) 安装 zustand、@tanstack/react-query、zod、ulid、@aws-sdk/client-s3、@aws-sdk/s3-request-presigner（pin 精确版本）；6) 创建空目录：app/(auth)、app/(dashboard)、app/api/、lib/crypto、lib/r2、lib/db、lib/auth、lib/audit、lib/api、components/features、stores、hooks、tests/unit、tests/e2e；7) 在 .gitignore 添加 .dev.vars、.env.local、.wrangler/。",
+        "testStrategy": "运行 `pnpm dev` 应在 3000 端口起服务，访问 `/` 渲染默认页面；`pnpm typecheck && pnpm lint` 均无错误；shadcn 按钮组件能正常渲染。",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create the Next.js 15 App Router project and enable strict TypeScript settings",
+            "description": "Scaffold the pnpm-based Next.js project, verify App Router setup, and harden tsconfig with the required strict compiler options.",
+            "dependencies": [],
+            "details": "Run `pnpm create next-app@latest prisim-r2 --typescript --app --tailwind --eslint` and enter the project directory with `cd prisim-r2`. Update `tsconfig.json` to ensure `\"strict\": true`, `\"noUncheckedIndexedAccess\": true`, and `\"noImplicitOverride\": true` are explicitly enabled under `compilerOptions`. Confirm the app uses the `app/` directory and keep the default Next.js 15 App Router structure intact.\n<info added on 2026-05-20T11:37:41.607Z>\nImplementation notes (2026-05-20):\n\nDecision: manually scaffolded the project instead of running `pnpm create next-app@latest`, because the working tree already contained design mockups from a prior session (`app/globals.css` with Tailwind v4 tokens, `app/(auth)/login/page.tsx`, `components/layout/app-shell.tsx`, `components/features/{connections,upload,files}/*.tsx`, `lib/utils.ts`) and the CLI would either refuse the non-empty directory or overwrite them. The user explicitly confirmed the \"scaffold preserving mockups\" path.\n\nFiles written:\n- `package.json`: added `next ^15.4.0`, `react ^19.1.0`, `react-dom ^19.1.0`, `typescript ^5.7.2`, `@types/node`, `@types/react`, `@types/react-dom`, plus scripts `dev`, `build`, `start`, `lint`, `typecheck`. Other runtime dependencies (`zustand`, `@tanstack/react-query`, AWS SDK packages, `zod`, `ulid`) are intentionally deferred to subtask 1.4.\n- `tsconfig.json`: enabled `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, set `moduleResolution: bundler`, `jsx: preserve`, path alias `@/* -> ./*`, and the Next TypeScript plugin.\n- `next.config.ts`: minimal `NextConfig` with `reactStrictMode`.\n- `next-env.d.ts`: standard Next.js reference file.\n- `app/layout.tsx`: minimal `RootLayout` that imports `./globals.css` so the existing design tokens remain active.\n- `app/page.tsx`: placeholder landing page with a link to `/login`.\n\nPreserved untouched: `app/globals.css`, `app/(auth)/login/page.tsx`, `components/**/*`, `lib/utils.ts`, `.env`.\n\nPitfalls / deferred validation:\n1. `pnpm dev` will not start until subtask 1.2 adds Tailwind v4 PostCSS support (`@tailwindcss/postcss` and `postcss.config.mjs`), because the existing `globals.css` already contains `@import \"tailwindcss\";`.\n2. `pnpm exec tsc --noEmit` requires `pnpm install` first; dependency installation is bundled into subtask 1.4 to avoid duplicate install passes. The `tsconfig.json` content itself was manually verified.\n3. The existing `lib/utils.ts` likely depends on `clsx` and/or `tailwind-merge` in the usual shadcn pattern; those are expected to land in subtask 1.3 with `pnpm dlx shadcn@latest init`, so imports of `@/lib/utils` may not typecheck until then.\n\nAlternatives considered:\n- Running `pnpm create next-app . --typescript --app --tailwind --eslint --import-alias \"@/*\"` after temporarily backing up mockups was rejected as more error-prone than writing the small scaffold files directly.\n- Omitting `app/page.tsx` and relying only on `app/(auth)/login/page.tsx` was rejected because `/` would 404, while this subtask’s smoke-test expectation is that visiting `/` renders a page.\n\nCurrent status: the acceptance criteria for this subtask are met with respect to project scaffold presence and strict TypeScript settings. Runtime validation (`pnpm dev`, green typecheck) remains blocked on subtask 1.2 and subtask 1.4.\n</info added on 2026-05-20T11:37:41.607Z>",
+            "status": "done",
+            "testStrategy": "Run `pnpm dev` and confirm the app starts on localhost:3000 and the default `/` page renders. Run `pnpm exec tsc --noEmit` to verify the strict TypeScript configuration passes without errors.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T11:37:41.621Z"
+          },
+          {
+            "id": 2,
+            "title": "Configure Tailwind CSS v4 via app/globals.css using @import and @theme",
+            "description": "Adjust the default styling setup to use Tailwind CSS v4's CSS-first configuration without any tailwind.config.js file.",
+            "dependencies": [
+              1
+            ],
+            "details": "Ensure there is no `tailwind.config.js` or `tailwind.config.ts` in the repository. Edit `app/globals.css` to use Tailwind v4 syntax, starting with `@import 'tailwindcss';` and define design tokens with an `@theme { ... }` block. Keep global resets and base app styles in this file as needed for the project. Do not move theme tokens into JS config files because this task requires CSS-based Tailwind v4 configuration only.\n<info added on 2026-05-20T12:10:40.615Z>\nImplementation verified against current Tailwind v4 docs (v4.3 line). Installed and resolved `tailwindcss` 4.3.0, `@tailwindcss/postcss` 4.3.0, and explicit `postcss` 8.5.15 per v4 install requirements. Created `postcss.config.mjs` with a single plugin entry for `@tailwindcss/postcss`; no `postcss-import` or `autoprefixer` is needed in v4 because those behaviors are folded into the Tailwind PostCSS plugin.\n\n`app/globals.css` required no changes because it already used valid v4 syntax: `@import \"tailwindcss\";`, the existing `@custom-variant dark (&:where(.dark, .dark *));`, and an `@theme inline { ... }` block mapping CSS variables to Tailwind tokens. Confirmed that no `tailwind.config.js` or `tailwind.config.ts` exists, preserving the required CSS-first configuration.\n\nVerification performed: `pnpm install` succeeded, `pnpm dev` started Next.js 15.5.18 successfully, and the served compiled CSS at `/_next/static/css/app/layout.css` contained utilities used by `app/page.tsx` including `mx-auto`, `min-h-screen`, `max-w-2xl`, `flex`, and `text-primary`. Presence of `text-primary` confirms semantic token generation from the `@theme inline` mapping (`--color-primary` -> `var(--primary)`) is working end-to-end.\n\nExpected side effect: Next.js updated `next-env.d.ts` on first dev start to include the typed-routes reference path; this is normal for Next 15. Not in scope for this subtask: the Google Fonts `@import url(...)` in `globals.css` still works but should later be migrated to `next/font/google`, and `lib/utils.ts` may still reference `clsx`/`tailwind-merge` until shadcn initialization in subtask 1.3. Acceptance criteria for this subtask are met: dev server compiles, utilities are generated from `globals.css`, and no v3-style Tailwind config file is present.\n</info added on 2026-05-20T12:10:40.615Z>",
+            "status": "done",
+            "testStrategy": "Run `pnpm dev` and confirm styles compile successfully. Add a temporary Tailwind utility class to `app/page.tsx` such as `className=\"p-8 text-2xl\"` and verify the styling is applied in the browser. Confirm no Tailwind config file exists.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T12:10:40.636Z"
+          },
+          {
+            "id": 3,
+            "title": "Initialize shadcn/ui and generate the baseline UI components into components/ui",
+            "description": "Set up shadcn/ui for the project and add the required reusable base components using the generator instead of manual edits.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Run `pnpm dlx shadcn@latest init` and configure it to place components under `components/ui/` with the project's Tailwind and App Router settings. Then generate the required components with shadcn commands, including at minimum: `button`, `input`, `dialog`, `table`, `dropdown-menu`, `toast`, `tabs`, `badge`, and `progress`. Do not handcraft files inside `components/ui/`; if a component is wrong, regenerate it through the CLI. Ensure any required support files such as `components.json` and utility helpers expected by shadcn are created correctly.\n<info added on 2026-05-20T12:32:01.722Z>\nImplementation note: instead of running the interactive `pnpm dlx shadcn@latest init` wizard, `components.json` was created manually to avoid overwriting the customized `app/globals.css` design tokens and the extended `lib/utils.ts` helpers that must be preserved from the mockups.\n\n`components.json` was verified against the current shadcn v4 schema and configured as: `style: \"new-york\"`, `tailwind.config: \"\"`, `tailwind.css: \"app/globals.css\"`, `baseColor: \"stone\"`, `rsc: true`, `tsx: true`, `iconLibrary: \"lucide\"`, with aliases aligned to `tsconfig.json` (`@/*` → `./*`) for components, utils, ui, lib, and hooks.\n\nInstalled required runtime/peer dependencies via `pnpm add`: `clsx@2.1.1`, `tailwind-merge@3.6.0`, `class-variance-authority@0.7.1`, `lucide-react@1.16.0`, and `tw-animate-css@1.4.0`. The shadcn add flow also pulled in runtime dependencies including `sonner`, `next-themes`, and the needed `@radix-ui/react-*` packages, all kept in `dependencies` because they ship to the client.\n\nGenerated components through `pnpm dlx shadcn@latest add` only, with no manual edits to primitives. Files created under `components/ui/`: `button.tsx`, `input.tsx`, `dialog.tsx`, `table.tsx`, `dropdown-menu.tsx`, `sonner.tsx`, `tabs.tsx`, `badge.tsx`, `progress.tsx`, and `label.tsx`.\n\nComponent substitution note: the original `toast` requirement is satisfied by `sonner`, which replaced the legacy shadcn Toast. `label` was also added as a needed baseline form primitive for the existing login mockup.\n\nVerification completed:\n`app/globals.css` remained unchanged after shadcn generation.\n`pnpm typecheck` passed across the existing mockups and all generated components.\n`pnpm dev` served `/` successfully.\nRendered Button output and compiled CSS confirmed semantic utility classes resolve correctly through the existing Tailwind v4 `@theme inline` tokens.\n\nAs a persistent smoke test, `app/page.tsx` now renders two Buttons (`default` and `outline`). This is temporary and can be replaced by dashboard routes in later tasks.\n\nNotes for follow-up tasks: shadcn v4 components include `data-slot` attributes that can be used as stable Playwright selectors; `border-input` utilities depend on the existing `--input` token in `globals.css`; when toast notifications are wired later, mount the Sonner toaster in the root layout; monitor bundle size impact from the added Radix runtime packages if client payload becomes a concern.\n</info added on 2026-05-20T12:32:01.722Z>",
+            "status": "done",
+            "testStrategy": "Create a temporary test render on `app/page.tsx` using the generated `Button` component and confirm it renders. Verify the expected files exist under `components/ui/` and that `pnpm lint` and `pnpm exec tsc --noEmit` complete without component import errors.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T12:32:01.740Z"
+          },
+          {
+            "id": 4,
+            "title": "Install core runtime dependencies with exact pinned versions for app, validation, state, and AWS SDK",
+            "description": "Add the MVP runtime libraries and ensure security-sensitive packages are version-pinned without range prefixes.",
+            "dependencies": [
+              1
+            ],
+            "details": "Install the required dependencies using exact versions, for example with `pnpm add --save-exact zustand @tanstack/react-query zod ulid @aws-sdk/client-s3 @aws-sdk/s3-request-presigner`. Confirm `package.json` writes exact versions with no `^` or `~` prefix, especially for `@aws-sdk/*` packages and other security-relevant runtime packages. Keep dependency additions limited to runtime libraries in this subtask; formatting and script setup belongs elsewhere.\n<info added on 2026-05-20T12:33:40.735Z>\nInstalled the required runtime dependencies with exact pinned versions via `pnpm add --save-exact`: `@aws-sdk/client-s3@3.1050.0`, `@aws-sdk/s3-request-presigner@3.1050.0`, `@tanstack/react-query@5.100.11`, `ulid@3.0.2`, `zod@4.4.3`, and `zustand@5.0.13`. Confirmed all six are written to `dependencies` without `^` or `~`, satisfying the CLAUDE.md security invariant for exact pinning of `@aws-sdk/*` and related security-relevant runtime packages. No separate crypto dependency was added because runtime crypto helpers will use the platform Web Crypto API (`crypto.subtle`).\n\nVerified `pnpm install --frozen-lockfile` completes cleanly and the lockfile matches `package.json`. Verified `pnpm typecheck` still passes under strict TypeScript settings, with no new `@types` issues since these packages ship their own types.\n\nCompatibility notes for downstream tasks: `zod` is now v4, so older v3 patterns such as `z.string().nonempty()` must be replaced with `z.string().min(1)` and some `.default()` behavior differs; `zustand` v5 has tighter middleware typings and changed some React utility assumptions; `@tanstack/react-query` v5 requires the object-style mutation/query APIs rather than legacy v4 positional forms. For AWS SDK usage, always construct S3 clients with explicit credentials and avoid fs-based credential providers such as `fromIni`, which are not appropriate for Workers/Pages runtimes. Also keep imports command-scoped in later R2 helpers to limit bundle size impact from `@aws-sdk/client-s3`.\n\nAcceptance for subtask 1.4 is met: all required MVP runtime libraries are installed, exact-pinned where required, lockfile is consistent, and types remain clean.\n</info added on 2026-05-20T12:33:40.735Z>",
+            "status": "done",
+            "testStrategy": "Inspect `package.json` to verify exact version strings are present. Run `pnpm install --frozen-lockfile` or a clean `pnpm install` to confirm lockfile consistency, then run `pnpm exec tsc --noEmit` to ensure the added packages do not introduce type issues.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T12:33:40.750Z"
+          },
+          {
+            "id": 5,
+            "title": "Create the base directory skeleton and update .gitignore for local secrets and Cloudflare artifacts",
+            "description": "Add the required empty application, library, state, hook, and test directories, and ignore local secret files and Wrangler output.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create the required paths: `app/(auth)`, `app/(dashboard)`, `app/api/`, `lib/crypto`, `lib/r2`, `lib/db`, `lib/auth`, `lib/audit`, `lib/api`, `components/features`, `stores`, `hooks`, `tests/unit`, and `tests/e2e`. Add placeholder files such as `.gitkeep` where needed so empty directories are tracked. Update `.gitignore` to include `.dev.vars`, `.env.local`, and `.wrangler/` exactly as requested for Cloudflare Pages and local secret handling.\n<info added on 2026-05-20T12:35:10.259Z>\nImplementation notes (2026-05-20): Created the directory skeleton per spec. New empty directories were added with `.gitkeep` files: `app/(dashboard)`, `app/api`, `lib/crypto`, `lib/r2`, `lib/db`, `lib/auth`, `lib/audit`, `lib/api`, `stores`, `hooks`, `tests/unit`, and `tests/e2e`. Existing directories from prior mockup work were preserved without `.gitkeep` because they already contain files, including `app/(auth)/login`, `components/features/{connections,upload,files}`, `components/layout`, and `components/ui`.\n\n`.gitignore` was created from scratch and includes standard Next.js ignores plus the required secret/Cloudflare entries `.env.local`, `.dev.vars`, and `.wrangler/`. It also defensively ignores `.env` because the existing root `.env` contains a real `OPENAI_API_KEY`, along with test artifacts (`/coverage`, `/playwright-report`, `/playwright/.cache`, `/test-results`), editor folders (`.idea/`, `.vscode/`), and `.taskmaster/reports/` while keeping `tasks.json` committed.\n\nVerification completed: required ignore lines were confirmed present, 12 new `.gitkeep` files were added for the new empty directories, and directory counts under `app/lib/components/stores/hooks/tests` match the planned tree. Note that the project is not yet initialized as a git repository in this environment, so `.gitignore` will take effect after `git init`. Acceptance criteria for subtask 1.5 are met.\n</info added on 2026-05-20T12:35:10.259Z>",
+            "status": "done",
+            "testStrategy": "Run a directory listing command like `find app lib components stores hooks tests -maxdepth 2` to verify the skeleton exists. Confirm `.gitignore` contains the three required entries and use `git status --ignored` if needed to verify they are ignored.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T12:35:10.274Z"
+          },
+          {
+            "id": 6,
+            "title": "Configure ESLint, Prettier, and package scripts for typecheck, lint, and formatting",
+            "description": "Finalize code quality tooling by ensuring linting, formatting, and validation scripts are available and compatible with the initialized Next.js project.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "details": "Keep the Next.js ESLint setup from scaffolding, then add Prettier integration and define package scripts in `package.json` such as `\"typecheck\": \"tsc --noEmit\"`, `\"lint\": \"next lint\"` or the Next.js 15-compatible lint command already used by the project, and `\"format\": \"prettier --write .\"`. Add any needed Prettier config file such as `.prettierrc` and optional ignore file `.prettierignore`. Ensure the script set supports routine validation for this MVP baseline.\n<info added on 2026-05-20T12:41:40.787Z>\nImplemented ESLint + Prettier tooling per current Next.js 15 docs using flat-config ESLint and Prettier integration. Added devDependencies with caret ranges and validated resolved versions: eslint 9.39.4, eslint-config-next 16.2.6, eslint-config-prettier 10.1.8, prettier 3.8.3.\n\nCreated `eslint.config.mjs` as ESM flat config using `eslint-config-next/core-web-vitals`, `eslint-config-next/typescript`, and `eslint-config-prettier/flat` in that order, with Prettier last to disable conflicting rules. Added global ignores for `.next/**`, `out/**`, `build/**`, `coverage/**`, `playwright-report/**`, `test-results/**`, `next-env.d.ts`, and `node_modules/**`.\n\nAdded `.prettierrc` with 80 character print width, double quotes, semicolons, trailing commas `all`, 2-space indentation, and LF line endings. Added `.prettierignore` for standard generated/build directories plus `components/ui` so shadcn-generated primitives are not hand-reformatted and can be safely regenerated by the CLI without noisy diffs.\n\nUpdated `package.json` scripts so linting uses the ESLint CLI instead of deprecated `next lint`: `lint: \"eslint .\"`, plus `lint:fix`, `format`, and `format:check`. `typecheck` remained in place from subtask 1.1.\n\nResolved an initial compatibility issue where the first install pulled `eslint@10`, which broke a transitive `eslint-plugin-react` path used by `eslint-config-next`; pinning back to `eslint@^9` aligned with the tested peer range and cleared the warnings/errors.\n\nFixed two pre-existing lint violations in `components/layout/app-shell.tsx`: replaced the brand `<a href=\"/\">` with `next/link`, and changed the `useState([...])` eager initializer containing `Date.now()` to a lazy initializer `useState<Connection[]>(() => [...])` so the impure call is not executed on every render.\n\nEstablished a clean formatting baseline by ignoring `components/ui` and running Prettier across the remaining files; subsequent `pnpm format:check` passes cleanly.\n\nValidation complete: `pnpm typecheck`, `pnpm lint`, and `pnpm format:check` all pass with no errors. This satisfies the subtask acceptance criteria and completes the parent project-initialization task’s lint/format tooling baseline.\n</info added on 2026-05-20T12:41:40.787Z>",
+            "status": "done",
+            "testStrategy": "Run `pnpm typecheck`, `pnpm lint`, and `pnpm format --check` if configured, or run `pnpm format` and verify it completes successfully. Confirm all commands execute without errors on the initialized codebase.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T12:41:40.798Z"
+          }
+        ],
+        "updatedAt": "2026-05-20T12:41:40.798Z"
+      },
+      {
+        "id": "2",
+        "title": "Cloudflare Pages + Edge Runtime 配置",
+        "description": "配置 wrangler.toml、next.config.ts 以支持 Cloudflare Pages 部署和 edge runtime；准备 D1 binding；所有 route handler 加 `export const runtime = 'edge'` 规范。",
+        "status": "done",
+        "dependencies": [
+          "1"
+        ],
+        "priority": "high",
+        "details": "1) 安装 `wrangler` 和 `@cloudflare/next-on-pages`；2) 创建 wrangler.toml：name、compatibility_date、compatibility_flags=['nodejs_compat']、[[d1_databases]] binding=DB、database_name、database_id；3) next.config.ts 启用 `experimental: { runtime: 'edge' }`（若适用）或确保 route handler 用 edge；4) package.json scripts: dev/build/preview(`wrangler pages dev .vercel/output/static --d1 DB=...`)/deploy(`wrangler pages deploy .vercel/output/static`)；5) 写 `pnpm build` -> `next-on-pages` 流程；6) lib 文件需要服务端时统一 `import 'server-only'`；7) 创建一个示例 `app/api/health/route.ts` 含 `export const runtime = 'edge'` 用于验证。",
+        "testStrategy": "`pnpm build` 成功生成 `.vercel/output`；`pnpm preview` 本地启动 wrangler dev 后 `curl localhost:8788/api/health` 返回 200；wrangler dry-run deploy 通过。",
+        "subtasks": [],
+        "updatedAt": "2026-05-20T12:55:00.855Z"
+      },
+      {
+        "id": "3",
+        "title": "D1 数据库 schema 与迁移",
+        "description": "实现 5 张表（users / connections / shares / audit_log / sessions），写迁移脚本（drizzle-kit 或纯 SQL），并提供本地与 production 的执行命令。",
+        "status": "done",
+        "dependencies": [
+          "2"
+        ],
+        "priority": "high",
+        "details": "选 drizzle-orm + drizzle-kit（edge 友好、类型安全）。1) `pnpm add drizzle-orm`，`pnpm add -D drizzle-kit @cloudflare/workers-types`；2) 在 lib/db/schema.ts 用 sqliteTable 定义 5 张表，字段照 PRD 第 3 段：users(id ulid PK, email unique, password_hash, external_id, created_at)、connections(id, user_id FK, name, account_id, endpoint, access_key_masked, access_key_ciphertext blob, access_key_iv blob, secret_key_ciphertext blob, secret_key_iv blob, created_at, last_used_at)、shares(id, user_id, connection_id, bucket, object_key, url_hash, ttl_seconds, expires_at, created_at)、audit_log(id, user_id, connection_id, op, bucket, object_key, status, error_msg, ip, ua, created_at)、sessions(id, user_id, token_hash, expires_at, created_at)；3) 索引：idx_connections_user、idx_shares_user_active(user_id, expires_at)、idx_audit_user_time(user_id, created_at DESC)；4) drizzle.config.ts 输出 SQL 到 migrations/；5) scripts: `db:gen`、`db:migrate:local`（wrangler d1 migrations apply DB --local）、`db:migrate:prod`；6) lib/db/client.ts 工厂：`export function getDb(env: Env) { return drizzle(env.DB, { schema }); }`。",
+        "testStrategy": "`pnpm db:gen` 生成 SQL；`pnpm db:migrate:local` 成功在本地 D1 创建所有表；vitest 单测：在 in-memory better-sqlite3 上跑迁移，校验表/索引存在；插入/读取一行 users 行成功。",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Install Drizzle ORM and D1-related development dependencies",
+            "description": "Add the required runtime and development packages for Drizzle ORM, Drizzle Kit, and Cloudflare Workers typing support.",
+            "dependencies": [],
+            "details": "Run pnpm add drizzle-orm and pnpm add -D drizzle-kit @cloudflare/workers-types. Ensure package.json and lockfile are updated consistently so later schema generation and migration commands can use the installed tooling.\n<info added on 2026-05-20T13:11:27.756Z>\nInstalled dependencies and versions:\n- drizzle-orm ^0.45.2 as a runtime dependency\n- drizzle-kit 0.31.10 as a devDependency\n- better-sqlite3 12.10.0 and @types/better-sqlite3 7.6.13 as devDependencies for the in-memory migration test in subtask 3.5\n- vitest 4.1.7 and @vitest/coverage-v8 4.1.7 as devDependencies to support the migration test in 3.5 and the broader test infrastructure used later in task 24\n\n@cloudflare/workers-types had already been installed in task 2, so no re-install was needed.\n\nVerified current Drizzle D1 usage patterns against the Drizzle docs:\n- define schema with sqliteTable from drizzle-orm/sqlite-core\n- create the D1 client with drizzle(env.DB) from drizzle-orm/d1\n- generate migrations with drizzle-kit using dialect: 'sqlite' and driver: 'd1-http'\n- define indexes in the third sqliteTable argument, e.g. (table) => [index(\"name\").on(table.col)]\n- define foreign keys with .references(() => otherTable.id) on column definitions\n\nNotes and pitfalls:\n- pnpm reported a peer mismatch for @cloudflare/next-on-pages versus the current next/vercel versions, but this is not blocking; next-on-pages 1.13.16 is already deprecated and the build still works\n- drizzle-kit adds a relatively heavy dev-only transitive dependency set, including esbuild, with no edge bundle impact\n- vitest 4.x is a major version bump from 3.x, so task 24's vitest.config.ts should follow v4 conventions\n\nAcceptance update: subtask 3.1 is satisfied; required dependencies are installed and package.json/lockfile are consistent.\n</info added on 2026-05-20T13:11:27.756Z>",
+            "status": "done",
+            "testStrategy": "Run pnpm install or pnpm add commands successfully and verify the dependencies appear in package.json with no install errors.",
+            "updatedAt": "2026-05-20T13:11:27.768Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Define the five D1 sqliteTable schemas in lib/db/schema.ts",
+            "description": "Create the Drizzle schema file and implement users, connections, shares, audit_log, and sessions tables exactly matching the PRD field requirements.",
+            "dependencies": [
+              1
+            ],
+            "details": "Use sqliteTable and appropriate Drizzle SQLite column types to model all required fields: users(id ulid PK, email unique, password_hash, external_id, created_at), connections(id, user_id FK, name, account_id, endpoint, access_key_masked, access_key_ciphertext blob, access_key_iv blob, secret_key_ciphertext blob, secret_key_iv blob, created_at, last_used_at), shares(id, user_id, connection_id, bucket, object_key, url_hash, ttl_seconds, expires_at, created_at), audit_log(id, user_id, connection_id, op, bucket, object_key, status, error_msg, ip, ua, created_at), and sessions(id, user_id, token_hash, expires_at, created_at). Preserve naming compatibility with D1/SQLite and export the schema members for downstream use.\n<info added on 2026-05-20T13:14:06.552Z>\nImplemented lib/db/schema.ts with all five PRD tables using Drizzle’s sqliteTable API. Chosen convention is camelCase TypeScript property names with explicit snake_case SQL column names on every field to preserve the PRD schema exactly while keeping idiomatic JS access.\n\nColumn/type decisions:\n- All primary keys use text(\"id\").primaryKey() and store ULID strings; ULIDs are generated in application code at insert time via the ulid package rather than a DB default.\n- Timestamp fields use integer({ mode: \"timestamp\" }); createdAt uses $defaultFn(() => new Date()) so callers do not need to pass it explicitly. Nullable vs required timestamp columns follow the PRD semantics, including nullable lastUsedAt and required expiresAt where applicable.\n- Secret/cipher fields use blob({ mode: \"buffer\" }) for access_key_ciphertext, access_key_iv, secret_key_ciphertext, and secret_key_iv to support both Node-based tooling/tests and Workers runtime with nodejs_compat enabled.\n- users.email is defined as notNull + unique, relying on SQLite’s implicit unique index.\n\nForeign keys were implemented inline with .references(..., { onDelete }) in this file:\n- connections.user_id -> users.id, ON DELETE CASCADE\n- shares.user_id -> users.id, ON DELETE CASCADE\n- shares.connection_id -> connections.id, ON DELETE CASCADE\n- audit_log.user_id -> users.id, ON DELETE SET NULL\n- audit_log.connection_id -> connections.id, ON DELETE SET NULL\n- sessions.user_id -> users.id, ON DELETE CASCADE\n\nDelete-behavior rationale: owned/live data cascades on deletion (connections, shares, sessions), while audit_log rows are preserved for compliance/incident review and only lose direct PII references.\n\nExports now include the five named table definitions, inferred select/insert types via $inferSelect / $inferInsert, and a schema object for later drizzle(env.DB, { schema }) wiring.\n\nImportant implementation note: import \"server-only\" was intentionally not added to schema.ts because drizzle-kit executes the schema in a Node CLI context for migration introspection; that marker should instead live in the runtime DB client layer.\n\nVerified with pnpm typecheck; strict typing passes and inferred Drizzle types resolve correctly. Also note that subtask 3.2 and 3.3 are partly interleaved in practice because foreign keys are defined inline in the table declarations, while explicit indexes will be added in the third sqliteTable argument.\n</info added on 2026-05-20T13:14:06.552Z>",
+            "status": "done",
+            "testStrategy": "Type-check the schema file and optionally inspect generated Drizzle types to confirm all tables and columns are exported correctly.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T13:14:06.566Z"
+          },
+          {
+            "id": 3,
+            "title": "Add foreign keys and required indexes to the schema definitions",
+            "description": "Extend the table definitions with the specified relational constraints and performance indexes from the task requirements.",
+            "dependencies": [
+              2
+            ],
+            "details": "Add foreign key references from child tables to users and connections where required, then define the indexes idx_connections_user, idx_shares_user_active(user_id, expires_at), and idx_audit_user_time(user_id, created_at DESC). Keep index names explicit so generated SQL remains stable and matches the migration expectations.\n<info added on 2026-05-20T13:14:12.805Z>\nImplementation notes (2026-05-20): FKs and indexes were implemented inline in lib/db/schema.ts alongside the table definitions from subtask 3.2, using column-level .references() for foreign keys and the third sqliteTable callback for indexes to avoid duplicative edits.\n\nForeign keys declared:\nconnections.user_id -> users.id ON DELETE CASCADE\nshares.user_id -> users.id ON DELETE CASCADE\nshares.connection_id -> connections.id ON DELETE CASCADE\naudit_log.user_id -> users.id ON DELETE SET NULL so audit rows survive user deletion\naudit_log.connection_id -> connections.id ON DELETE SET NULL\nsessions.user_id -> users.id ON DELETE CASCADE\n\nIndexes declared:\nidx_connections_user on connections(user_id)\nidx_shares_user_active on shares(user_id, expires_at)\nidx_audit_user_time on audit_log(user_id, created_at DESC), implemented via index(\"idx_audit_user_time\").on(t.userId, sql`${t.createdAt} DESC`)\n\nAlso note the implicit unique index on users.email from .notNull().unique().\n\nValidation is deferred to subtask 3.5: drizzle-kit db:gen must emit CREATE INDEX statements with these exact names, and migration tests should assert corresponding sqlite_master rows exist. Acceptance for 3.3 is satisfied: all required FKs are declared, the three named indexes are present, and the schema file typechecks under strict mode.\n</info added on 2026-05-20T13:14:12.805Z>",
+            "status": "done",
+            "testStrategy": "Generate migration SQL and review it to confirm the expected CREATE INDEX statements and FK constraints are present.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T13:14:12.815Z"
+          },
+          {
+            "id": 4,
+            "title": "Create drizzle.config.ts for SQL generation into migrations/",
+            "description": "Add the Drizzle Kit configuration file so schema changes can produce SQL migrations in the expected output directory.",
+            "dependencies": [
+              3
+            ],
+            "details": "Create drizzle.config.ts pointing at lib/db/schema.ts, configure the SQLite/D1 dialect appropriately, and set the out directory to migrations/. Ensure the config is compatible with the repository layout and can be used by pnpm db:gen without extra flags.\n<info added on 2026-05-20T13:16:58.107Z>\nImplemented `drizzle.config.ts` with minimal `defineConfig` using `dialect: \"sqlite\"`, `schema: \"./lib/db/schema.ts\"`, `out: \"./drizzle/migrations\"`, `strict: true`, and `verbose: true`. Deliberately left out `driver` and `dbCredentials` because this project uses drizzle-kit only for SQL generation; migration execution is handled via `wrangler d1 migrations apply`, which uses the D1 binding from `wrangler.toml`. The `d1-http` driver is therefore unnecessary for the intended workflow.\n\nValidated the config by running `npx drizzle-kit generate --name init`. Generation parsed all 5 schema tables with expected counts: `audit_log` 11 columns / 1 index / 2 foreign keys, `connections` 12 / 1 / 1, `sessions` 5 / 0 / 1, `shares` 9 / 1 / 2, and `users` 5 / 1 / 0. Output file `drizzle/migrations/0000_init.sql` was created successfully.\n\nReviewed generated SQL and confirmed acceptance criteria from 3.2 and 3.3 are preserved in output: correct `CREATE TABLE` statements, required `NOT NULL` constraints, blob columns, nullable fields where intended, all 6 foreign keys with correct `ON DELETE cascade` / `set null` behavior, named indexes `idx_audit_user_time`, `idx_connections_user`, and `idx_shares_user_active`, plus implicit `users_email_unique`. Also confirmed Drizzle emitted `idx_audit_user_time ON audit_log (user_id, \"created_at\" DESC)` correctly, preserving DESC ordering from the raw SQL expression, and inserted `--> statement-breakpoint` separators required by D1/wrangler. Acceptance met: config generates stable D1-compatible SQL and aligns migration output with `wrangler.toml`.\n</info added on 2026-05-20T13:16:58.107Z>",
+            "status": "done",
+            "testStrategy": "Run the configured Drizzle generation command and confirm it reads the config successfully and writes SQL files into migrations/.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T13:16:58.125Z"
+          },
+          {
+            "id": 5,
+            "title": "Add migration generation and apply scripts, then validate migrations locally",
+            "description": "Wire package.json scripts for SQL generation and D1 migration execution for both local and production environments, and include migration validation coverage.",
+            "dependencies": [
+              4
+            ],
+            "details": "Add db:gen, db:migrate:local, and db:migrate:prod scripts in package.json. Use wrangler d1 migrations apply DB --local for local execution and the corresponding production command for live environments. Fold migration validation into this step by running generated migrations against a local or in-memory SQLite test setup, such as a Vitest better-sqlite3 migration test, to verify tables and indexes are created and basic user insert/read works.\n<info added on 2026-05-20T13:27:00.717Z>\nImplementation completed for this subtask.\n\npackage.json scripts added:\n- db:gen: drizzle-kit generate\n- db:migrate:local: wrangler d1 migrations apply DB --local\n- db:migrate:prod: wrangler d1 migrations apply DB --remote\n- test: vitest run\n- test:watch: vitest\n- test:coverage: vitest run --coverage\n\nAlso added pnpm.onlyBuiltDependencies in package.json to allow build scripts for better-sqlite3, esbuild, and workerd, which is required under pnpm v10 for native module compilation.\n\nAdded vitest.config.ts with:\n- node test environment\n- include pattern tests/unit/**/*.test.ts\n- v8 coverage provider\n- @/* alias aligned with tsconfig\n\nAdded migration validation test at tests/unit/db/migration.test.ts. The test suite:\n- reads drizzle/migrations/*.sql\n- splits SQL on --> statement-breakpoint\n- applies each statement to a fresh in-memory better-sqlite3 database with PRAGMA foreign_keys = ON\n\nCoverage implemented in 6 passing tests:\n- verifies all 5 expected tables exist: audit_log, connections, sessions, shares, users\n- verifies all 4 required indexes exist: idx_connections_user, idx_shares_user_active, idx_audit_user_time, users_email_unique\n- verifies FK delete actions match spec via pragma_foreign_key_list: 4 CASCADE and 2 SET NULL\n- verifies users insert/select round-trip including nullable externalId\n- verifies UNIQUE constraint on users.email rejects duplicates\n- verifies deleting a user cascades to connections and sessions\n\nValidation results:\n- pnpm test: 6/6 passing\n- pnpm db:gen rerun is idempotent: no schema changes, nothing to migrate\n- pnpm db:migrate:local successfully applied the generated migration to local D1 under .wrangler/state/v3/d1/\n- pnpm typecheck, pnpm lint, and pnpm format:check all pass\n\nAlso added drizzle/migrations to .prettierignore so generated SQL and snapshots are not reformatted.\n\nImplementation note for environment setup: better-sqlite3 required native compilation support. In this container that was resolved by installing build-essential and python3, then rebuilding better-sqlite3 after approving its build script via pnpm.onlyBuiltDependencies. CI images running this test should include build tools or use a Node image that already has them.\n</info added on 2026-05-20T13:27:00.717Z>",
+            "status": "done",
+            "testStrategy": "Execute pnpm db:gen, then pnpm db:migrate:local successfully; run a Vitest migration test that asserts all expected tables/indexes exist and a users row can be inserted and queried.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T13:27:00.732Z"
+          },
+          {
+            "id": 6,
+            "title": "Implement the D1 Drizzle client factory in lib/db/client.ts",
+            "description": "Create the shared database client factory that binds the Cloudflare D1 database from Env to the exported Drizzle schema.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Implement lib/db/client.ts with export function getDb(env: Env) { return drizzle(env.DB, { schema }); }. Import the generated schema namespace, use the D1-compatible drizzle adapter, and keep the function simple so API routes and server modules can reuse it consistently.\n<info added on 2026-05-20T13:29:28.143Z>\nImplementation notes (2026-05-20):\n\n`lib/db/client.ts` written per PRD spec:\n- `import \"server-only\"` at the top to prevent accidental Client Component imports. `server-only@0.0.1` added as a devDependency since Next.js enforces this via the RSC compiler split.\n- `interface DbEnv { DB: D1Database }` used as the minimal env contract. Full Pages/Workers env composition stays at the route layer; `getDb` only depends on the D1 binding.\n- `export type Db = ReturnType<typeof drizzle<typeof schema>>` added so downstream code has a single named database type for annotations.\n- `export function getDb(env: DbEnv): Db { return drizzle(env.DB, { schema }); }` implemented exactly per PRD §6.\n- Re-exports `schema` so callers can import both from `@/lib/db/client`.\n\nIncluded a usage docstring showing the canonical edge-route pattern with `getRequestContext()` from `@cloudflare/next-on-pages`:\n`const db = getDb(getRequestContext().env as unknown as DbEnv);`\n\nThe temporary `as unknown as DbEnv` cast is required because `getRequestContext().env` is currently typed as the full `CloudflareEnv` placeholder. Once a concrete generated or hand-written Env type is added in a later subtask, this cast can be removed.\n\nValidation:\n- `pnpm typecheck` passes cleanly\n- `pnpm lint`, `pnpm format:check`, and `pnpm test` all pass\n- Existing migration test still passes after the schema re-export change\n\nDownstream notes:\n- Drizzle D1 clients are cheap wrappers over the request-scoped binding and should not be memoized at module scope.\n- For API routes in later tasks, use `const db = getDb(getRequestContext().env);` inside each handler once env typing is in place.\n- The `server-only` marker intentionally fails if `@/lib/db/client` is imported from a Client Component.\n\nAcceptance met: subtask 3.6 completed with PRD-specified `getDb(env)` factory, working types, and server-only guard in place.\n\nParent task 3 wrap-up: all six subtasks complete. Schema, indexes, migrations, scripts, tests, and shared D1 client factory are ready for tasks 4–10.\n</info added on 2026-05-20T13:29:28.143Z>",
+            "status": "done",
+            "testStrategy": "Type-check imports and instantiate getDb in a small smoke test or server module to verify Env.DB is accepted and schema-aware queries compile.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T13:29:28.158Z"
+          }
+        ],
+        "updatedAt": "2026-05-20T13:29:28.158Z"
+      },
+      {
+        "id": "4",
+        "title": "AES-GCM 凭证加解密模块（Web Crypto）",
+        "description": "实现 lib/crypto/aes-gcm.ts：基于 Web Crypto subtle，AES-GCM-256，每行随机 12 字节 IV，AAD 用 connection.id；导出 encryptCredential / decryptCredential，主密钥从 env ENCRYPTION_KEY (base64, 32 字节) 加载。",
+        "status": "pending",
+        "dependencies": [
+          "2"
+        ],
+        "priority": "high",
+        "details": "1) 文件首行 `import 'server-only'`；2) `async function importKey(rawBase64: string): Promise<CryptoKey>` 用 `crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt','decrypt'])`，缓存在模块级 WeakMap；3) `async function encryptCredential(plaintext: string, aad: string, env): Promise<{iv: Uint8Array, ciphertext: Uint8Array}>`：随机 IV via `crypto.getRandomValues(new Uint8Array(12))`，调用 `subtle.encrypt({ name: 'AES-GCM', iv, additionalData: te.encode(aad) }, key, te.encode(plaintext))`；4) `async function decryptCredential(ciphertext, iv, aad, env): Promise<string>`：tag 校验失败必须抛 `CryptoIntegrityError`（自定义类）；5) 不做密钥派生，主密钥直接来自 env；6) 校验 env ENCRYPTION_KEY 启动时长度 = 32 字节，否则抛错；7) 不写明文凭证到任何日志。",
+        "testStrategy": "Vitest 单测：round-trip（加密+解密相等）；不同 IV 对同一 plaintext 产出不同 ciphertext；篡改 1 字节 ciphertext 必抛 CryptoIntegrityError；篡改 AAD 必抛错；plaintext 含 unicode/空字符串均正确。",
+        "subtasks": []
+      },
+      {
+        "id": "5",
+        "title": "Auth.js v5 自托管认证（edge + PBKDF2）",
+        "description": "实现登录/登出/会话校验。PBKDF2-SHA256 600k 迭代（OWASP 推荐），自写最小 D1 adapter；不做注册页（单用户应用，通过 seed 脚本加 admin）。",
+        "status": "pending",
+        "dependencies": [
+          "3"
+        ],
+        "priority": "high",
+        "details": "1) `pnpm add next-auth@beta @auth/core`；2) lib/auth/password.ts：`hashPassword(plain): Promise<string>` 用 subtle PBKDF2-SHA256 600000 iter + 16 字节随机 salt，输出 `pbkdf2$sha256$600000$<salt-b64>$<hash-b64>`；`verifyPassword(plain, stored): Promise<boolean>` 解析后比较（用恒定时间比较）；3) lib/auth/adapter.ts：100 行内自写 D1 adapter，实现 getUser、createSession、getSessionAndUser、deleteSession，sessions.token_hash 存 sha256(token)，不存原始 token；4) lib/auth/config.ts：CredentialsProvider，session strategy = 'database'，cookie sameSite='lax' secure；5) app/(auth)/login/page.tsx + form action POST /api/auth/[...nextauth]；6) scripts/seed-admin.ts：CLI 读取 ADMIN_EMAIL/ADMIN_PASSWORD env，hash 后插入 users + 写 .dev.vars 记录；7) middleware.ts 拦截 /(dashboard) 路径未登录跳 /login。",
+        "testStrategy": "Vitest：hashPassword/verifyPassword round-trip 通过、错误密码返回 false、salt 不重复；E2E（Playwright）：访问 /buckets 重定向到 /login；输入错误密码报错；正确密码登录后跳 /buckets；登出后 cookie 失效。",
+        "subtasks": []
+      },
+      {
+        "id": "6",
+        "title": "CSRF 保护 + 输入验证中间件",
+        "description": "为所有 POST/PATCH/DELETE 路由强制 X-CSRF-Token 校验；CSRF token 登录时随 session 下发，存 cookie + meta；统一 Zod 输入验证；统一错误响应格式。",
+        "status": "pending",
+        "dependencies": [
+          "5"
+        ],
+        "priority": "high",
+        "details": "1) lib/auth/csrf.ts：登录成功时生成 32 字节随机 token，sha256(token) 与 session_id 绑定存 D1（或加列到 sessions），同时下发 httpOnly=false 的 `csrf` cookie；2) 客户端从 cookie 读后放 X-CSRF-Token header；3) lib/api/middleware.ts：`requireSession(req)` 返回 user 或 401；`requireCsrf(req, session)` 比对 hash 一致；`withApi(handler)` 高阶函数把这两步组合 + try/catch 统一错误响应；4) 统一错误：`{ error: { code, message, requestId } }`，错误码字符串集中在 lib/api/errors.ts；5) lib/api/schemas.ts 集中所有 Zod schema（z.infer 复用类型）；6) 在每个 route handler 第一行 `const input = Schema.parse(await req.json())`；7) requestId 用 crypto.randomUUID()，落审计日志。",
+        "testStrategy": "Vitest 单测：POST 不带 X-CSRF-Token 返回 401；token 错误返回 401；Zod 校验失败返回 400 + code='validation.invalid'；所有错误响应都含 requestId 字段。",
+        "subtasks": []
+      },
+      {
+        "id": "7",
+        "title": "D1 滑动窗口限流器",
+        "description": "实现基于 D1 的 sliding window 限流，覆盖 /api/auth/login (10/5min/IP)、/api/r2/presign (60/min/user)、/api/share/create (30/min/user)、写操作总和 (600/min/user)。429 响应必须含 Retry-After。",
+        "status": "pending",
+        "dependencies": [
+          "3",
+          "6"
+        ],
+        "priority": "medium",
+        "details": "1) 新表 rate_limit_buckets(key TEXT PK, count INTEGER, window_start INTEGER)；2) lib/api/rate-limit.ts：`async function checkLimit(key: string, limit: number, windowMs: number): Promise<{ok: boolean, retryAfter?: number}>` 用单条 SQL UPSERT 原子自增 count；window 过期则 reset；3) key 格式：`login:ip:${ip}`、`presign:user:${userId}`、`share-create:user:${userId}`、`write:user:${userId}`；4) middleware.ts 内置 limit 配置 map；5) 超限返回 `{ error: { code: 'rate_limit.exceeded', ... } }` + status 429 + header `Retry-After: <seconds>`；6) 定期清理过期 bucket（写一条 D1 cron 或 lazy 删除）。",
+        "testStrategy": "Vitest：连续调用 checkLimit 直到达上限返回 ok=false；超过窗口后 reset；并发调用（Promise.all 100 次）count 准确无丢失（原子 UPSERT 保证）。",
+        "subtasks": []
+      },
+      {
+        "id": "8",
+        "title": "审计日志写入模块",
+        "description": "lib/audit/log.ts 提供 `logAudit({userId, connectionId?, op, bucket?, key?, status, errorMsg?, req})`，从 req 自动提取 IP 和 UA；写失败不阻塞主流程（nofail）。",
+        "status": "pending",
+        "dependencies": [
+          "3"
+        ],
+        "priority": "medium",
+        "details": "1) 文件 `import 'server-only'`；2) `op` 类型联合：'connection.create' | 'connection.delete' | 'object.delete' | 'upload.create' | 'upload.complete' | 'upload.abort' | 'presign.put' | 'presign.get' | 'share.create' | 'share.delete' | 'security.decrypt_failed' | 'auth.login' | 'auth.logout'；3) IP 提取：req.headers.get('cf-connecting-ip') 优先，否则 'x-forwarded-for' 首项；4) UA：req.headers.get('user-agent')；5) try/catch DB insert，失败 console.error 但不抛；6) 不记 size/class/bytes（V2 用 CF Analytics）。",
+        "testStrategy": "Vitest：成功路径插入一行，字段完整；DB 故障时函数返回 undefined 不抛；op 枚举类型强制（TS 编译时校验）。",
+        "subtasks": []
+      },
+      {
+        "id": "9",
+        "title": "R2 S3 客户端工厂 + 预签名 helper",
+        "description": "lib/r2/client.ts 给定明文凭证返回配置好的 S3Client（region='auto'、endpoint=https://<account>.r2.cloudflarestorage.com）；lib/r2/presign.ts 封装 presignPut / presignGet；lib/r2/control.ts 封装服务端调用（list/delete/multipart create/complete/abort）。",
+        "status": "pending",
+        "dependencies": [
+          "4"
+        ],
+        "priority": "high",
+        "details": "1) lib/r2/client.ts：`function makeS3Client({accountId, accessKeyId, secretAccessKey}): S3Client`，region='auto'，endpoint=`https://${accountId}.r2.cloudflarestorage.com`，forcePathStyle=true；返回的 client 不缓存；2) lib/r2/presign.ts：只导入 @aws-sdk/s3-request-presigner 的 getSignedUrl + 命令；`presignPut({client, bucket, key, ttl, contentType?})`、`presignGet({client, bucket, key, ttl})`、`presignUploadPart({client, bucket, key, uploadId, partNumber, ttl})`；3) lib/r2/control.ts：listObjects（v2 with ContinuationToken）、deleteObjects（DeleteObjectsCommand 批量，最多 1000 keys/批）、createMultipartUpload、completeMultipartUpload（接收 [{partNumber, etag}]）、abortMultipartUpload、listBuckets；4) 只 import 用到的 Command（保持 bundle 小）；5) 错误映射：InvalidAccessKeyId / SignatureDoesNotMatch -> throw new R2CredentialError；其他 -> R2UpstreamError 保留原 code 作为子字段。",
+        "testStrategy": "Vitest：mock S3Client，验证 region='auto' 和 endpoint 格式；presignPut 返回 URL 含 X-Amz-Signature；deleteObjects 切批正确（>1000 keys 自动分多请求）；R2 报 InvalidAccessKeyId 时抛 R2CredentialError。",
+        "subtasks": []
+      },
+      {
+        "id": "10",
+        "title": "Connection（R2 凭证）CRUD API",
+        "description": "实现 GET/POST/PATCH/DELETE /api/connections。POST 加密落库；GET 返回 masked 值；PATCH 仅允许改 name；DELETE 校验无关联 share 后删除。所有写操作走 CSRF + 限流 + 审计。",
+        "status": "pending",
+        "dependencies": [
+          "4",
+          "6",
+          "7",
+          "8"
+        ],
+        "priority": "high",
+        "details": "1) app/api/connections/route.ts (GET, POST) 和 app/api/connections/[id]/route.ts (PATCH, DELETE)；2) 全部 `export const runtime = 'edge'`；3) POST schema：{ name: z.string().min(1).max(64), accountId: z.string().regex(/^[a-f0-9]{32}$/), accessKeyId: z.string().min(20), secretAccessKey: z.string().min(40) }；4) POST 流程：验证 -> 测试 R2（listBuckets 一次确认凭证有效）-> 失败返 'connection.invalid_credentials'（不回显 key）-> encryptCredential(accessKeyId, id) + encryptCredential(secretAccessKey, id) -> mask = accessKeyId.slice(0,4) + '****' + accessKeyId.slice(-4) -> INSERT；5) GET 返回 [{id, name, accountId, accessKeyMasked, createdAt, lastUsedAt}]，不含任何加密字段；6) PATCH 只改 name；7) DELETE 前 SELECT COUNT(*) FROM shares WHERE connection_id 看是否有未过期 share；有则提示先删 share（或 cascade，看产品决策——默认拒绝）；8) 每步写 audit_log。",
+        "testStrategy": "Vitest：POST 凭证无效返 connection.invalid_credentials，响应无 access key 任何片段；GET 不返回 ciphertext/iv；解密失败时 GET 不应直接挂（不解密就够）；E2E：登录后添加 connection 成功，列表显示 masked。",
+        "subtasks": []
+      },
+      {
+        "id": "11",
+        "title": "Connection 管理 UI",
+        "description": "app/(dashboard)/settings/connections 页面：列表、添加（含'测试连接'）、改名、删除（typed 确认）。使用 shadcn Table + Dialog + Form。",
+        "status": "pending",
+        "dependencies": [
+          "10"
+        ],
+        "priority": "high",
+        "details": "1) hooks/use-connections.ts：useConnections() / useCreateConnection() / useUpdateConnection() / useDeleteConnection() (TanStack Query)，query key ['connections']；2) ConnectionsTable 组件：列 Name / Account ID / Access Key (masked) / Last Used / Actions；3) AddConnectionDialog：表单含 Name/AccountID/AccessKeyID/SecretAccessKey，提交时显示 loading，失败 toast 错误 message；4) RenameConnectionDialog：仅 name 输入；5) DeleteConnectionDialog：要求输入 connection name 才能确认；6) 切换 connection 用 Zustand store activeConnectionId（持久化到 localStorage，非凭证）。",
+        "testStrategy": "Playwright E2E：登录 -> 进 Settings -> Add Connection 用有效/无效凭证 -> 验证列表更新；改名生效；删除前必须输入正确名字才高亮 Delete 按钮。",
+        "subtasks": []
+      },
+      {
+        "id": "12",
+        "title": "桶列表 API + UI（只读）",
+        "description": "GET /api/r2/buckets?cid= 服务端解密凭证调 listBuckets；UI 在 dashboard 顶部下拉/侧边显示当前 connection 下的桶。",
+        "status": "pending",
+        "dependencies": [
+          "9",
+          "10",
+          "11"
+        ],
+        "priority": "high",
+        "details": "1) app/api/r2/buckets/route.ts (GET)，runtime=edge，input { cid }；2) decryptCredential -> makeS3Client -> listBuckets -> 返回 [{name, createdAt}]；3) 更新 connection.last_used_at；4) 错误：connection.not_found / connection.invalid_credentials；5) UI：hooks/use-buckets.ts，BucketSwitcher 组件（shadcn Select），切换后 zustand activeBucket 更新；6) 桶列表也接 TanStack Query，cache 5 分钟；7) V1 不做桶创建/删除（CF 控制台代劳，UI 加提示链接）。",
+        "testStrategy": "Vitest：mock listBuckets 返回桶；E2E：选 connection -> 桶下拉显示真实 R2 桶；切换 connection 桶列表刷新。",
+        "subtasks": []
+      },
+      {
+        "id": "13",
+        "title": "对象列表 API（游标分页）",
+        "description": "GET /api/r2/list?cid=&bucket=&prefix=&cursor= 服务端 list，返回 { objects: [{key, size, etag, lastModified}], prefixes: [], nextCursor }。基于 R2 ContinuationToken。",
+        "status": "pending",
+        "dependencies": [
+          "9",
+          "12"
+        ],
+        "priority": "high",
+        "details": "1) app/api/r2/list/route.ts (GET)；2) input { cid, bucket, prefix?: string='', cursor?: string }；3) S3 ListObjectsV2 with Prefix + Delimiter='/' 模拟文件夹；4) 返回 objects（Contents 转换）+ prefixes（CommonPrefixes）+ nextCursor（NextContinuationToken）；5) 单次 MaxKeys=200；6) 不缓存（TanStack Query 前端缓）；7) 错误映射统一。",
+        "testStrategy": "Vitest：mock ListObjectsV2 返回 Contents + CommonPrefixes，校验响应结构；空 bucket 返回 objects=[], prefixes=[], nextCursor=null；分页：第二次请求带 cursor 调用 SDK 时 ContinuationToken 正确传递。",
+        "subtasks": []
+      },
+      {
+        "id": "14",
+        "title": "对象浏览器 UI（表格 + 面包屑 + 游标分页）",
+        "description": "/dashboard/[bucket]/[...prefix] 路由：面包屑 + 文件夹/对象表格 + Load More 按钮 + 多选 checkbox。",
+        "status": "pending",
+        "dependencies": [
+          "13"
+        ],
+        "priority": "high",
+        "details": "1) app/(dashboard)/buckets/[bucket]/page.tsx 用 searchParams 读 prefix 和 cursor，catch-all 也可；2) hooks/use-objects.ts：useInfiniteQuery，queryKey ['objects', bucket, prefix]，getNextPageParam: lastPage.nextCursor；3) Breadcrumb 组件：解析 prefix 'a/b/c/' -> [a, b, c]，每段点击跳到对应 prefix；4) ObjectTable 组件：列 Checkbox / Name (folder icon for prefix, file icon for object) / Size / Modified / Actions (Download/Share/Preview/Delete)；5) 文件夹点击 push 到子 prefix；6) Load More 按钮触发 fetchNextPage；7) Zustand selectedKeys（Set<string>）跨页保留多选状态，但切换 prefix 清空。",
+        "testStrategy": "Playwright E2E：进入 bucket 显示根 prefix 列表；点 folder 进入子 prefix，URL 和面包屑更新；浏览器后退面包屑恢复；多选 checkbox 显示批量删除按钮。",
+        "subtasks": []
+      },
+      {
+        "id": "15",
+        "title": "/api/r2/presign 端点",
+        "description": "POST /api/r2/presign，输入 { cid, op: 'put'|'get'|'upload-part', bucket, key, ttl?, uploadId?, partNumber? }；服务端解密 -> 生成 presigned URL；ttl 默认 put=15min, get=15min；写一条 audit_log (presign.put/get)。",
+        "status": "pending",
+        "dependencies": [
+          "9",
+          "7",
+          "8"
+        ],
+        "priority": "high",
+        "details": "1) app/api/r2/presign/route.ts；2) Zod discriminated union by op；3) put -> presignPut(ttl=900)，get -> presignGet(ttl=900)，upload-part -> presignUploadPart(ttl=900)；4) 限流：60/min/user（rate-limit.ts）；5) 返回 { url, expiresAt: Date.now() + ttl*1000 }；6) audit_log.op = `presign.${op==='get'?'get':'put'}`（part 也算 put 类）；7) ttl 上限 7200 (2 小时) 防滥用；8) URL 不入库（避免泄漏）。",
+        "testStrategy": "Vitest：3 种 op 各返回合法 presigned URL；ttl 超 7200 返 400；触发限流第 61 次返 429 + Retry-After；audit_log 写入一行。",
+        "subtasks": []
+      },
+      {
+        "id": "16",
+        "title": "Multipart 控制面端点（create / complete / abort）",
+        "description": "POST /api/r2/multipart/create、/complete、/abort。这是 Security Invariant #3 的合法服务端调用（只交换元数据，不传字节）。complete 接 parts 列表；abort 用于取消。",
+        "status": "pending",
+        "dependencies": [
+          "9",
+          "6",
+          "7",
+          "8"
+        ],
+        "priority": "high",
+        "details": "1) create：input { cid, bucket, key, contentType? }，调 createMultipartUpload，返回 { uploadId }；audit op='upload.create'；2) complete：input { cid, bucket, key, uploadId, parts: [{partNumber:number, etag:string}] }，parts.sort by partNumber，调 completeMultipartUpload，返回 { etag, location }；audit op='upload.complete'；3) abort：input { cid, bucket, key, uploadId }，调 abortMultipartUpload，204；audit op='upload.abort'；4) 限流归 'write' 类（600/min/user）；5) CSRF 必须。",
+        "testStrategy": "Vitest mock S3：create 返回 uploadId；complete 校验 parts 顺序；abort 调用 SDK 一次；input 校验 parts 至少 1 项；E2E：上传 200MB 文件能成功 create -> upload-part(presigned) -> complete。",
+        "subtasks": []
+      },
+      {
+        "id": "17",
+        "title": "Upload Queue store + dispatcher（3×3 并发）",
+        "description": "Zustand store 管理上传任务的内存状态机；dispatcher 协程：3 个文件并发，每文件 3 个 part 并发；不持久化（关页面=丢失）；取消即 abort。",
+        "status": "pending",
+        "dependencies": [
+          "15",
+          "16"
+        ],
+        "priority": "high",
+        "details": "1) stores/upload-queue.ts：task = { id, file, bucket, key, status: 'queued'|'preparing'|'uploading'|'completing'|'done'|'failed'|'canceled', uploadId?, parts: Map<number,{etag?, status}>, progress: {bytesUploaded, totalBytes} }；2) actions: enqueue, cancel, retry, removeDone；3) dispatcher：useEffect 在 layout 启动一个 worker loop，挑 status='queued' 的最早 3 个开跑；4) 单文件 flow：if size < 100MB -> presign put -> fetch PUT；else create multipart -> 切片 10MB part -> 每 part presign upload-part + fetch PUT，3 个并发 -> complete-multipart；5) ETag 从 response header 取（注意 R2 用 ETag header，可能带引号）；6) cancel: AbortController + 调 /api/r2/multipart/abort；7) Progress 用 XMLHttpRequest 而非 fetch（fetch 无上传进度）或用 ReadableStream 上传 + 计算字节数。",
+        "testStrategy": "Vitest：单文件 < 100MB 走单 PUT 路径；> 100MB 走 multipart 路径，part 数 = ceil(size/10MB)；并发数测试：5 个文件入队同时只有 3 个进入 uploading；cancel 后 status='canceled' 且调了 abort 端点；E2E：拖 300MB 假文件成功上传到 R2。",
+        "subtasks": []
+      },
+      {
+        "id": "18",
+        "title": "Upload UI（拖拽 + 进度 + 取消）",
+        "description": "Dropzone 组件接收拖拽文件入队；底部 fixed Upload Tray 显示进度条/暂停（V1 不做，灰显）/取消/重试；新任务 toast 提示。",
+        "status": "pending",
+        "dependencies": [
+          "17",
+          "14"
+        ],
+        "priority": "high",
+        "details": "1) components/features/upload/Dropzone.tsx：监听 dragover/drop，多文件支持，文件大小校验（单文件 < 5GB R2 限制）；2) UploadTray 固定底部，列表项展示文件名/进度条(shadcn Progress)/速率/剩余时间/Cancel 按钮；3) 任务完成后 5 秒自动从列表移除（done 状态 fade out）；4) 失败显示 Retry 按钮；5) 关闭页面前若有 in-flight 任务 window.onbeforeunload 提示；6) Tray 折叠/展开切换。",
+        "testStrategy": "Playwright：拖一个小文件成功上传，进度条到 100%；拖一个大文件中途点 Cancel，UI 状态变 'Canceled' 且后端 abort 被调；同时拖 5 个文件，Tray 显示 3 个 uploading + 2 个 queued。",
+        "subtasks": []
+      },
+      {
+        "id": "19",
+        "title": "单文件下载（presigned GET）",
+        "description": "对象表格 Download 按钮：调 /api/r2/presign op='get' ttl=900 -> 浏览器 window.location 或 a[download] 触发原生下载。",
+        "status": "pending",
+        "dependencies": [
+          "15",
+          "14"
+        ],
+        "priority": "high",
+        "details": "1) hooks/use-download.ts：useMutation 调 presign 拿 URL；2) 触发：创建临时 <a href={url} download={filename}> 调 click() 后 remove；3) 大文件浏览器原生下载管理；4) 失败 toast；5) 不做断点续下载（V1）。",
+        "testStrategy": "Playwright：点 Download 按钮 -> 浏览器开始下载 -> 文件内容 SHA256 与上传一致。",
+        "subtasks": []
+      },
+      {
+        "id": "20",
+        "title": "删除 API（HMAC confirm token）+ 删除 UI（typed 确认）",
+        "description": "POST /api/r2/delete/prepare 返 confirmToken (HMAC, 5min)；POST /api/r2/delete 校验 token 后批量 delete；UI 弹窗要求输入 bucket 名才能确认。",
+        "status": "pending",
+        "dependencies": [
+          "9",
+          "6",
+          "8",
+          "14"
+        ],
+        "priority": "high",
+        "details": "1) /api/r2/delete/prepare：input { cid, bucket, keys[] }, 计算 keysHash = sha256(sort(keys).join('\\n')), token = base64url(HMAC-SHA256(SERVER_SECRET, `${userId}|${bucket}|${keysHash}|${exp}`)) + '.' + exp(unix s)，返回 { confirmToken, expiresAt }；2) /api/r2/delete：input { cid, bucket, keys[], confirmToken }，重算 hash 比对 + 校验 exp 未过期 + HMAC 相等 -> 调 deleteObjects -> 返回 { deleted, errors }；不递归（V1）；3) UI: DeleteDialog 展示 keys 列表（最多 20，超过显示 \"...及 N 个其他\"）+ input 要求 type exact bucket name + 提交按钮 disabled 直到 type 正确 -> 先 prepare 再 confirm；4) audit op='object.delete' 每个 key 一行（或一行带 count）。",
+        "testStrategy": "Vitest：token 过期返 400；token 篡改返 400；keys 顺序不影响 hash（sort）；E2E：选 3 个对象删除，弹窗输入桶名 -> 删除成功 -> 列表刷新；不输或输错桶名按钮 disabled。",
+        "subtasks": []
+      },
+      {
+        "id": "21",
+        "title": "分享链接 API + UI（1h/1d/7d）",
+        "description": "POST /api/share/create 生成 presigned GET + 入库 shares 表；GET /api/share 列表分页（按 expires_at 过滤未过期）；DELETE /api/share/:id 仅删记录（协议层不能撤）。",
+        "status": "pending",
+        "dependencies": [
+          "9",
+          "15",
+          "7",
+          "8"
+        ],
+        "priority": "high",
+        "details": "1) create：input { cid, bucket, key, ttlSeconds: z.union([z.literal(3600), z.literal(86400), z.literal(604800)]) }，调 presignGet(ttl)，url_hash = sha256(url)，INSERT shares -> 返回 { id, url, expiresAt }；audit op='share.create'；限流 30/min/user；2) list：GET ?cursor=，WHERE user_id=? AND expires_at > now() ORDER BY created_at DESC LIMIT 50 + cursor 分页；返回 { items: [{id, bucket, key, expiresAt, ttlSeconds, createdAt}], nextCursor }（不返回 url）；3) delete：DELETE 行（URL 实际仍可用直到 expires_at，UI 明示）；audit op='share.delete'；4) UI：对象行 Share 按钮 -> Dialog 选 1h/1d/7d -> 生成 -> 显示 URL + Copy 按钮 + 过期倒计时；5) /(dashboard)/shares 页面列表已生成的分享，可删除记录但 UI 警示 'URL 实际仍可用直到过期时间'。",
+        "testStrategy": "Vitest：ttlSeconds 不在 3 个值内返 400；create 后 GET list 看到记录；过期记录不再返回；E2E：生成分享，复制 URL，匿名浏览器访问 URL 能下载文件；超过 ttl 后访问 R2 返 403。",
+        "subtasks": []
+      },
+      {
+        "id": "22",
+        "title": "预览：图片 + 文本（前 1MB 流式）",
+        "description": "对象行 Preview 按钮 -> Dialog；图片直接 <img src={presignedUrl}>；文本类对象 fetch presigned URL Range: bytes=0-1048575 取首 MB，UTF-8 decode 显示。",
+        "status": "pending",
+        "dependencies": [
+          "15",
+          "14"
+        ],
+        "priority": "medium",
+        "details": "1) 判定 mime：根据 key 后缀（.png/.jpg/.gif/.webp/.svg -> image；.txt/.json/.md/.log/.csv/.xml/.yaml -> text；其他 -> 'Preview not available'）；2) PreviewDialog 内部调 useQuery 拿 presigned GET URL（ttl 5min）；3) image: <img src={url} alt={key} className='max-h-[80vh] object-contain'>；4) text: fetch(url, { headers: { Range: 'bytes=0-1048575' } }) -> response.text() -> <pre> 显示，超过 1MB 顶部 Banner 'Showing first 1 MB of N MB'；5) 不做语法高亮（V2）；6) 大图（>10MB）loading skeleton。",
+        "testStrategy": "Vitest：mime 判定函数单测覆盖所有后缀；E2E：上传 1 张 png + 1 个 .txt，分别点 Preview 显示正确；上传 1 个 .zip 显示 'Preview not available'；上传 5MB 文本只显示前 1MB + banner。",
+        "subtasks": []
+      },
+      {
+        "id": "23",
+        "title": "审计日志查看器",
+        "description": "GET /api/audit ?cursor=&op=&bucket= 列表分页；UI /(dashboard)/audit 页表格展示。",
+        "status": "pending",
+        "dependencies": [
+          "8",
+          "6"
+        ],
+        "priority": "medium",
+        "details": "1) /api/audit/route.ts (GET)：WHERE user_id=? AND (op=? optional) AND (bucket=? optional) ORDER BY created_at DESC LIMIT 100 + cursor (用 created_at + id 复合 cursor)；2) UI: AuditTable 列 Time / Op (badge) / Bucket / Key / Status / IP；3) Op 下拉筛选（含所有枚举）；Bucket 输入框筛选；4) 不做导出（V1）。",
+        "testStrategy": "Vitest：分页 cursor 正确；筛选 op='object.delete' 只返回对应行；E2E：执行一次删除后审计页能看到该记录。",
+        "subtasks": []
+      },
+      {
+        "id": "24",
+        "title": "Vitest 单元测试套件",
+        "description": "覆盖 crypto/auth/r2/api/audit/rate-limit 核心模块，目标 80%+ 行覆盖；route handler 用 mock D1 + mock S3 测。",
+        "status": "pending",
+        "dependencies": [
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9",
+          "10",
+          "15",
+          "16",
+          "20",
+          "21"
+        ],
+        "priority": "high",
+        "details": "1) vitest.config.ts：environment='node'（edge runtime 用 miniflare 适配器更佳，可装 @cloudflare/vitest-pool-workers）；2) 用 better-sqlite3 in-memory 跑 drizzle 迁移作为 D1 替身；3) S3Client 用 aws-sdk-client-mock 包；4) tests/unit/crypto/aes-gcm.test.ts、auth/password.test.ts、api/csrf.test.ts、api/rate-limit.test.ts、r2/presign.test.ts、r2/control.test.ts、api/connections.test.ts、api/presign.test.ts、api/delete.test.ts；5) coverage 通过 v8 provider；6) CI 时 typecheck + lint + test 串行。",
+        "testStrategy": "`pnpm test` 通过；`pnpm test --coverage` 行覆盖 ≥80%（crypto 和 api 模块 ≥95%）。",
+        "subtasks": []
+      },
+      {
+        "id": "25",
+        "title": "Playwright E2E 关键流 + 部署/CORS 文档",
+        "description": "Playwright 覆盖：登录、添加 connection、浏览桶、上传（小/大）、下载、删除（typed 确认）、生成分享。CLAUDE.md 补 Security Invariant #3 豁免脚注；README 加 R2 CORS 配置示例 + multipart lifecycle 提示。",
+        "status": "pending",
+        "dependencies": [
+          "11",
+          "14",
+          "18",
+          "19",
+          "20",
+          "21"
+        ],
+        "priority": "high",
+        "details": "1) playwright.config.ts：webServer 跑 `pnpm preview`（wrangler 本地 D1）；baseURL=http://localhost:8788；2) tests/e2e/login.spec.ts、connections.spec.ts、browse-upload-download.spec.ts、delete.spec.ts、share.spec.ts；3) fixtures：登录态可复用 storageState；4) 用真实 R2 测试桶（CI 用一个专用 throwaway 桶，凭证存 GH Secrets）或 minio 本地 S3 兼容服务；5) 文档：docs/r2-cors.md 给出标准 CORS JSON（AllowedOrigins=[NEXT_PUBLIC_APP_URL], AllowedMethods=[GET, PUT], AllowedHeaders=[*], MaxAgeSeconds=3600）；6) docs/multipart-cleanup.md 推荐 R2 lifecycle rule 'AbortIncompleteMultipartUpload after 7 days'；7) CLAUDE.md Security Invariant #3 加脚注：'Exception: control-plane R2 calls (list, delete, create/complete/abort multipart upload) MAY be made server-side as they only exchange metadata, not object bytes.'；8) 部署 runbook：env 配置（ENCRYPTION_KEY=`openssl rand -base64 32`）、首次 admin seed 步骤、D1 migration 应用、wrangler pages deploy。",
+        "testStrategy": "`pnpm test:e2e` 全部通过；本地 `pnpm preview` 能完整走通 login -> upload 100MB 文件 -> 删除 -> 分享；wrangler pages deploy --dry-run 通过；CLAUDE.md 修改后 grep 验证脚注存在；README 含 CORS 示例。",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "version": "1.0.0",
+      "lastModified": "2026-05-20T13:29:28.158Z",
+      "taskCount": 25,
+      "completedCount": 3,
+      "tags": [
+        "master"
+      ]
+    }
+  }
+}

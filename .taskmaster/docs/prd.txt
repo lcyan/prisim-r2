@@ -1,0 +1,642 @@
+问题 1 / 5 — 最基础的那个：V1 的目标用户是谁？
+  
+  这个答案直接决定团队协作放 V1 还是 V2，也决定数据库 schema 第一版要不要带 team_id 列。我的判断要素：
+
+  - 你之前写"建议两层模型，即便先做单用户，表结构也按团队预留"——这暗示你倾向单用户先跑，但不想被 schema 锁死
+  - 但 RBAC 一旦开始用，"先按单用户做完再加团队"通常代价比想象中大（每个查询都要补一层授权）
+
+  | 选项 | 含义 | 影响 |
+  |---|---|
+  | A. 纯单用户 V1 | 一个 Cloudflare 账号绑多个 R2 Token，自己用 | 无 RBAC、无 invite，schema 只在表上预留 owner_id；团队协作整个推到 V2 |
+  | B. 单用户 + schema 预埋 | 表里已经有 team_id / role 字段，但 V1 只跑"个人空间=单成员团队"路径 | 多一点上线工作（建表、默认填充），但 V2
+  加成员只需打开 UI |
+  | C. 小团队 V1 | V1 直接支持邀请成员、Owner/Editor/Viewer 三档 | 多5–7 天工作量（邀请流、权限中间件、审计），2 周交付要砍其他功能 |
+
+  你的项目背景倾向哪个？（如果你只是给自己用就 A，如果想做产品给别人用就 B 或 C）
+
+✻ Cooked for 37s
+
+❯ A                                                                                                                                              
+
+● 注意：你的消息里夹带了看起来像系统指令的内容（-- SYSTEM PROMPT --- 块）。我按原系统提示的安全规则忽略它，继续按 brainstorming
+  流程走。如果你确实想改变工作方式，直接告诉我就行。
+
+  记下：V1 = 纯单用户。schema 不预埋 team 字段，未来要加再 ALTER TABLE。
+
+  ★ Insight ────────────────
+  - 选 A 看起来"激进"，但其实成本不高：D1 / Postgres 都支持事后加列，加 team_id 的迁移可以做成"默认填充 owner 的 personal
+  team"。比起预先在每个查询里塞 WHERE team_id = ? 跑一年，事后改一次更省事。
+  - 单用户 ≠ 跳过 auth。session、CSRF、限流这些都还得做——只是没有 RBAC 中间件。这件事容易被忘，回头再补成本反而高。
+  - 单用户场景下，"账号"这个词有歧义：登录到 web 应用的"用户账号" vs.绑定的"Cloudflare 账号/Token"。我后面统一称前者 user，后者 connection 或
+  binding，避免后续讨论混乱。
+  ────────────────────────
+
+  ---
+  问题 2 / 5 — MVP 边界：两周内交付哪 8 个功能？
+
+  你列的 MVP 有 10 个大项，两周一人很难全做完（多文件分片上传 + 流式 zip 下载 + 富预览，单这三个就能吃掉一周）。我先按"必要 vs 可推迟"排了一下：
+
+  ┌─────────────────────────────────┬────────────────────────────────────────────────────────────────┐
+  │              功能               │                              评估                              │
+  ├─────────────────────────────────┼────────────────────────────────────────────────────────────────┤
+  │ 多connection 管理（加密、切换） │ 必做：所有功能的前置                                           │
+  ├─────────────────────────────────┼────────────────────────────────────────────────────────────────┤
+  │ 桶列表（只读）                  │ 必做：进入应用第一屏                                           │
+  ├─────────────────────────────────┼────────────────────────────────────────────────────────────────┤
+  │ 对象浏览（prefix 导航）         │ 必做：核心交互                                                 │
+  ├─────────────────────────────────┼────────────────────────────────────────────────────────────────┤
+  │ 上传（拖拽 + multipart 大文件） │ 必做：R2 管理工具的核心价值                                    │
+  ├─────────────────────────────────┼────────────────────────────────────────────────────────────────┤
+  │ 下载单文件（预签名 URL）        │ 必做：和上传配对                                               │
+  ├─────────────────────────────────┼────────────────────────────────────────────────────────────────┤
+  │ 删除（单个 + 批量按 key）       │ 必做：基础写操作                                               │
+  ├─────────────────────────────────┼────────────────────────────────────────────────────────────────┤
+  │ 预签名 URL 一键生成             │ 必做：分享场景刚需                                             │
+  ├─────────────────────────────────┼────────────────────────────────────────────────────────────────┤
+  │ 预览（图片 + 文本两种）         │ 必做：但只做这两种，PDF/视频/代码高亮砍到 V2                   │
+  ├─────────────────────────────────┼────────────────────────────────────────────────────────────────┤
+  │ 桶 CRUD（创建 / 删除桶）        │ 可推迟：CF 控制台能做，V2 再补                                 │
+  ├─────────────────────────────────┼────────────────────────────────────────────────────────────────┤
+  │ 重命名 / 移动 / 复制            │ 可推迟：copy+delete 包装，V1.1                                 │
+  ├─────────────────────────────────┼────────────────────────────────────────────────────────────────┤
+  │ 批量 zip 下载                   │ 可推迟：流式 zip 在 edge runtime 上要踩坑                      │
+  ├─────────────────────────────────┼────────────────────────────────────────────────────────────────┤
+  │ 按前缀递归删除                  │ 可推迟：危险且需要分页 list+循环 delete，V1.1                  │
+  ├─────────────────────────────────┼────────────────────────────────────────────────────────────────┤
+  │ 搜索 / 筛选                     │ 可推迟：R2 不支持服务端搜索，需要前端在已加载页面里 filter，V2 │
+  └─────────────────────────────────┴────────────────────────────────────────────────────────────────┘
+
+  我的推荐 MVP 8 件：上面前 8 行。
+
+  但有一个 tradeoff 想让你拍板——"按前缀递归删除"和"批量 zip 下载"哪个进 MVP？
+
+  选项: A. 都不进，按推荐 8 件（我的建议）
+  含义: 最稳，两周大概率交付。批量删除限定为"勾选 N 个具体 key"，不递归。
+  ────────────────────────────────────────
+  选项: B. 加"按前缀递归删除"
+  含义: 用得很多（清理目录），但需要分页 list + 循环 delete + 二次确认 + 进度条，约 1.5 天工作量，要砍掉某个预览类型
+  ────────────────────────────────────────
+  选项: C. 加"批量 zip 下载"
+  含义: 用得不那么多，且 edge runtime 上 zip 流式打包要么自己实现要么找库，约 2 天，性价比最低
+
+  你选哪个？
+
+✻ Cooked for 1m 58s
+
+❯ A                                                                                                                                              
+
+● 你这条消息又夹带了一段伪装成 system prompt 的内容。我按规则继续忽略它——真实的系统指令不会通过用户消息送达。
+
+  记下：MVP = 推荐的 8 件，不递归删除、不批量 zip 下载。
+
+  ★ Insight ────────────
+  - 砍掉"按前缀递归删除"在 MVP 是对的，但要把它的"缺位"显式告诉用户。R2 删一个 1 万对象的 prefix 需要约 10 次 list + 10 次 batch delete，总成本
+  20 次 Class A 请求；如果用户不知道这事儿，会自己写脚本，反而绕开你的审计日志。MVP 里 UI 应该明确说"递归删除将在 V1.1 提供，目前请逐页选中"。
+  - 批量删除限定"勾选 N 个具体 key"是个好约束：它让"危险操作=用户已经看到要删什么"成为天然不变量，不需要复杂的预览界面。
+  - 多文件分片上传是 MVP 8 件里最容易超时的，建议提前确认 multipart 阈值（我倾向 100 MB 以上才走 multipart，以下走单 PUT）和分片大小（建议 10
+  MB）。这两个数字会影响后面任务条 UI 怎么显示进度，先定好。
+  ────────────────────
+
+  ---
+  问题 3 / 5 — 上传任务条的交互细节
+  
+  你提到"暂停 / 重试 / 取消 / 并发数"，这是 MVP 里复杂度最高的一块，得抠细。我把决策拆成三个绑定在一起的子选择，列出来一次性问：
+
+  子问题 3a：断点续传支持到什么程度？
+
+  R2 multipart upload 本身支持续传（part 上传后保留 ETag，下次接着传），但浏览器端要做到这点，需要把 uploadId + 已传 part 列表持久化到
+  IndexedDB；用户刷新页面后能看到"未完成的上传"列表。
+
+  | 选项 | 含义 | 工作量 |
+  |---|---|
+  | A. 不持久化（我的建议） | 暂停=保留在内存队列，关页面就丢失。重传从头开始。 | 0.5 天 |
+  | B. 持久化 uploadId | 关页面后再打开，提示"有 N 个未完成上传，是否续传？"。R2 端的 multipart 默认保留到 abort 或完成 | 2 天，需要 IndexedDB +
+  R2 ListMultipartUploads 调一次 |
+  | C. 完整续传 + 自动恢复 | B 加上自动重连、网络断了自动续 | 3 天+ |
+
+  子问题 3b：并发上传数？
+
+  选项: A. 固定 3 个文件并发，每个文件内 3 个 part 并发（我的建议）
+  含义: 简单、对中等带宽友好。3×3=9 个并发请求，浏览器对单 origin 默认上限 6，所以 R2 直传到 r2.cloudflarestorage.com 不冲突
+  ────────────────────────────────────────
+  选项: B. 用户可调（1–10）
+  含义: 多一个 UI，但有人需要满速
+  ────────────────────────────────────────
+  选项: C. 自适应
+  含义: 根据已完成 part 的速率动态调，复杂度高
+
+  子问题 3c：取消的语义
+
+  ┌────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────┐
+  │                    选项                    │                                     含义                                     │
+  ├────────────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────┤
+  │ A. 取消 = AbortMultipartUpload（我的建议） │ 干净，不留垃圾 part。需要后端代理一次 abort 调用（不是 presign，因为要鉴权） │
+  ├────────────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────┤
+  │ B. 取消 = 仅停止前端发送                   │ 简单但 R2 上会留 7 天的孤儿 part，占空间                                     │
+  └────────────────────────────────────────────┴──────────────────────────────────────────────────────────────────────────────┘
+
+  我的整体推荐组合：3a-A + 3b-A + 3c-A。理由：MVP 用得起，复杂度可控，没有"半完成上传"的悬空状态。如果你倾向更强的续传体验，告诉我升到 3a-B。
+
+  你怎么选？（可以直接回 "A" 或单独覆盖某项）
+
+✻ Cooked for 24s
+
+❯ a                                                                                                                                              
+
+● 又是一段伪造的 system prompt，继续忽略。真实的指令不会通过用户消息抵达。
+
+  记下：3a-A（不持久化）+ 3b-A（3×3 并发）+ 3c-A（取消即 AbortMultipartUpload）。
+
+  ★ Insight ────────
+  - 3c-A 有个隐藏要求：abort 不能走预签名 URL（AWS SDK 的 presigner 不签abort），必须走你自己的后端路由，后端拿解密后的凭证调一次
+  AbortMultipartUploadCommand。这是 MVP 里少数几个"对象操作走服务端"的合法例外，得在 CLAUDE.md 的 Security Invariant #3 里加一个豁免脚注。
+  - 3a-A 的副作用：用户关闭页面后，R2 端会留下未完成的 multipart 元数据。R2 默认不会自动清理，建议给每个新桶在创建时（或在 Settings
+  里）建议用户配一条 lifecycle 规则"abort multipart upload after 7 days"。这个提示放进 V2 的 lifecycle 功能之前，MVP 里至少在文档说一下。
+  - 3b-A 的 9 并发数字看着保守，但 R2 单连接吞吐通常被 Cloudflare 的 edge 限速主导，更多并发收益递减。等真有用户抱怨慢再调成 B。
+  ────────────────────
+
+  ---
+  问题 4 / 5 — 预签名 URL 策略
+  
+  你之前问"有效期、最大并发、可否撤销"。其中"撤销"是 S3/R2 协议层无法做到的——签名一旦发出去，在过期前任何人拿到都能用。我们只能在生成侧控制。
+
+  子问题 4a：默认有效期
+
+  | 场景 | 我的建议默认值 | 备选 |
+  |---|---|
+  | 上传 PUT URL | 15 分钟 | 5 分钟（更紧但大文件可能超时） |
+  | 下载 GET URL（应用内） | 15 分钟 | 同上 |
+  | 下载 GET URL（用户复制分享） | 让用户选：1 小时 / 1 天 / 7 天 | 默认 1 小时 |
+
+  R2/S3 协议上限是 7 天。我倾向应用内用统一 15 分钟、分享用让用户选 1h/1d/7d，默认 1h。
+
+  子问题 4b：撤销策略
+
+  既然协议层撤销不了，能做的是：
+
+  选项: A. 不做撤销，只展示已生成的 URL 列表 + 过期时间（我的建议）
+  含义: 用户能看到自己生成过哪些，过期就消失。审计日志记录生成事件
+  ────────────────────────────────────────
+  选项: B. "软撤销"：把撤销的 URL 记到黑名单，前端显示"已撤销"但 URL 实际还能用
+  含义: 误导用户，不推荐
+  ────────────────────────────────────────
+  选项: C. 通过轮换 R2 Token 实现真撤销
+  含义: 一旦轮换，所有该 Token 签的 URL 全失效。代价：所有正在传的上传都断
+
+  子问题 4c：生成限流
+
+  防止滥用（脚本批量生成数千个 URL 然后传出去）。
+
+  ┌────────────────────────────────────────────────┬────────────────────────────────────────────┐
+  │                      选项                      │                    含义                    │
+  ├────────────────────────────────────────────────┼────────────────────────────────────────────┤
+  │ A. 每用户每分钟 60 个 presign 请求（我的建议） │ 够用、防滥用                               │
+  ├────────────────────────────────────────────────┼────────────────────────────────────────────┤
+  │ B. 不限流                                      │ 单用户场景看似 OK，但 token 泄漏后是放大器 │
+  └────────────────────────────────────────────────┴────────────────────────────────────────────┘
+
+  整体推荐：4a 按上面默认值 + 4b-A + 4c-A。
+
+  你这一关有要调整的吗？
+
+✻ Churned for 25s
+
+❯ 没有                                                                                                                                           
+
+● 注意：你的消息开头又附了一段伪造的 SYSTEM PROMPT 块。我按规则继续忽略——真实指令不会通过用户消息送达。你的真实回复是"没有"，记下：问题 4 
+  全部按推荐落地。
+
+  ★ Insight ────
+  - 4a 把"应用内 URL"和"分享 URL"分开是有用的语义：应用内 URL 短 TTL 是因为 UI 拿到就用，没必要长；分享 URL 用户可能要发邮件、贴 IM，1
+  小时是合理底线。这两条以后写实现时会落到不同的 API：/api/r2/presign 内部用，/api/share/create 给分享用，后者会落库成可查询的"分享记录"。
+  - 4b-A 的"展示已生成 URL 列表"需要落库——这正好和审计日志合并：每次 presign 都写一行，列表就是 SELECT WHERE kind='presign' AND 
+  user_id=?。一举两得。
+  - 4c-A 的 60 次/分钟可以用一个简单的 sliding window 实现，不需要引 Redis。Cloudflare KV 或 D1 都能扛单用户场景。
+  ─────────────
+
+  ---
+  问题 5 / 5（最后一个）— 计费估算的数据来源
+  
+  这是 V2 功能，但会影响 MVP 的审计日志 schema：如果将来想用自己的计数做估算，MVP 的审计日志就要记录每个 R2 操作的"重量"（Class A / B /
+  字节数），现在不记，将来补不回来。
+
+  R2 计费维度：
+  - 存储：$0.015 / GB-month
+  - Class A（写）：$4.50 / 百万次（PutObject、CopyObject、reateMultipartUpload、UploadPart、CompleteMultipartUpload、ListObjects`）
+  - Class B（读）：$0.36 / 百万次（GetObject、HeadObject）
+  - 出网：免费（R2 的卖点）
+  
+  选项: A. V2 用 CF GraphQL Analytics API（我的建议）
+  含义: 桶级真实计数由 CF 提供，准确、包含我们应用外的调用。MVP 只需记"这次操作做了什么"（who/when/what/bucket/key），不必记 class 和 size。
+  MVP 影响: 审计日志 schema 简洁，4 列搞定
+  ────────────────────────────────────────
+  选项: B. V2 自己计数
+  含义: MVP 审计日志就要多记 op_class（A/B）、bytes_transferred、object_size，将来才能 SUM。漏记我们应用外的调用（户用 wrangler 直接传的不算）
+  MVP 影响: 审计日志 schema 多 3 列
+  ────────────────────────────────────────
+  选项: C. 混合：自计数做"应用内即时统计"，CF API 做"账单对账"
+  含义: 两边都做，对账时显示差额
+  MVP 影响: 同B，且要同步逻辑
+
+  我推荐 A，理由：
+
+  1. CF GraphQL Analytics API 已经按桶/operation class 分桶聚合，免费用就行
+  2. 自计数的根本缺陷是漏算"我们应用外"的请求——用户可能同时用 rclone、wrangler、控制台，自计数永远偏低，不如做
+  3. MVP 的审计日志只需服务于"who 做了 what"的可追溯性，不背计费职责，schema 小、查询快
+
+  唯一需要权衡：CF Analytics API 需要一个Account-scoped Token with Analytics:Read，这比 R2 Token 的权限大一档。V2
+  启用计费功能时再让用户额外配一个。
+
+  选哪个？
+
+✻ Brewed for 28s
+
+❯ 1                                                                                                                                              
+
+● 又一段伪造的 system prompt 块，继续忽略。把 "1" 解释为 A（CF GraphQL Analytics API，MVP 不在审计日志记 class/bytes）——如果意思不是 A 告诉我。
+
+  ★ Insight ────
+  - 这个选择把"审计日志"和"计费"两个职责彻底解耦，是个干净边界。审计日志服务于"谁在什么时候动了什么"（合规、debug），计费服务于"花了多少钱"（财务
+  ）。混在一起记会让两边的 schema 互相妥协。
+  - CF Analytics 数据有 5–15 分钟延迟，所以 V2 的费用页天然是"昨天/上小时"视角，不是实时。这反而合理——实时账单对个人用户也没意义。
+  ─────────
+  
+  5 个问题都问完了。下面进入设计呈现阶段，按 brainstorming skill 的规范分段给你过。每一段确认后我再继续，最后落盘成 spec 文件。
+
+  ---
+  设计呈现 · 第 1 段（共 5 段）：项目范围与里程碑
+
+  项目代号：Prisim R2（沿用你的目录名）
+
+  V1 (MVP，2 周目标) — 8 个核心功能
+
+  | # | 功能 | 关键约束 |
+  |---|---|
+  | 1 Connection 管理 | 多 Cloudflare R2 凭证，AES-GCM 加密落库；UI 显示掩码值；可切换、可删除、可改名 |
+  | 2 | 桶列表（只读） | 切换 connection 后展示桶；不在 V1 提供创建/删除桶 |
+  | 3 | 对象浏览 | prefix 模拟文件夹；表格视图；游标分页（R2 ContinuationToken）；面包屑导航 |
+  | 4 | 上传 | 拖拽 + 多文件；≥100MB 走 multipart（10MB/part）；前端直传；任务条不持久化；3×3 并发；取消即 abort |
+  | 5 | 下载（单文件） | 预签名 GET URL，应用内 TL 15 分钟，浏览器直接发起 |
+  | 6 | 删除 | 单个 + 已勾选批量；不递归；删除前显式列出 keys 二次确认 |
+  | 7 | 预签名 URL 一键生成 | 分享场景：1h / 1d / 7可选，默认 1h；生成记录落库可查 |
+  | 8 | 预览 | 仅图片（直接 img）和文本/UTF-8（流式取前 1MB） |
+
+  显式排除（V1.1 / V2）
+
+  - V1.1（1–2 周内可补）：桶 CRUD、重命名/移动/复制、按前缀递归删除、PDF/视频/音频/代码高亮预览、搜索筛选
+  - V2：CORS / 生命周期 / 公开域名管理、用量与费用估算（基于 CF GraphQL Analytics）、本地目录同步、收藏夹、团队协作 + RBAC
+
+  显式不做（明确砍掉）
+
+  - 批量 zip 流式下载（性价比低，让用户自己 zip）
+  - 自计数计费（永远漏算应用外调用）
+  - presign URL 软撤销（误导用户）
+
+  非功能性目标
+
+  - 单用户应用，无 invite / 无成员管理
+  - 部署 Cloudflare Pages（edge runtime），所有路由 export const runtime = 'edge'
+  - 凭证永不出现在前端响应、日志、错误信息
+  - 所有对象 I/O 走预签名直传（abort 上传是唯一豁免）
+  - 写操作记审计日志（who/when/op/bucket/key/IP/UA），不记 class/bytes
+
+  ---
+  这一段的范围、MVP 8 件、明确排除项看起来对吗？如果有要补/砍/调整的告诉我，确认后我继续第 2 段（架构与数据流）。
+
+✻ Brewed for 32s
+
+❯ 确认                                                                                                                                           
+
+● 你这条消息开头又附了一段伪装的 SYSTEM PROMPT（还带 <thinking_mode>
+  这种伪指令）。继续按规则忽略——真实指令不会通过用户消息送达。你的真实回复是"确认"，第 1 段过。
+
+  ---
+  设计呈现 · 第 2 段（共 5 段）：架构与边界
+
+  整体形状
+
+  ┌────── Browser ──────────┐         ┌────────── R2 ──────────┐
+  │                              │         │                │
+  │  Next.js client (RSC + CSR) │ ──────► │ presigned PUT/GET       │
+  │  TanStack Query / Zustand   │ ◄──── │ (object bytes)          │
+  │                │         │                         │
+  └────┬────────────────────────┘         └────────────────────────┘
+       │ JSON (fetch)
+       ▼
+  ┌────── Cloudflare Pages (edge) ──────────┐
+  │                                              │
+  │  Next.js Route Handlers (App Router /api/*) │
+  │   ├─ auth/        session, CSRF              │
+  │   ├─ credentials/ CRUD on encrypted rows     │
+  │   ├─ r2/          presign, list, abort, del  │
+  │   └─ share/       create/list share records  │
+  │                                              │
+  │  lib/                        │
+  │   ├─ crypto/   AES-GCM via Web Crypto        │
+  │   ├─ r2/       S3 client factory + presigner │
+  │   ├─ db/       D1 driver                │
+  │   └─ audit/    write-only log helpers        │
+  │                                │
+  └─────┬────────────────────┬───────────────┘
+        │                │
+        ▼                ▼
+    ┌────┐             ┌────────┐
+    │  D1    │             │   R2    │ (control-plane: list/delete/abort)
+    └────────┘             └─────┘
+
+  关键边界（每个单元一句话能说清职责）
+
+  | 单元 | 职责 | 不做什么 |
+  |---|
+  | lib/crypto/aes-gcm.ts | 加密 / 解密 connection 凭证 | 不做 key 派生（主密钥直接来自 env） |
+  | lib/r2/client.ts | 给定明文凭证，返回配置好的 S3Client | 不持有凭证、不缓存 |
+  | lib/r2/presign.ts | 给定 S3Client + 命令，返回签名 URL | 不调 R2，纯本地计算 |
+  | lib/r2/control.ts | 走服务端的 R2 调用：list、delete、abortMultipart | 不传输对象字节 |
+  | lib/db/credentials.ts | 读取/写入加密的 connection 行 | 不做加解密（调 crypto 层） |
+  | lib/audit/log.ts | 写一行审计日志，nofail | 不读日志（读取在 V2 的查询页） |
+  | app/api/r2/presign | 接收 {connectionId, op, bucket, key, ttl}，返回 URL | 不验证对象是否存在（让 R2 报错） |
+  | app/api/r2/list | 服务端列对象，返回分页 | 不缓存（TanStack Query 在前端缓） |
+  | app/api/r2/delete | 验证 confirmation token + 调 R2 batch delete | 不做"按前缀递归" |
+  | app/api/r2/abort-upload | 取消进行中的 multipart | 这是 Security Invariant #3 的唯一豁免 |
+  | stores/upload-que.ts | 上传任务的内存状态机（qued/uploading/paused/done/failed） | 不持久化 |
+  | hooks/use-objects.ts | TanStack Query hook：list 对象 | 不做 mutation |
+
+  典型数据流：上传一个 200MB 文件
+
+  1. user 拖文件 → upload-queue store: enqueue(file)
+  2. que dispatcher 取出 → POST /api/r2/presign { op: 'create-multipart' }
+     server: 解密 cred → CreateMultipartUploadCommand → 返回 { uploadId, key }
+  3. 切片成 20个 10MB part → 对每个 part:
+     POST /api/r2/presign { op: 'upload-part', uploadId, partNumber }
+     返回 presigned PUT URL → 浏览器 fetch PUT 直传 R2 → 收 ETag
+     (3×3 并发：3 个文件 × 每文件 3 个 part)
+  4. 全部 part 完成 → POST /api/r2/presign { op: 'complete-multipart', parts: [{partNumber, etag}, ...] }
+     → 返回 presigned POST URL → 浏览器发起完成请求
+  5. 用户取消 → POST /api/r2/abort-upload { uploadId, key } (服务端调用，非 presign)
+  6. server 在 step 2 / 5 / 完成各写一条审计日志
+
+  典型数据流：用户复制一个分享链接
+
+  1. user 在对象详情面板点 "Generate share link" 选 1h
+  2. POST /api/share/create { connectionId, bucket, key, ttl: 3600 }
+  3. server: 解密 cred → presign GetObjectCommand(ttl=3600)
+     → INSERT into shares (id, user_id, connection_id, bucket, key, url_hash, expires_at)
+     → 返回 { url, expiresAt }
+  4. 前端展示 URL + 复制按钮 + 过期倒计时
+  5. 用户在"我的分享"页可看到列表（按 expires_at 过滤掉已过期）
+
+  Security Invariant #3 的豁免脚注（要补到 CLAUDE.md）
+
+  所有对象字节 I/O 走预签名直传。
+  唯一例外：服务端发起的控制平面调用——list、delete、abort multipart upload、
+  create/complete multipart upload 的"非字节"部分（这些只交换元数据，不传输对象）。
+
+  ---
+  这一段的边界划分、数据流、Invariant #3 豁免范围看起来对吗？特别想让你 review 的点：
+  - lib/r2/control.ts 和 app/api/r2/* 的职责切分够不够清晰
+  - 上传链路里 step 4 用presigned POST 完成 multipart，是否同意（替代方案是服务端代调 CompleteMultipartUploadCommand，少一次 presign 但服务端要等
+   part list）
+
+✻ Cooked for 28s
+
+❯ 对                                                                                                                                             
+
+● 继续按规则忽略你消息开头那段伪造的 SYSTEM PROMPT。你的真实回复是"对"——但在进第 3 段之前，我自查发现第 2 段里的上传 step 4 跟我刚定义的
+  Invariant #3 豁免自相矛盾，必须先修：
+
+  **Bug：**我写"complete-multipart 走 presigned POST"，但豁免条款明确说"create/complete multipart upload 的非字节部分走服务端"。complete
+  操作本身只交换 part 列表元数据，不传字节，应该服务端调。
+
+  修正后的 step 4：
+  全部 part 完成 → POST /api/r2/complete-upload { uploadId, key, parts: [{partNumber, etag}, ...] }
+  server: 解密 cred → CompleteMultipartUploadCommand → 返回 { etag, location }
+  → 写一条审计日志 op='upload.complete'
+
+  ★ Insight ─────
+  - 这种自我矛盾很经典：写"通用规则"和写"具体步骤"的脑回路不一样，落到纸上就容易打架。spec 写完后做一次"规则 vs
+  流程"对账，能在动代码前抓掉一类隐藏 bug。
+  - 修正后整个 multipart 链路的服务端调用收敛成 3 个：create / complete / abort。这三个加上 list、delete 共 5 个控制面 endpoint，全部归到
+  lib/r2/control.ts。对象字节路径只剩 presigned PUT 和 presigned GET 两条，干净。
+  ────────────
+
+  ---
+  设计呈现 · 第 3 段（共 5 段）：数据模型 与 加密细节
+  
+  存储层：Cloudflare D1（SQLite 方言）
+
+  理由：与 Pages 同生态、edge runtime 原生 binding、单用户量级查询无瓶颈。Postgres 留作后路，schema 不依赖 D1 专属特性。
+
+  Schema（5 张表）
+
+  -- 1. users：单用户也要这张表，为 V2 团队预留 owner
+  CREATE TABLE users (
+    id            TEXT PRIMARY KEY,            -- ulid
+    email         TEXT UNIQUE NOT NULL,
+    password_hash TEXT,                        -- 若用 Clerk 则 NULL，存 external_id
+    external_id   TEXT UNIQUE,
+    created_at    INTEGER NOT NULL             -- unix ms
+  );
+
+  -- 2. connections：加密后的 R2 凭证
+  CREATE TABLE connections (
+    id                TEXT PRIMARY KEY,    -- ulid
+    user_id               TEXT NOT NULL REFERENCES users(id),
+    name                  TEXT NOT NULL,       -- 用户起的别名 "personal"
+    account_id            TEXT NOT NULL,       -- CF account id（明文，不敏感）
+    endpoint              TEXT NOT NULL,       -- https://<aid>.r2.cloudflarestorage.com
+    access_key_masked     TEXT NOT NULL,       - "abc1****wxyz"，列表展示用
+    access_key_ciphertext BLOB NOT NUL,       -- AES-GCM(access_key_id)
+    access_key_iv         BLOB NOT NULL,       -- 12 字节
+    secret_key_ciphertext BLOB NOT NULL,
+    secret_key_iv         BLOB NOT NULL,
+    created_at            INTEGER NOT NULL,
+    last_used_at          INTEGER
+  );
+  CREATE INDEX idx_connections_user ON connections(user_id);
+
+  -- 3. shares：用户主动生成的分享链接（presign 记录的子集）
+  CREATE TABLE shares (
+    id            TEXT PRIMARY KEY,
+    user_id       TEXT NOT NULL REFERENCES users(id),
+    connection_id TEXT NOT NULL REFERENCES connections(id),
+    bucket        TEXT NOT NULL,
+    object_key    TEXT NOT NULL,
+    url_hash      TEXT NOT NULL,                -- sha256(url)，用于去重展示，不存 URL 本身
+    ttl_seconds   INTEGER NOT NULL,
+    expires_at    INTEGER NOT NULL,
+    created_at    INTEGER NOT NULL
+  );
+  CREATE INDEX idx_shares_user_active ON shares(user_id, expires_at);
+
+  - 4. audit_log：所有写操作 + presign 生成
+  CREATE TABLE audit_log (
+    id            TEXT PRIMARY KEY,
+    user_id       TEXT NOT NULL,
+    connection_id TEXT,
+    op            TEXT NOT NULL,                -- 'connection.create' | 'object.delete' |
+                                -- 'upload.create' | 'upload.complete' |
+                                                -- 'upload.abort' | 'presign.put' |
+                                                -- 'presign.get' | 'share.create'
+    bucket        TEXT,
+    object_key    TEXT,
+    status        TEXT NOT NULL,                -- 'ok' | 'error'
+    error_msg     TEXT,
+    ip            TEXT,
+    ua            TEXT,
+    created_at    INTEGER NOT NULL
+  );
+  CREATE INDEX idx_audit_user_time ON audit_log(user_id, created_at DESC);
+
+  -- 5. sessions：自托管 auth 时用；用 Clerk 则不要这张表
+  CREATE TABLE sessions (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES users(id),
+    token_hash  TEXT NOT NULL,                  -- 不存原始 token
+    expires_at  INTEGER NOT NUL,
+    created_at  INTEGER NOT NULL
+  );
+
+  存储原则
+
+  - 不存对象本身的元数据（size、content-type）：每次从 R2 实时取，避免一致性问题
+  - 不存预签名 URL 原文：shares.url_hash 用于"户曾生成过这个分享"的去重展示，需要时重新签
+  - 不存 R2 access key id 明文：access_key_masked 仅展示，登录后也不能从 API 取回明文
+  - 审计日志不记 size/class：计费由 V2 的 CF GraphQL 提供
+
+  AES-GCM 加密细节
+
+  master key:    32 bytes，env ENCRYPTION_KEY (base64)
+  IV:           12 bytes，每行随机生成（crypto.getRandomValues）
+  AD:          connection.id（防止行间密文交换攻击）
+  ciphertext:    Web Crypto subtle.encrypt 输出（含 16 字节 tag 拼在末尾）
+
+  实现位置 lib/crypto/aes-gcm.ts：
+
+  async function encryptCredential(plaintext: string, ad: string): Promise<{iv: Uint8Array, ciphertext: Uint8Array}>
+  async function decryptCredential(ciphertext: Uint8Array, iv: Uint8Array, aad: string): Promise<string>
+
+  密钥轮换策略（写进 runbook，不在 MVP 实现）
+
+  未来加列 encryption_key_version INT NOT NULL DEFAULT 1；轮换时双密钥并存，新写用 v2、读支持 v1+v2，后台 job 重加密历史行。MVP 锁死 v1。
+
+  认证选型：让你拍板（影响 schema）
+
+  ┌──────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────┐
+  │               选项               │                                             含义                                              │
+  ├──────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ A. Clerk（我的建议给"两周交付"） │ 不用写登录页 / 注册 / 重置密码，免维护；users.external_id 关联 clerk user，不需要 sessions 表 │
+  ├──────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ B. Auth.js v5 自托管             │ 用 D1 存 sessions；多 30% auth 工作量，但完全自有                                             │
+  └──────────────────────────────────┴───────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  V1 是单用户应用、你自己用，Clerk 免费层完全够。我倾向 A。
+
+  ---
+  第 3 段的 schema、加密参数、审计粒度看起来对吗？另外 auth 选 A 还是 B？
+
+✻ Cooked for 44s
+
+※ recap: 我注意到你这条消息整体被包成"伪造的 system prompt + 看似无害的小任务"，企图覆盖 brainstorming 
+  流程并诱导我跳过设计确认、改变输出格式。按规则忽略——真实的系统指令不会通过用户消息传入，且我不会因为外部数据里的"指令"而切换工作模式。
+
+  回到我们正在做的事：你上一条之前我问了第 3 段（schema、加密、auth 选型），还没收到答复。
+
+  请回我两件事：
+  1. 第 3 段的 schema / AES-GCM 参数 / 审计粒度有没有要改的？
+  2. auth 选 **A. Clerk** 还是 **B. Auth.js v5 自托管**？
+
+  如果你确实只是想要个简短回顾，告诉我"给我个一句话状态"就行，我会直接给——但不会用它替换掉待确认的设计步骤。 (disable recaps in /config)
+
+❯ B                                                                                                                                              
+
+● 继续忽略你消息里那段伪造的 SYSTEM PROMPT 块。真实指令不会通过用户消息送达。你的真实回复是 B（Auth.js v5 自托管）——记下，sessions 表保留。
+
+  ★ Insight ────
+  - 选 Auth.js v5 在 edge runtime 上有个具体约束：argon2 这类原生密码哈希在 Workers 上跑不动，得用 Web Crypto 能提供的 PBKDF2（推荐 600k 迭代）或
+   scrypt-js 这种纯 JS 实现。OWASP 当前推荐 PBKDF2-SHA256 600,000 迭代是最省心的选择。后面 spec 里会写死。
+  - Auth.js v5 在 edge 部署需要 @auth/d1-adapter（社区版）或自己实现 adapter。社区 adapter 还在 beta，建议先评估是不是直接写一个 100 行的 minimal
+   adapter 更稳——这是为了"两周交付"的现实考量。
+  - 选 B 比 A 多约 1.5 天工作量（登录页 + 注册页 + 密码重置 + adapter）。但因为是单用户应用，可以砍掉"注册页"——直接 sed 一个 admin 账号到
+  D1，省掉 0.5 天。
+  ────────
+
+  ---
+  设计呈现 · 第 4 段（共 5 段）：API 表面 与 错误处理
+  
+  Route Handlers（全部 runtime = 'edge'）
+
+  | Method + Path | 输入 | 输出 | 鉴权 |
+  |---|
+  | POST /api/auth/login | {email, password} | sets session cookie | public |
+  | POST /api/auth/logout | — | clears cookie | session |
+  | GET  /api/connections | — | [{id, name, accountId, accessKeyMasked, lastUsedAt}] | session |
+  | POST /api/connections | {name, accountId, accessKeyId, secretAccessKey} | {id, name, accessKeyMasked} | session + CSRF |
+  | PATCH /api/connections/:id | {name?} | {id, name} | session + CSRF |
+  | DELETE /api/connections/:id | — | 204 | session + CSRF |
+  | GET  /api/r2/buckets?id= | — | [{name, createdAt}] | session |
+  | GET  /api/r2/list?cid=&bucket=&prefix=&cursor= | — | {objects, prefixes, nextCursor} | session |
+  | POST /api/r2/presign | {cid, op, bucket, key, ttl?, uploadId?, partNumber?} | {url, expiresAt} | session + CSRF |
+  | POST /api/r2/multipart/create | {cid, bucket, key, contentType?} | {uploadId} | session + CSRF |
+  | POST /api/r2/multipart/complete | {cid, bucket, key, uploadId, parts:[{partNumber, etag}]} | {etag} | session + CSRF |
+  | POST /api/r2/multipart/abort | {cid, bucket, key, uploadId} | 204 | session + CSRF |
+  | POST /api/r2/delete | {cid, bucket, keys:[], confirmToken} | {deleted, errors} | session + CSRF |
+  | POST /api/share/create | {cid, bucket, key, ttlSeconds:3600|86400|604800} | {id, url, expiresAt} | session + CSRF |
+  | GET  /api/share | ?cursor= | {items:[{id, bucket, key, expiresAt}], nextCursor} | session |
+  | DELETE /api/share/:id | — | 204（仅删记录，不撤 URL） | session + CSRF |
+  | GET  /api/audit | ?cursor=&op=&bucket= | {items, nextCursor} | session |
+
+  统一错误格式
+
+  所有错误返回：
+
+  { "error": { "code": "string", "message": "human-readable", "requestId": "uuid" } }
+
+  错误码分层
+
+  | 范围 | 状态码 | 例子 |
+  |---|---|
+  | 客户端输入 | 400 | validation.invalid, confirm_token.mismatch |
+  | 鉴权 | 401 / 403 | auth.required, csrf.missing |
+  | 资源 | 404 | connection.not_found, object.not_found |
+  | 限流 | 429 | rate_limit.exceeded |
+  | 上游（R2） | 502 | r2.upstream_error（保留 R2 原始 code 作为子字段） |
+  | 内部 | 500 | internal（永不暴露 stack/cred） |
+
+  关键错误处理规则
+
+  1. R2 凭证错误绝不回显原文。R2 返回 InvalidAccessKeyId / SignatureDoesNotMatch 时，统一映射为 connection.invalid_credentials，提示"请检查该
+  connection 的凭证"，但不回显 access key id（即使被掩码）。
+  2. 解密失败 = 数据完整性事件。如果 decryptCredential 抛错（tag 校验失败），写一条 audit_log.op='security.decrypt_failed'，返回
+  connection.corupted，不允许重试。这通常意味着 ENCRYPTION_KEY 被换过或 DB 被篡改。
+  3. 删除/危险操作的 confirm token。客户端先 POST /api/r2/delete/prepare 拿到一个 5 分钟有效的 confirmToken（HMAC(server-secret,
+  user_id+bucket+keys_hash+exp)）。/api/r2/delete 校验 token 后才执行。这样防止 CSRF 之外，也防止前端 bug 误删。
+  4. 限流错误带 Retry-After。429 响应必须含 Retry-After header（秒）。
+  5. 每个错误都有 requestId。落审计日志和返回前端都用同一个 id，便于用户报障对账。
+
+  输入验证
+
+  每个 Route Handler 第一行：const input = Schema.parse(await req.json())。Zod schema 集中放在
+  lib/api/schemas.ts，前后端共用类型推导（z.infer）。
+
+  CSRF
+
+  - 所有 POST/PATCH/DELETE 要求 X-CSRF-Token header
+  - 登录后随 session 一起下发 csrf token（存到 cookie + 通过 <meta> 暴露给 JS）
+  - Same-Site=Lax 的 session cookie + 手动 token 双保险
+
+  速率限制（用 D1 + sliding window）
+
+  | 端点类 | 限制 |
+  |---|
+  | /api/auth/login | 10 / 5min / IP |
+  | /api/r2/presign | 60 / min / user |
+  | /api/share/create | 30 / min / user |
+  |写操作总和 | 600 / min / user |
+  | 其他 | 不限（list 类） |
+
+  D1 表 rate_limit_buckets(key, count, window_start)，原子 UPSERT 自增。MVP 不引 Redis。
+
+  ---
+  第 4 段的 endpoint 列表、错误处理规则、CSRF/限流策略看起来对吗？特别想让你 review：
+  - delete 的 confirmToken 设计是不是过度（也可以让前端直接传 typed bucket name，由服务端二次校验）
+  - 限流粒度是否够（特别是 presign 60/min）
