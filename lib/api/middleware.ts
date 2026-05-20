@@ -2,20 +2,22 @@
 //
 // Composable request middleware for /api/* route handlers. Pipeline:
 //
-//   withApi(handler) → assigns requestId
-//                    → requireSession   (D1 revocation check)
-//                    → requireCsrf      (POST/PATCH/PUT/DELETE only)
-//                    → handler(req, ctx)
-//                    → try/catch → toErrorResponse
+//   withApi(handler, options?) → assigns requestId
+//                              → requireSession   (D1 revocation check)
+//                              → requireCsrf      (POST/PATCH/PUT/DELETE only)
+//                              → rateLimit        (opt-in, after CSRF)
+//                              → handler(req, ctx)
+//                              → try/catch → toErrorResponse
 //
 // Every wrapped handler gets a typed `ctx` containing userId, sessionToken,
 // and the requestId — handlers should pass requestId through to any audit
 // log calls so the per-request trail stays correlated.
 //
 // Why a wrapper instead of a Next.js middleware? Next middleware runs in
-// the Edge runtime WITHOUT request context, so we can't reach D1 there.
-// Per-route wrapping keeps the auth/CSRF check inline with the handler
-// and gives us a typed context to pass downstream.
+// the Edge runtime WITHOUT request context, so we can't reach D1 there
+// (this also forces rate limiting into the per-route layer — see the
+// rateLimit option below). Per-route wrapping keeps the auth/CSRF check
+// inline with the handler and gives us a typed context to pass downstream.
 
 import "server-only";
 
@@ -29,6 +31,7 @@ import { CSRF_HEADER_NAME, hashCsrfToken, timingSafeEqual } from "@/lib/auth/csr
 import { getDb, type DbEnv } from "@/lib/db/client";
 
 import { ApiErrors, toErrorResponse } from "./errors";
+import { checkLimit, type RateLimitPolicy } from "./rate-limit";
 
 /** Methods that mutate state — all require a valid X-CSRF-Token header.
  * GET/HEAD/OPTIONS are read-only and CSRF-exempt (browser doesn't preflight
@@ -132,16 +135,46 @@ export type ApiHandler<T = unknown> = (
 ) => Promise<ApiHandlerResult<T>>;
 
 /**
- * Wrap a route handler with the session + CSRF + error-mapping pipeline.
+ * Resolves the rate-limit policies to enforce for one request. Receives the
+ * authenticated context so the policy can key off `ctx.userId`. Return an
+ * empty array to skip rate limiting for that request (e.g. an admin user
+ * exempt from a particular bucket).
+ */
+export type RateLimitResolver = (args: {
+  req: Request;
+  ctx: ApiRequestContext;
+}) => RateLimitPolicy[] | Promise<RateLimitPolicy[]>;
+
+export interface WithApiOptions {
+  /** Apply one or more sliding-window limits *after* session+CSRF have
+   *  passed but *before* the handler runs. The first policy to exceed its
+   *  limit wins — checkLimit calls earlier in the list still consumed a
+   *  slot in their bucket. Order policies from most-specific to least-
+   *  specific so the response's `details.policy` matches the user's intent
+   *  (e.g. `presignByUser` before `writeAggregateByUser`). */
+  rateLimit?: RateLimitResolver;
+}
+
+/**
+ * Wrap a route handler with the session + CSRF + rate-limit + error-mapping
+ * pipeline.
  *
  * Usage in a route file:
  *
  *   export const runtime = "edge";
- *   export const POST = withApi(async (req, ctx) => {
- *     const input = await parseJson(req, ConnectionsCreateSchema);
- *     // ...
- *     return { ok: true };
- *   });
+ *   export const POST = withApi(
+ *     async (req, ctx) => {
+ *       const input = await parseJson(req, ConnectionsCreateSchema);
+ *       // ...
+ *       return { ok: true };
+ *     },
+ *     {
+ *       rateLimit: ({ ctx }) => [
+ *         RateLimitPolicies.presignByUser(ctx.userId),
+ *         RateLimitPolicies.writeAggregateByUser(ctx.userId),
+ *       ],
+ *     },
+ *   );
  *
  * Handlers may return either:
  *   - any JSON-serializable value (auto-wrapped in `Response.json` with 200)
@@ -150,7 +183,10 @@ export type ApiHandler<T = unknown> = (
  * Throwing `ApiError` or `ZodError` produces a normalized error response;
  * any other throw collapses to a 500 with code `internal.unexpected`.
  */
-export function withApi<T = unknown>(handler: ApiHandler<T>) {
+export function withApi<T = unknown>(
+  handler: ApiHandler<T>,
+  options: WithApiOptions = {},
+) {
   return async (req: Request): Promise<Response> => {
     const requestId = crypto.randomUUID();
     try {
@@ -158,7 +194,32 @@ export function withApi<T = unknown>(handler: ApiHandler<T>) {
       if (MUTATING_METHODS.has(req.method.toUpperCase())) {
         await requireCsrf(req, session);
       }
-      const result = await handler(req, { ...session, requestId });
+      const ctx: ApiRequestContext = { ...session, requestId };
+
+      if (options.rateLimit) {
+        // CSRF first, rate-limit second: requests with a forged/missing
+        // CSRF header are rejected before they can consume bucket quota,
+        // so attackers can't flood the bucket with rejected POSTs to
+        // starve legitimate users.
+        const policies = await options.rateLimit({ req, ctx });
+        const env = getEnv();
+        for (const policy of policies) {
+          const result = await checkLimit({
+            db: env.DB,
+            key: policy.key,
+            limit: policy.limit,
+            windowMs: policy.windowMs,
+          });
+          if (!result.ok) {
+            throw ApiErrors.rateLimitedWithRetry(
+              result.retryAfter ?? 1,
+              { policy: policy.key },
+            );
+          }
+        }
+      }
+
+      const result = await handler(req, ctx);
       if (result instanceof Response) {
         // Tag responses that didn't already carry a request id, so clients
         // and reverse proxies see a consistent header.

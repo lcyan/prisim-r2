@@ -1,7 +1,8 @@
 // lib/db/schema.ts
 //
 // Drizzle schema for the Prisim R2 D1 database.
-// Five tables per PRD §3: users, connections, shares, audit_log, sessions.
+// Tables per PRD §3: users, connections, shares, audit_log, sessions, plus
+// rate_limit_buckets for the sliding-window limiter (lib/api/rate-limit.ts).
 //
 // Conventions:
 // - Primary keys: ULID strings (text), generated at insert time via `ulid()`.
@@ -120,6 +121,22 @@ export const auditLog = sqliteTable(
   ],
 );
 
+/* ─── rate_limit_buckets ─────────────────────────────────────── */
+
+// Sliding-window rate limiter state. One row per limit key
+// (e.g. `login:ip:1.2.3.4`, `presign:user:01HXYZ…`). The atomic UPSERT
+// in lib/api/rate-limit.checkLimit increments `count` for the active
+// window and resets `count`+`window_start` when the window expires.
+// `window_start` is stored as epoch milliseconds (same unit checkLimit
+// uses for windowMs arithmetic). No FK to users on purpose — pre-auth
+// limits (login, anonymous IP buckets) need to write before any user
+// row exists.
+export const rateLimitBuckets = sqliteTable("rate_limit_buckets", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull(),
+  windowStart: integer("window_start").notNull(),
+});
+
 /* ─── sessions ───────────────────────────────────────────────── */
 
 export const sessions = sqliteTable("sessions", {
@@ -151,6 +168,8 @@ export type AuditLog = typeof auditLog.$inferSelect;
 export type NewAuditLog = typeof auditLog.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
+export type RateLimitBucket = typeof rateLimitBuckets.$inferSelect;
+export type NewRateLimitBucket = typeof rateLimitBuckets.$inferInsert;
 
 /* ─── re-export for drizzle client (schema bag) ──────────────── */
 
@@ -160,4 +179,5 @@ export const schema = {
   shares,
   auditLog,
   sessions,
+  rateLimitBuckets,
 };

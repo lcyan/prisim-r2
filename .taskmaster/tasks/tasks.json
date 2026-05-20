@@ -503,7 +503,7 @@
         "id": "7",
         "title": "D1 滑动窗口限流器",
         "description": "实现基于 D1 的 sliding window 限流，覆盖 /api/auth/login (10/5min/IP)、/api/r2/presign (60/min/user)、/api/share/create (30/min/user)、写操作总和 (600/min/user)。429 响应必须含 Retry-After。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "3",
           "6"
@@ -511,7 +511,87 @@
         "priority": "medium",
         "details": "1) 新表 rate_limit_buckets(key TEXT PK, count INTEGER, window_start INTEGER)；2) lib/api/rate-limit.ts：`async function checkLimit(key: string, limit: number, windowMs: number): Promise<{ok: boolean, retryAfter?: number}>` 用单条 SQL UPSERT 原子自增 count；window 过期则 reset；3) key 格式：`login:ip:${ip}`、`presign:user:${userId}`、`share-create:user:${userId}`、`write:user:${userId}`；4) middleware.ts 内置 limit 配置 map；5) 超限返回 `{ error: { code: 'rate_limit.exceeded', ... } }` + status 429 + header `Retry-After: <seconds>`；6) 定期清理过期 bucket（写一条 D1 cron 或 lazy 删除）。",
         "testStrategy": "Vitest：连续调用 checkLimit 直到达上限返回 ok=false；超过窗口后 reset；并发调用（Promise.all 100 次）count 准确无丢失（原子 UPSERT 保证）。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create D1 migration for the rate_limit_buckets table",
+            "description": "Add the database schema migration that introduces persistent storage for sliding-window rate limit buckets.",
+            "dependencies": [],
+            "details": "Create a new D1 migration file under the project migration directory, such as migrations/<timestamp>_create_rate_limit_buckets.sql. Define table rate_limit_buckets(key TEXT PRIMARY KEY, count INTEGER NOT NULL, window_start INTEGER NOT NULL). If the codebase keeps D1 schema snapshots or docs, update them too. Ensure window_start is stored as epoch milliseconds or the same integer unit expected by rate-limit.ts.\n<info added on 2026-05-20T15:37:42.011Z>\nCompleted implementation includes:\nlib/db/schema.ts now defines rateLimitBuckets with key TEXT primary key, count INTEGER NOT NULL, and window_start INTEGER NOT NULL; exports RateLimitBucket and NewRateLimitBucket types; adds rateLimitBuckets to the schema bag; and updates the header comment from a fixed \"Five tables\" description to a generic schema description with table notes.\ndrizzle/migrations/0002_rate_limit_buckets.sql was added from drizzle-kit generate.\ndrizzle/migrations/meta/_journal.json and 0002_snapshot.json were updated by drizzle-kit.\ntests/unit/db/migration.test.ts was updated from asserting five tables to six tables and now also verifies the rate_limit_buckets columns.\n\nDesign decisions:\nwindow_start is stored as epoch milliseconds to match Date.now() arithmetic inside checkLimit and avoid error-prone second/millisecond conversions.\nNo foreign key to users was added because login rate limiting must support pre-auth buckets such as login:ip:x.x.x.x before any user record exists.\nNo index was added on window_start because current access is lazy cleanup via single-key PK UPSERT/lookup rather than range scans; add an idx_rl_window later only if cron-style bulk expiry cleanup is introduced.\ndrizzle-kit originally generated the migration name as 0002_curly_nextwave.sql; it was manually renamed to 0002_rate_limit_buckets.sql and the matching tag in drizzle/migrations/meta/_journal.json was updated so wrangler d1 migrations apply can locate the file.\n\nPitfalls noted:\nPRAGMA table_info reports column types in uppercase (TEXT/INTEGER), so migration assertions must use uppercase type names.\nThe migration test already auto-discovers and applies drizzle/migrations/*.sql in filename order, so no applyMigrations changes were required for 0002.\n\nValidation:\npnpm vitest run tests/unit/db/migration.test.ts passed with 7 tests.\n</info added on 2026-05-20T15:37:42.011Z>",
+            "status": "done",
+            "testStrategy": "Apply the migration against local D1 and verify the table exists with the expected columns and primary key via a simple SELECT from sqlite_master or PRAGMA table_info.",
+            "updatedAt": "2026-05-20T15:38:09.756Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement lib/api/rate-limit.ts with atomic UPSERT and Retry-After calculation",
+            "description": "Build the core rate limiting helper that performs atomic bucket increment, reset on expired window, and returns retry timing.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create or update lib/api/rate-limit.ts with async function checkLimit(key: string, limit: number, windowMs: number): Promise<{ ok: boolean; retryAfter?: number }>. Use a single SQL UPSERT against rate_limit_buckets so concurrent calls atomically increment count. The SQL should reset count to 1 and window_start to current time when the stored window has expired, otherwise increment count. After the write, derive whether the request is within limit and compute retryAfter in whole seconds from window_start + windowMs - now, clamped to at least 1 when blocked. Include optional lazy cleanup logic for expired buckets, either in this module or as a helper, without breaking request-path performance.\n<info added on 2026-05-20T15:45:14.886Z>\nImplemented lib/api/rate-limit.ts and added tests/unit/api/rate-limit.test.ts with 10 unit tests covering limit reached, window reset, Retry-After edge cases, key isolation, 100-call concurrency, policy factory shape, and client IP extraction.\n\ncheckLimit now uses the signature checkLimit({ db, key, limit, windowMs, now? }) and returns { ok, retryAfter?, count, windowStart }. Introduced a minimal RateLimitDb interface exposing only prepare().bind().first() so the helper does not depend directly on D1Database and can be tested against a better-sqlite3 adapter. The optional now injection removes the need for sleep-based tests.\n\nImplemented the limiter with a single atomic SQLite UPSERT using INSERT ... ON CONFLICT(key) DO UPDATE ... RETURNING count, window_start. The UPDATE branch uses CASE expressions to reset count to 1 and window_start to the current timestamp when the previous window has expired, otherwise increment count. This preserves atomicity under concurrent calls via SQLite’s single-statement implicit transaction behavior.\n\nwindow_start is stored and returned as epoch milliseconds to match the schema. retryAfter is computed from windowStart + windowMs - now using Math.ceil(remainMs / 1000) and clamped to at least 1 when blocked, including sub-second window edge cases such as 500ms to avoid emitting Retry-After: 0.\n\nAdded RateLimitPolicies factory helpers for loginByIp, presignByUser, shareCreateByUser, and writeAggregateByUser so key composition and limit/window values are centralized instead of duplicated in handlers.\n\nAdded getClientIp with priority order: cf-connecting-ip first, then the first entry from x-forwarded-for, then \"unknown\".\n\nImportant compatibility note: avoid ?1/?2/?3 positional placeholders in project SQL. Although D1 accepts them, better-sqlite3 throws RangeError when the same numbered placeholder is reused. The final UPSERT uses 7 plain ? placeholders with sequential binding order (key, now, windowMs, now, windowMs, now, now) to keep production and test behavior aligned.\n\nValidation completed with pnpm vitest run tests/unit/api/rate-limit.test.ts, all 10 tests passing.\n</info added on 2026-05-20T15:45:14.886Z>",
+            "status": "done",
+            "testStrategy": "Add focused unit tests or temporary integration checks to verify first request passes, the N+1 request fails, and retryAfter is returned as a positive integer.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T15:45:42.486Z"
+          },
+          {
+            "id": 3,
+            "title": "Integrate rate limit config map and 429 response handling in middleware.ts",
+            "description": "Wire shared middleware logic so configured endpoints can enforce limits and emit the required error response shape.",
+            "dependencies": [
+              2
+            ],
+            "details": "Update middleware.ts to define an internal limit configuration map for the protected routes, including metadata needed to build keys and window settings. Implement extraction helpers for client IP and authenticated user ID as appropriate for each route. Call checkLimit before allowing the request to proceed. On denial, return JSON shaped as { error: { code: 'rate_limit.exceeded', ... } } with HTTP 429 and header Retry-After: <seconds>. Keep the implementation extensible so routes can compose both endpoint-specific limits and aggregate write:user:${userId} limits.\n<info added on 2026-05-20T15:52:50.300Z>\nAdjusted implementation direction: do not add rate limiting to Next Edge middleware.ts. Cloudflare Pages Next.js middleware cannot access getRequestContext() and therefore cannot reach D1 at runtime, so wiring limit checks there would compile but fail in production. Keep middleware.ts unchanged as NextAuth-only matcher behavior.\n\nIntegrate rate limiting into lib/api/middleware.ts via the per-route withApi wrapper as an opt-in option instead. Support route-specific composition of multiple policies through a rateLimit resolver, e.g. withApi(handler, { rateLimit: ({ req, ctx }) => [RateLimitPolicies.presignByUser(ctx.userId), RateLimitPolicies.writeAggregateByUser(ctx.userId)] }).\n\nEnforcement order in withApi should be: requireSession -> requireCsrf for mutating requests -> rateLimit when configured -> handler. Rate limiting must run after CSRF validation so invalid CSRF requests do not consume a victim’s bucket and enable DoS-by-drain.\n\nUpdate lib/api/errors.ts so ApiError supports an optional headers field. Merge ApiError.headers into the response headers inside toErrorResponse while preserving existing headers such as x-request-id. Add an ApiErrors.rateLimitedWithRetry(seconds, details?) factory that returns HTTP 429 with code rate_limited, message Too many requests, optional details, and a Retry-After header set to the provided seconds.\n\nExpected 429 envelope remains { error: { code: 'rate_limited', message: 'Too many requests', requestId, details } } with Retry-After and x-request-id headers on the response.\n\nValidation completed: pnpm typecheck passed, and pnpm vitest run tests/unit/api/middleware.test.ts remained green with 13/13 passing. Dedicated withApi rate-limit integration tests will be added in subtask 7.6.\n</info added on 2026-05-20T15:52:50.300Z>",
+            "status": "done",
+            "testStrategy": "Exercise middleware with mocked requests for protected routes and confirm allowed requests pass through, blocked requests return 429 JSON, and Retry-After header is present.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T15:53:22.940Z"
+          },
+          {
+            "id": 4,
+            "title": "Apply IP-based sliding window limit to /api/auth/login",
+            "description": "Connect the login endpoint to the middleware or route-level rate limiter using the required 10 requests per 5 minutes per IP policy.",
+            "dependencies": [
+              3
+            ],
+            "details": "Modify the relevant login path handling, likely app/api/auth/[...nextauth]/route.ts, app/api/auth/login/route.ts, or the middleware matcher configuration, so /api/auth/login uses key format login:ip:${ip} with limit 10 and window 5 * 60 * 1000. Ensure the selected client IP source is consistent in the deployment environment, such as x-forwarded-for parsing or framework-provided request IP access. Verify that over-limit login attempts receive the standard 429 payload and Retry-After header.\n<info added on 2026-05-20T16:00:23.366Z>\nImplemented in app/api/auth/[...nextauth]/route.ts by wrapping the exported POST handler with route-level IP rate limiting. POST is now handled locally and only applies the limiter when the request path matches /api/auth/callback/credentials with an optional trailing slash, then forwards to the original NextAuth POST handler. Other NextAuth POST flows such as sign-out, csrf, and signin form submission are intentionally excluded so they do not consume the shared per-IP login bucket.\n\nThe limiter uses RateLimitPolicies.loginByIp with key format login:ip:${ip}, limit 10, and window 5 minutes. Client IP is resolved from cf-connecting-ip first, otherwise the first entry of x-forwarded-for.\n\nLogin does not use withApi because withApi.rateLimit depends on session parsing for ctx/userId, which is unavailable before authentication. Instead, the NextAuth route performs a direct checkLimit call and reuses ApiErrors.rateLimitedWithRetry plus toErrorResponse so login 429 responses match the standard envelope and headers used elsewhere, including Retry-After and x-request-id, with error.details.policy carrying the concrete policy key.\n\nImplementation note: NextAuth v5 POST handler accepts only a single NextRequest argument, so the wrapper forwards the request using a compatible single-argument cast. LOGIN_PATH_RE uses /?$ to support a trailing slash.\n\nValidation completed: pnpm typecheck passes. E2E verification is deferred to task 25 for the 11th same-IP login attempt returning 429 with Retry-After.\n</info added on 2026-05-20T16:00:23.366Z>",
+            "status": "done",
+            "testStrategy": "Use route or middleware tests to send 11 login requests from the same IP and verify the 11th returns 429 with the expected error code and a Retry-After value.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T16:00:54.363Z"
+          },
+          {
+            "id": 5,
+            "title": "Apply per-user and aggregate write limits to presign and share-create APIs",
+            "description": "Connect the remaining protected endpoints to both their route-specific limits and the shared write-operation budget.",
+            "dependencies": [
+              3
+            ],
+            "details": "Update app/api/r2/presign/route.ts and app/api/share/create/route.ts, or their middleware matching rules, to enforce presign:user:${userId} at 60/min/user and share-create:user:${userId} at 30/min/user. In the same request flow, also enforce write:user:${userId} at 600/min/user for write operations as required by the task. Define the order of checks clearly so the response remains deterministic, and ensure all blocked responses use the common 429 payload plus Retry-After header. Document or encode which operations count toward the aggregate write bucket.\n<info added on 2026-05-20T16:03:57.683Z>\nScope adjusted per task ownership decision: this subtask does not create or modify app/api/r2/presign/route.ts or app/api/share/create/route.ts because those endpoints belong to task 15 and task 21 and do not exist yet. Task 7 delivers the reusable rate-limit integration contract instead via lib/api/rate-limit.ts.\n\nAdded named export RateLimitBundles with documented helpers returning ordered RateLimitPolicy[]:\npresignByUser(userId) -> [presign:user:${userId} (60/min), write:user:${userId} (600/min)]\nshareCreateByUser(userId) -> [share-create:user:${userId} (30/min), write:user:${userId} (600/min)]\nwriteOnlyByUser(userId) -> [write:user:${userId} (600/min)]\n\nOrder is intentionally narrower-first, then aggregate write. Because withApi.rateLimit resolves and checkLimit evaluates policies in array order, the first denial stops evaluation and keeps details.policy pointing at the most specific bucket when applicable, while still counting protected write operations toward the shared write budget.\n\nJSDoc usage example added for downstream routes:\nexport const POST = withApi(handler, {\n  rateLimit: ({ ctx }) => RateLimitBundles.presignByUser(ctx.userId),\n});\n\nwriteOnlyByUser is the documented bundle for write endpoints without a dedicated per-endpoint bucket, such as delete or multipart control-plane routes, so they still count toward write:user:${userId}.\n\nValidation completed with pnpm typecheck. Subtask 7.6 will cover withApi integration using RateLimitBundles, including endpoint-specific limit hit and aggregate write limit behavior.\n</info added on 2026-05-20T16:03:57.683Z>",
+            "status": "done",
+            "testStrategy": "Add integration-style tests for authenticated requests showing presign is blocked on the 61st call, share create is blocked on the 31st call, and aggregate write budget blocks once combined operations exceed 600 within a minute.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T16:04:24.396Z"
+          },
+          {
+            "id": 6,
+            "title": "Add Vitest coverage for limit reached, window reset, and concurrent atomicity",
+            "description": "Create comprehensive automated tests covering correctness of the sliding-window limiter and its endpoint integration behavior.",
+            "dependencies": [
+              2,
+              4,
+              5
+            ],
+            "details": "Add Vitest test files under tests/ or alongside the modules, such as tests/rate-limit.test.ts and middleware or route-specific tests. Cover three core scenarios: hitting the configured limit returns ok=false or 429 with Retry-After, advancing time beyond the window resets the bucket and allows requests again, and concurrent access using Promise.all(100) updates the bucket accurately without lost increments. If possible, run tests against a local D1-compatible test database or a mocked D1 layer that still validates SQL-driven behavior. Include assertions for exact key formats and response header presence where applicable.\n<info added on 2026-05-20T16:09:25.977Z>\nCompleted.\n\nFiles:\n- tests/unit/api/rate-limit.test.ts (existing from 7.2): 10 tests covering core checkLimit semantics\n- tests/unit/api/middleware-rate-limit.test.ts (new): 6 tests covering withApi + rateLimit integration\n\nAdded coverage in middleware-rate-limit.test.ts:\n1) The limit-th request returns 200, and the limit+1-th returns 429 with Retry-After header (integer >= 1), envelope { error.code='rate_limited', details: { policy } }, and x-request-id\n2) Bundle evaluation order is preserved: multiple policies are checked in array order, first deny short-circuits, and details.policy is set to the narrower key (for example 'presign:user:user-1')\n3) CSRF-before-rate-limit invariant: a POST failing CSRF returns 401 and does not consume a bucket slot; a subsequent valid-CSRF request still sees a fresh bucket\n4) RateLimitBundles.presignByUser and shareCreateByUser strictly match PRD §6 numeric values and key formats\n5) GET skips CSRF but is still constrained by configured rateLimit policies\n\nTest infrastructure:\n- Reused the vi.mock pattern from tests/unit/api/middleware.test.ts for next-auth/jwt, @cloudflare/next-on-pages, lib/db/client, and lib/auth/adapter\n- env.DB is no longer mocked as {}; it now uses an in-memory better-sqlite3 database adapted to the RateLimitDb interface so tests execute real UPSERT SQL and can catch SQL/binding bugs\n- beforeEach rebuilds SQLite and seedSession for 100% isolation between tests\n\nIntentionally not covered / deferred:\n- End-to-end integration for NextAuth route IP rate limiting is deferred to task 25 Playwright because mocking the NextAuth POST signature is complex; target scenario is 11 logins from the same IP with the 11th returning 429\n- Real D1 worker cross-node concurrency is not reproduced in unit tests; better-sqlite3 serializes within one process, but UPSERT CASE semantics are validated and production atomicity relies on SQLite implicit transactions\n\nValidation:\n- pnpm vitest run: 92 passed (10 files), including the 16 tests added/covered for this task\n- pnpm build: compiled successfully, including edge routes and /api/auth/[...nextauth] wrapped with rate limiting\n- pnpm typecheck: green\n\nDoD checklist:\n- [x] typecheck + lint + test green\n- [x] Unit coverage for rate-limit and middleware-rate-limit\n- [x] No plaintext credentials touched\n- [x] Consistent 429 envelope; Retry-After flows through ApiError.headers\n- [x] All 7 update_subtask entries completed\n- [ ] E2E for 11 same-IP logins deferred to task 25\n</info added on 2026-05-20T16:09:25.977Z>",
+            "status": "done",
+            "testStrategy": "Run Vitest suites that simulate sequential and concurrent calls, assert counter correctness after 100 parallel requests, verify reset after time advance, and confirm all 429 responses include Retry-After.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T16:09:56.386Z"
+          }
+        ],
+        "updatedAt": "2026-05-20T16:09:56.386Z"
       },
       {
         "id": "8",
@@ -787,9 +867,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-20T15:12:34.979Z",
+      "lastModified": "2026-05-20T16:09:56.386Z",
       "taskCount": 25,
-      "completedCount": 6,
+      "completedCount": 7,
       "tags": [
         "master"
       ]

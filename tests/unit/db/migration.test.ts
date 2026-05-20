@@ -38,7 +38,7 @@ describe("D1 migration 0000_init", () => {
     applyMigrations(db);
   });
 
-  it("creates all five tables", () => {
+  it("creates all six tables", () => {
     const rows = db
       .prepare(
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
@@ -48,10 +48,26 @@ describe("D1 migration 0000_init", () => {
     expect(names).toEqual([
       "audit_log",
       "connections",
+      "rate_limit_buckets",
       "sessions",
       "shares",
       "users",
     ]);
+  });
+
+  it("rate_limit_buckets has the expected columns and PK", () => {
+    type ColRow = { name: string; type: string; notnull: number; pk: number };
+    const cols = db
+      .prepare(`PRAGMA table_info('rate_limit_buckets')`)
+      .all() as ColRow[];
+    const byName = Object.fromEntries(cols.map((c) => [c.name, c]));
+    // PRAGMA returns SQLite-canonical (upper-case) type names.
+    expect(byName.key).toMatchObject({ type: "TEXT", notnull: 1, pk: 1 });
+    expect(byName.count).toMatchObject({ type: "INTEGER", notnull: 1 });
+    expect(byName.window_start).toMatchObject({
+      type: "INTEGER",
+      notnull: 1,
+    });
   });
 
   it("creates all required indexes", () => {

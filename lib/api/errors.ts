@@ -34,13 +34,18 @@ export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];
 
 /** Thrown anywhere in a withApi-wrapped handler. `withApi` catches it and
  * formats the response. `details` is opaque JSON — used by validation errors
- * to ship a flattened Zod issue map. Never put secrets in here. */
+ * to ship a flattened Zod issue map. Never put secrets in here.
+ *
+ * `headers` lets specific error types attach extra Response headers (e.g.
+ * `Retry-After` for 429) without forcing toErrorResponse to special-case
+ * each code. */
 export class ApiError extends Error {
   constructor(
     public readonly code: ApiErrorCode,
     message: string,
     public readonly status: number,
     public readonly details?: unknown,
+    public readonly headers?: Record<string, string>,
   ) {
     super(message);
     this.name = "ApiError";
@@ -71,6 +76,22 @@ export const ApiErrors = {
     new ApiError(ApiErrorCode.ConfirmationRequired, message, 412),
   rateLimited: (message = "Too many requests") =>
     new ApiError(ApiErrorCode.RateLimited, message, 429),
+  /** 429 with a Retry-After header. `retryAfterSeconds` MUST be a positive
+   *  integer (checkLimit already clamps it). The `code` override lets the
+   *  client distinguish, e.g., login vs. presign limits via the existing
+   *  rate_limited code suffixed in `details.policy`. */
+  rateLimitedWithRetry: (
+    retryAfterSeconds: number,
+    details?: unknown,
+    message = "Too many requests",
+  ) =>
+    new ApiError(
+      ApiErrorCode.RateLimited,
+      message,
+      429,
+      details,
+      { "Retry-After": String(retryAfterSeconds) },
+    ),
   internal: (message = "Unexpected server error") =>
     new ApiError(ApiErrorCode.InternalUnexpected, message, 500),
 };
@@ -100,7 +121,13 @@ export function toErrorResponse(err: unknown, requestId: string): Response {
           ...(err.details !== undefined ? { details: err.details } : {}),
         },
       } satisfies ApiErrorPayload,
-      { status: err.status, headers: { [REQUEST_ID_HEADER]: requestId } },
+      {
+        status: err.status,
+        headers: {
+          [REQUEST_ID_HEADER]: requestId,
+          ...(err.headers ?? {}),
+        },
+      },
     );
   }
   if (err instanceof ZodError) {
