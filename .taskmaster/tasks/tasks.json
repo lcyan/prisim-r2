@@ -205,27 +205,191 @@
         "id": "4",
         "title": "AES-GCM 凭证加解密模块（Web Crypto）",
         "description": "实现 lib/crypto/aes-gcm.ts：基于 Web Crypto subtle，AES-GCM-256，每行随机 12 字节 IV，AAD 用 connection.id；导出 encryptCredential / decryptCredential，主密钥从 env ENCRYPTION_KEY (base64, 32 字节) 加载。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "2"
         ],
         "priority": "high",
         "details": "1) 文件首行 `import 'server-only'`；2) `async function importKey(rawBase64: string): Promise<CryptoKey>` 用 `crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt','decrypt'])`，缓存在模块级 WeakMap；3) `async function encryptCredential(plaintext: string, aad: string, env): Promise<{iv: Uint8Array, ciphertext: Uint8Array}>`：随机 IV via `crypto.getRandomValues(new Uint8Array(12))`，调用 `subtle.encrypt({ name: 'AES-GCM', iv, additionalData: te.encode(aad) }, key, te.encode(plaintext))`；4) `async function decryptCredential(ciphertext, iv, aad, env): Promise<string>`：tag 校验失败必须抛 `CryptoIntegrityError`（自定义类）；5) 不做密钥派生，主密钥直接来自 env；6) 校验 env ENCRYPTION_KEY 启动时长度 = 32 字节，否则抛错；7) 不写明文凭证到任何日志。",
         "testStrategy": "Vitest 单测：round-trip（加密+解密相等）；不同 IV 对同一 plaintext 产出不同 ciphertext；篡改 1 字节 ciphertext 必抛 CryptoIntegrityError；篡改 AAD 必抛错；plaintext 含 unicode/空字符串均正确。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up lib/crypto/aes-gcm.ts with server-only import, env key validation, and CryptoIntegrityError",
+            "description": "Create the AES-GCM module scaffold in lib/crypto/aes-gcm.ts, add startup-safe key decoding and length validation for ENCRYPTION_KEY, and define the custom CryptoIntegrityError class.",
+            "dependencies": [],
+            "details": "Implement lib/crypto/aes-gcm.ts with `import 'server-only'` at the top, shared TextEncoder/TextDecoder utilities, base64 decoding of `env.ENCRYPTION_KEY`, and a validation path that ensures the decoded key is exactly 32 bytes for AES-256-GCM. Add a custom `CryptoIntegrityError` class for authentication/tag failures. Ensure validation throws a clear error when the env key is missing, malformed base64, or not 32 bytes. Do not log plaintext credentials or raw key material anywhere.\n<info added on 2026-05-20T14:11:35.809Z>\nImplemented in lib/crypto/aes-gcm.ts:1-89.\n\nDesign decisions:\n- validateAndDecodeKey must throw synchronously before any cache write, preventing an invalid key from storing a rejected Promise in the module cache.\n- Define CryptoEnv with only ENCRYPTION_KEY to avoid overlapping with DbEnv; compose the full Env shape at the route/service layer instead.\n- Set CryptoIntegrityError.name explicitly to \"CryptoIntegrityError\" rather than relying only on Error inheritance, so callers can distinguish integrity/authentication failures from configuration errors for different handling paths (for example 401/audit event vs 5xx).\n\nPitfalls and implementation notes:\n- The original task mentions a module-level WeakMap cache, but WeakMap keys must be objects, so a base64 string key is invalid. Use Map<string, Promise<CryptoKey>> instead, and cache the Promise itself so concurrent first callers share the same importKey operation.\n- With combined lib typings (dom + webworker + @cloudflare/workers-types), BufferSource constraints become stricter. Explicitly type decodeBase64 and validateAndDecodeKey return values as Uint8Array<ArrayBuffer>; otherwise downstream crypto.subtle.importKey may be rejected by TypeScript 5.7 because SharedArrayBuffer-backed views do not satisfy the expected ArrayBufferView constraints.\n</info added on 2026-05-20T14:11:35.809Z>",
+            "status": "done",
+            "testStrategy": "Add focused unit checks or assertions in the test file for missing/invalid ENCRYPTION_KEY and verify CryptoIntegrityError is constructible and distinguishable from generic Error.",
+            "updatedAt": "2026-05-20T14:12:21.649Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement importKey(rawBase64) with Web Crypto import and module-level cache",
+            "description": "Add the internal importKey helper that converts the validated base64 master key into a reusable CryptoKey and caches it at module scope.",
+            "dependencies": [
+              1
+            ],
+            "details": "In lib/crypto/aes-gcm.ts, implement `async function importKey(rawBase64: string): Promise<CryptoKey>` using `crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt','decrypt'])`. Add a module-level cache so repeated calls with the same base64 key reuse the same imported CryptoKey instead of re-importing. The cache should be internal to the module and should not expose key bytes. Keep the implementation compatible with Web Crypto in the Node/Vitest runtime used by the project.\n<info added on 2026-05-20T14:11:40.952Z>\nImplement getMasterKey and keyCache in lib/crypto/aes-gcm.ts around lines 62-89. Use a module-level Map keyed by the raw base64 string, with values as Promise<CryptoKey> rather than resolved CryptoKey instances so concurrent first-time callers await the same crypto.subtle.importKey operation and do not duplicate imports. In getMasterKey/import flow, call validateAndDecodeKey first so invalid env input throws synchronously before touching the cache; this guarantees the cache never stores a rejected Promise caused by bad key material. After creating the import promise, attach promise.catch(() => keyCache.delete(rawBase64)) so any unexpected async import failure clears the poisoned entry and allows later retries. Keep importKey extractable=false so the imported AES key cannot be read back via subtle.exportKey. For TS 5.7+ compatibility with BufferSource, ensure decodeBase64 returns Uint8Array<ArrayBuffer>, and in validateAndDecodeKey declare let bytes: Uint8Array<ArrayBuffer>; avoid widening back to plain Uint8Array<ArrayBufferLike>, which can cause crypto.subtle.importKey('raw', ...) type rejection.\n</info added on 2026-05-20T14:11:40.952Z>",
+            "status": "done",
+            "testStrategy": "Verify repeated encrypt/decrypt operations with the same env succeed consistently and, if feasible via a spy/mocked subtle.importKey, confirm the key import path is not called redundantly for the same key.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T14:12:21.655Z"
+          },
+          {
+            "id": 3,
+            "title": "Implement encryptCredential with random 12-byte IV and AAD binding",
+            "description": "Build the public encryptCredential function to encrypt a plaintext credential using AES-GCM-256, a fresh random IV per call, and caller-provided AAD.",
+            "dependencies": [
+              2
+            ],
+            "details": "In lib/crypto/aes-gcm.ts, implement `encryptCredential(plaintext: string, aad: string, env): Promise<{ iv: Uint8Array, ciphertext: Uint8Array }>` using `crypto.getRandomValues(new Uint8Array(12))` for the IV and `crypto.subtle.encrypt` with `{ name: 'AES-GCM', iv, additionalData: te.encode(aad) }`. Encode plaintext and AAD with TextEncoder, import the master key from `env.ENCRYPTION_KEY`, and return Uint8Array views for both IV and ciphertext. Preserve support for empty strings and Unicode plaintext. Do not emit any logs containing plaintext.\n<info added on 2026-05-20T14:11:45.735Z>\nImplement at lib/crypto/aes-gcm.ts:104-118 with these constraints and rationale:\nUse a fresh IV on every call via crypto.getRandomValues(new Uint8Array(12)); IV reuse with the same key is forbidden for GCM because it enables plaintext xor leakage and tag forgery.\nReturn separate { iv, ciphertext } fields instead of concatenating them, to match the existing D1 schema blobs such as access_key_iv and access_key_ciphertext and avoid storage/schema mismatch.\nKeep AAD fully caller-supplied through the aad parameter rather than hardcoding connection.id so the same helper can be reused by other tables/usages such as shares.\nDo not manually split or extract the authentication tag; Web Crypto appends the 16-byte GCM tag to the end of ciphertext automatically.\nTypeScript note: te.encode(plaintext) is already accepted by subtle.encrypt under the current TS lib typings, so no extra BufferSource cast is needed here; the explicit cast concern only applies on decryptCredential inputs read back from D1 blobs.\n</info added on 2026-05-20T14:11:45.735Z>",
+            "status": "done",
+            "testStrategy": "Unit test round-trip compatibility with decryptCredential, assert returned IV length is 12 bytes, and verify encrypting the same plaintext twice with the same AAD produces different IV/ciphertext outputs.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T14:12:21.668Z"
+          },
+          {
+            "id": 4,
+            "title": "Implement decryptCredential with integrity error mapping for tampering or AAD mismatch",
+            "description": "Build the public decryptCredential function to decrypt AES-GCM ciphertext and map authentication failures to the custom CryptoIntegrityError.",
+            "dependencies": [
+              2
+            ],
+            "details": "In lib/crypto/aes-gcm.ts, implement `decryptCredential(ciphertext, iv, aad, env): Promise<string>` using `crypto.subtle.decrypt` with the supplied IV and `additionalData` derived from the AAD string. Decode the resulting plaintext with TextDecoder. Catch Web Crypto decryption/tag verification failures and rethrow them specifically as `CryptoIntegrityError`, while preserving unexpected configuration or environment errors as normal exceptions. Ensure the function works with Uint8Array inputs and does not log decrypted plaintext or ciphertext content.\n<info added on 2026-05-20T14:11:50.838Z>\nImplementation note for lib/crypto/aes-gcm.ts:127-149: call getMasterKey(env) outside the try/catch, and wrap only crypto.subtle.decrypt so ENCRYPTION_KEY/config/importKey failures bubble as plain Error for route-level 5xx mapping. On decrypt authentication failure, throw new CryptoIntegrityError() with the default message only; do not attach or forward the original Web Crypto error text because OperationError wording varies by runtime and may pollute audit classification. Accept iv and ciphertext as Uint8Array-compatible inputs and cast internally to BufferSource for subtle.decrypt to avoid TypeScript friction with D1 Blob-derived Buffer/Uint8Array<ArrayBufferLike> values. Avoid the anti-pattern of catching and remapping all errors, which would incorrectly convert env/importKey failures into integrity errors. Test expectations: tampered ciphertext, mismatched AAD, wrong IV, and wrong master key must all throw CryptoIntegrityError, while env/config failures must explicitly not throw CryptoIntegrityError.\n</info added on 2026-05-20T14:11:50.838Z>",
+            "status": "done",
+            "testStrategy": "Unit test successful decryption after encryption, then tamper one byte of ciphertext and verify decryptCredential throws CryptoIntegrityError; also verify using the wrong AAD throws CryptoIntegrityError.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T14:12:21.675Z"
+          },
+          {
+            "id": 5,
+            "title": "Add Vitest coverage for AES-GCM round-trip, IV uniqueness, tamper detection, and edge cases",
+            "description": "Create a dedicated test file covering the complete behavior of the AES-GCM credential encryption module, including success paths and integrity-failure scenarios.",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Add tests in `tests/unit/crypto/aes-gcm.test.ts` or the project’s standard unit-test location. Cover: round-trip encryption/decryption equality; per-call IV uniqueness and different ciphertext for same plaintext+AAD; tampered ciphertext causing CryptoIntegrityError; tampered AAD causing CryptoIntegrityError; Unicode plaintext; and empty-string plaintext. Also include invalid ENCRYPTION_KEY cases such as wrong decoded length or malformed base64 if supported by the test harness. Keep fixtures synthetic and never use real secrets.\n<info added on 2026-05-20T14:12:00.209Z>\nImplemented tests in tests/unit/crypto/aes-gcm.test.ts with 19 passing cases.\n\nCoverage breakdown:\n- round-trip ×3: basic ASCII, unicode + null byte (\"🔐 凭证 αβγ \u0000 null-byte\"), and empty-string plaintext\n- IV / ciphertext freshness ×2: asserts IV length is 12 bytes and that encrypting the same plaintext + AAD twice produces completely different outputs\n- integrity failures ×4: tampered ciphertext, mismatched AAD, wrong IV, and wrong master key all reject with CryptoIntegrityError via rejects.toBeInstanceOf\n- env validation ×4: missing key, wrong decoded length, invalid base64, plus explicit assertion that env/config errors are not CryptoIntegrityError\n\nTest harness note for server-only import:\n- Vitest cannot load import 'server-only' directly and throws \"This module cannot be imported from a Client Component\"\n- Fixed by adding a vitest.config.ts alias that redirects server-only to tests/stubs/server-only.ts with empty export {}\n- This stub approach matches common practice in similar test setups\n\nImplementation note for Buffer comparisons:\n- Replaced expect(Buffer.from(a.iv)).not.toEqual(Buffer.from(b.iv)) with Buffer.from(a.iv).equals(Buffer.from(b.iv)) === false to avoid vitest deep-equality ambiguity and compare actual byte content explicitly\n\nTypeScript strictness note:\n- In the tampered-byte test, ciphertext[0]! uses a non-null assertion because noUncheckedIndexedAccess makes indexed array access return T | undefined\n\nVerification results:\n- pnpm test: 2 files / 19 tests passing\n- pnpm typecheck: 0 errors\n- pnpm lint: 0 errors\n- pnpm build: success; remaining CSS @import warning is unrelated to this task\n</info added on 2026-05-20T14:12:00.209Z>",
+            "status": "done",
+            "testStrategy": "Run `pnpm test` or the project Vitest command and ensure all AES-GCM tests pass reliably; confirm the suite covers both happy path and failure path assertions for integrity checks and env validation.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T14:12:21.684Z"
+          }
+        ],
+        "updatedAt": "2026-05-20T14:12:21.684Z"
       },
       {
         "id": "5",
         "title": "Auth.js v5 自托管认证（edge + PBKDF2）",
         "description": "实现登录/登出/会话校验。PBKDF2-SHA256 600k 迭代（OWASP 推荐），自写最小 D1 adapter；不做注册页（单用户应用，通过 seed 脚本加 admin）。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "3"
         ],
         "priority": "high",
         "details": "1) `pnpm add next-auth@beta @auth/core`；2) lib/auth/password.ts：`hashPassword(plain): Promise<string>` 用 subtle PBKDF2-SHA256 600000 iter + 16 字节随机 salt，输出 `pbkdf2$sha256$600000$<salt-b64>$<hash-b64>`；`verifyPassword(plain, stored): Promise<boolean>` 解析后比较（用恒定时间比较）；3) lib/auth/adapter.ts：100 行内自写 D1 adapter，实现 getUser、createSession、getSessionAndUser、deleteSession，sessions.token_hash 存 sha256(token)，不存原始 token；4) lib/auth/config.ts：CredentialsProvider，session strategy = 'database'，cookie sameSite='lax' secure；5) app/(auth)/login/page.tsx + form action POST /api/auth/[...nextauth]；6) scripts/seed-admin.ts：CLI 读取 ADMIN_EMAIL/ADMIN_PASSWORD env，hash 后插入 users + 写 .dev.vars 记录；7) middleware.ts 拦截 /(dashboard) 路径未登录跳 /login。",
         "testStrategy": "Vitest：hashPassword/verifyPassword round-trip 通过、错误密码返回 false、salt 不重复；E2E（Playwright）：访问 /buckets 重定向到 /login；输入错误密码报错；正确密码登录后跳 /buckets；登出后 cookie 失效。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement Edge-safe PBKDF2 password utilities in lib/auth/password.ts",
+            "description": "Create password hashing and verification helpers using Web Crypto only, with the required PBKDF2-SHA256 format and constant-time comparison.",
+            "dependencies": [],
+            "details": "Add hashPassword(plain) and verifyPassword(plain, stored) in lib/auth/password.ts using crypto.subtle and crypto.getRandomValues only. Use 600000 iterations, 16-byte random salt, SHA-256, and serialize as pbkdf2$sha256$600000$<salt-b64>$<hash-b64>. Parse and validate the stored format during verification, recompute the derived key, and compare byte arrays with a constant-time equality function. Do not import or depend on Node crypto APIs so the module remains Edge-compatible.\n<info added on 2026-05-20T14:39:20.224Z>\nImplementation notes for lib/auth/password.ts and tests/unit/auth/password.test.ts:\nUse PBKDF2-SHA256 with 600000 iterations, 16-byte random salt, and a 32-byte derived key. Keep the serialized storage format as a single field: pbkdf2$sha256$600000$<salt-b64>$<hash-b64>, so algorithm/iteration upgrades remain versionable via the prefix.\nImplement constant-time comparison as: return false immediately on differing lengths, otherwise XOR-accumulate all bytes and check diff === 0 to avoid byte-by-byte short-circuit leakage.\nBehavior rules: hashPassword must explicitly throw on empty string input; verifyPassword must return false for any malformed input or parse failure instead of throwing, so reads do not distinguish nonexistent user / bad format / wrong password.\nDo not import server-only in this module. The original note caused scripts/seed-admin.ts running under tsx require to synchronously throw from server-only. This file is pure computation with no env secret access, so Edge-safe Web Crypto only is sufficient; add a file header comment explaining why server-only is intentionally omitted. Keep server-only only in secret-bearing modules such as lib/crypto/aes-gcm.ts.\nAccount for the TS 5.7 Uint8Array<ArrayBuffer> narrowing issue by explicitly annotating the relevant Uint8Array generics in helpers such as fromBase64 and deriveKey.\nAcceptance: all 6 Vitest cases in tests/unit/auth/password.test.ts must pass.\n</info added on 2026-05-20T14:39:20.224Z>",
+            "status": "done",
+            "testStrategy": "Add Vitest cases for round-trip success, wrong password returning false, malformed stored string handling, and different salts producing different hashes for the same password.",
+            "updatedAt": "2026-05-20T14:40:42.276Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Build a minimal D1 Auth.js adapter in lib/auth/adapter.ts with hashed session tokens",
+            "description": "Implement the smallest custom adapter needed for Auth.js database sessions backed by D1, storing only SHA-256 hashes of session tokens.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create a compact D1 adapter in lib/auth/adapter.ts implementing getUser, createSession, getSessionAndUser, and deleteSession. Accept a D1 database binding and query the existing users and sessions tables. Before persisting a session, hash the raw token with Web Crypto SHA-256 and store it in sessions.token_hash instead of storing the original token. When reading or deleting sessions, hash the incoming token first, then match by token_hash. Keep the implementation concise, typed, and Edge-safe.\n<info added on 2026-05-20T14:39:30.363Z>\nImplement createD1Adapter(db) as a small helper used manually from Auth.js callbacks, not as an @auth/core Adapter. Keep Auth.js on JWT session strategy, and expose Auth.js-like methods only to minimize future migration cost: getUser, createSession, getSessionAndUser, deleteSession. Also export getUserWithPassword separately for authorize(), because it must return passwordHash while normal user lookup paths must not expose that field.\n\nPersist sessions by hashing the raw ULID token with Web Crypto SHA-256 and storing the 64-char lowercase hex digest in sessions.token_hash. Never store the raw token in D1; it should exist only inside the signed JWT. Use hex instead of base64 because token_hash is a plain TEXT column and hex is simpler for indexing and equality lookups.\n\nBecause the current Drizzle schema does not declare relations(...), do not use .findFirst({ with: { user: true } }). Implement getSessionAndUser as two queries: first load the session by token_hash and validate it, then fetch the user by session.userId. This keeps the short-circuit behavior of only loading the user when the session is valid, with negligible performance impact here.\n\nMake deleteSession idempotent: repeated deletes during concurrent refresh/signOut flows should succeed silently without throwing if the row is already gone.\n</info added on 2026-05-20T14:39:30.363Z>",
+            "status": "done",
+            "testStrategy": "Use adapter-focused unit tests or integration-style tests with a mock/in-memory DB to verify session creation, lookup by hashed token, joined session+user retrieval, and deletion behavior.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T14:40:42.291Z"
+          },
+          {
+            "id": 3,
+            "title": "Configure Auth.js v5 credentials flow in lib/auth/config.ts",
+            "description": "Set up the Auth.js configuration for self-hosted credentials login, database-backed sessions, and secure cookie behavior.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create lib/auth/config.ts exporting the Auth.js configuration with CredentialsProvider. In authorize(), load the single user by email from D1, verify the submitted password through verifyPassword(), and return the user object on success or null on failure. Configure session.strategy = 'database', wire in the custom D1 adapter, and define cookies with sameSite: 'lax' and secure enabled in secure environments. Ensure the config is compatible with Edge runtime expectations and does not rely on Node-only APIs.\n<info added on 2026-05-20T14:39:41.694Z>\nAdopt Auth.js v5 split-config structure. In lib/auth/config.ts, keep an edge-safe base config only: pages, trustHost, session strategy, authorized callback, and PUBLIC_PATHS allowlist, with no DB, adapter, or provider imports so middleware can consume it safely on Edge. Use PUBLIC_PATHS = \"/\", \"/login\", \"/api/auth\", \"/api/health\"; all other paths must require a valid session and fail closed by default.\n\nChange session.strategy to \"jwt\" with maxAge = 7 days. The authorized callback should treat missing/expired/revoked sessions as unauthenticated and redirect protected requests to /login.\n\nMove the full NextAuth assembly to lib/auth/index.ts by extending the base config with the Credentials provider, custom D1 adapter, and jwt/session/signOut callbacks. In Credentials authorize(), fetch the user row by email including passwordHash, verify via verifyPassword(), and return the user on success or null on failure; never throw for invalid credentials so Auth.js uses the standard CredentialsSignin path.\n\nImplement the known Auth.js v5 workaround for Credentials + database-style session semantics: keep JWT strategy, but on jwt() callback create a D1 session row manually through adapter.createSession only when trigger === \"signIn\" and user is present. Reuse the existing session token on later jwt refreshes to avoid duplicate INSERTs. Keep D1 sessions.expires_at aligned with the 7-day JWT maxAge so deleting the D1 row acts as revocation on the next auth() check.\n\nIn session() callback, look up the backing D1 session row to confirm it still exists and is not expired. If the row is missing or invalid, return the session in an unauthenticated shape by clearing user and forcing expires to the epoch (for example user: undefined as never and expires = new Date(0).toISOString()), so authorized() will reject the next protected request. Add signOut handling to delete the corresponding D1 session row on logout.\n</info added on 2026-05-20T14:39:41.694Z>",
+            "status": "done",
+            "testStrategy": "Add unit-level checks around authorize() for valid and invalid credentials, and verify the exported config contains database session strategy and expected cookie options.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T14:40:42.300Z"
+          },
+          {
+            "id": 4,
+            "title": "Expose Auth.js route handlers in app/api/auth/[...nextauth]/route.ts",
+            "description": "Create the App Router auth endpoint that exports the Auth.js handlers using the shared configuration.",
+            "dependencies": [
+              3
+            ],
+            "details": "Add app/api/auth/[...nextauth]/route.ts and initialize Auth.js v5 with the config from lib/auth/config.ts. Export the generated GET and POST handlers required by Next.js App Router. Mark or structure the file so it is safe for Edge deployment if the rest of the stack is Edge-compatible. Ensure the route is the single entry point used by the login form submission and sign-out/session operations.\n<info added on 2026-05-20T14:39:47.811Z>\nRefactor the auth endpoint into three layers: app/api/auth/[...nextauth]/route.ts should stay minimal with export const runtime = \"edge\" and a re-export of GET/POST from lib/auth/handlers.ts; lib/auth/handlers.ts should import handlers from lib/auth/index.ts, destructure { GET, POST }, and expose them for the App Router. This keeps route.ts to three lines and isolates future Auth.js API changes to handlers.ts.\n\nUse runtime = \"edge\" on the route because the full auth config depends on getRequestContext() to access the D1 binding, which is only available in the Pages worker context.\n\nTyping note for the auth stack: do not use module augmentation for next-auth/jwt or @auth/core/jwt, as both can fail with \"Invalid module name in augmentation\" under jose v6 / next-auth v5 beta with moduleResolution: \"bundler\" and module: \"esnext\". Instead, define a local SessionJWT interface in lib/auth/index.ts and use a one-time callback-local assertion such as token as typeof token & SessionJWT where needed. Session augmentation for declare module \"next-auth\" remains acceptable because next-auth is explicitly imported.\n\nDo not add route-level comments about the jose v6 DecompressionStream edge-runtime warning; that dead-code warning is documented next to SessionJWT in lib/auth/index.ts.\n</info added on 2026-05-20T14:39:47.811Z>",
+            "status": "done",
+            "testStrategy": "Manually verify that /api/auth/* routes resolve without server errors, and add a smoke test that imports the route module and confirms GET/POST handlers are defined.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T14:40:42.314Z"
+          },
+          {
+            "id": 5,
+            "title": "Add protected route middleware for dashboard redirects in middleware.ts",
+            "description": "Implement middleware that checks auth state for dashboard paths and redirects unauthenticated users to the login page.",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Create or update middleware.ts to intercept requests targeting /(dashboard) paths, such as the actual dashboard URL namespace used by the app. Use Auth.js session/auth helpers that work in middleware/Edge context to detect whether a valid session exists. Redirect unauthenticated requests to /login, ideally preserving a callback URL if helpful, and allow authenticated requests through. Keep matcher scope narrow so static assets and public routes are unaffected.\n<info added on 2026-05-20T14:39:54.599Z>\nmiddleware.ts should live at the project root and export Auth.js middleware directly via export default NextAuth(authConfig).auth, reusing the edge-safe split config from lib/auth/config.ts only. Do not import the adapter, D1 access, or anything requiring getRequestContext, because Next.js middleware runs in an isolated Edge runtime and any DB call will fail there.\n\nMove the actual protected-route decision into authConfig.authorized, using a PUBLIC_PATHS allowlist there. The middleware matcher should only do coarse filtering so Auth.js is not invoked for obvious static/public asset requests.\n\nUse a negative-lookahead matcher like /((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp|css|js|map)).*) to skip Next internals and static assets. Excluding .js and .map is important to avoid intercepting Next.js dev client bundle requests.\n\nDo not add D1/session freshness checks to middleware even if Cloudflare Pages middleware can see env in the worker: it would add a D1 round-trip to every protected page request, effectively doubling QPS for protected navigation, and it breaks the split-config boundary between Edge-safe auth gating and DB-backed session validation. Any stronger real-time validation should remain in the session() callback running in route handlers, where DB access already exists.\n\nBundle size note: the middleware bundle is about 85.5 kB including next-auth + jose, which is comfortably within the Cloudflare Pages worker 1 MB limit.\n</info added on 2026-05-20T14:39:54.599Z>",
+            "status": "done",
+            "testStrategy": "Add middleware behavior tests where possible, and manually verify that visiting a protected page while logged out redirects to /login while logged-in access succeeds.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T14:40:42.325Z"
+          },
+          {
+            "id": 6,
+            "title": "Build the login page UI in app/(auth)/login/page.tsx",
+            "description": "Create a login screen with email/password inputs that submits to the Auth.js credentials endpoint and shows failure states cleanly.",
+            "dependencies": [
+              4
+            ],
+            "details": "Implement app/(auth)/login/page.tsx as a client component or server-action-backed page according to project conventions. Render a minimal form for email and password, post to /api/auth/[...nextauth] using the credentials flow, and handle callback/redirect behavior after successful authentication. Include clear validation/error messaging for invalid credentials and align the page with the app's existing UI components. No registration link or signup flow should be included because admin creation is seed-only.\n<info added on 2026-05-20T14:40:00.875Z>\nKeep all existing UI chrome and local form state, and replace only the submit path with next-auth/react signIn(\"credentials\", { email, password, redirect: false }). Do not switch to a server action.\n\nRead callbackUrl from useSearchParams and, after a successful sign-in, navigate with router.replace(callbackUrl) followed by router.refresh() so the user cannot go back to /login and server-rendered auth state is re-evaluated immediately.\n\nNormalize all credentials failures to a single client error key: setError(\"auth.invalid_credentials\"). Do not distinguish \"user not found\" vs \"wrong password\"; Auth.js v5 collapses credential failures to CredentialsSignin anyway, and exposing distinctions on the client would enable user-enumeration behavior. Use dotted i18n placeholder keys such as \"auth.invalid_credentials\" instead of literal Chinese/English copy so next-intl can be wired in later without revisiting this page.\n\nAvoid the Next.js build/prerender trap caused by calling useSearchParams() at the top level of a client page. Split the file into a default-export LoginPage wrapper that renders a Suspense boundary and an inner LoginForm component that uses useSearchParams. This preserves /login as a static route while allowing the callbackUrl-dependent logic to hydrate client-side without triggering a prerender error or forcing the whole page to bail out to CSR.\n</info added on 2026-05-20T14:40:00.875Z>",
+            "status": "done",
+            "testStrategy": "Manual browser verification: wrong credentials show an error, valid credentials create a session and redirect to the intended protected page or default dashboard route.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T14:40:42.339Z"
+          },
+          {
+            "id": 7,
+            "title": "Add admin seed CLI, password tests, and implementation documentation",
+            "description": "Provide the one-time admin creation script, password utility tests, and concise docs covering setup and acceptance criteria for the auth flow.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "details": "Create scripts/seed-admin.ts to read ADMIN_EMAIL and ADMIN_PASSWORD from environment, hash the password with hashPassword(), insert the admin user into users, and optionally update .dev.vars or document the required variables. Add Vitest tests focused on lib/auth/password.ts for round-trip verification, wrong-password failure, and salt uniqueness. Document implementation locations, Edge/Web Crypto constraints, how to run the seed script, and acceptance criteria for login, logout, and protected-route checks.\n<info added on 2026-05-20T14:40:12.512Z>\nImplemented scripts/seed-admin.ts as a pure SQL generator instead of shelling out to wrangler. The script reads ADMIN_EMAIL and ADMIN_PASSWORD from env, validates email with a narrow regex, rejects passwords shorter than 12 chars, generates a ULID in-script to match schema defaults, hashes with hashPassword(), and prints the INSERT INTO users(...) SQL to stdout while sending progress/status text to stderr so output can be piped cleanly into tee or a file. This avoids shell escaping issues with PBKDF2 hashes containing $ across pnpm script -> child_process -> wrangler layers. Expected usage is to capture the SQL and then run wrangler d1 execute prisim-r2-db --local --command \"...\" or --file=/tmp/seed.sql manually.\n\nAdded tests/unit/auth/password.test.ts with 6 real PBKDF2 cases and no crypto mocks: round-trip success, wrong-password failure, same plaintext producing different hashes via different salts, stored format matching the expected regex, five malformed stored-value variants all returning false, and empty plaintext being rejected. Tests intentionally run the full 600k-iteration PBKDF2 to verify the actual OWASP-strength configuration end to end; current runtime is acceptable at roughly 3 hash operations plus verifies (~800ms total).\n\nUsed file header comments as the primary documentation surface. Documented implementation locations, Edge/Web Crypto constraints, seed script behavior, why wrangler is not invoked automatically, required env vars, and auth acceptance criteria there instead of expanding separate docs.\n\nKnown follow-ups and environment caveats: AUTH_SECRET is required at runtime and should be placed in .dev.vars as AUTH_SECRET=<openssl rand -base64 32>; this task does not create or modify .dev.vars automatically to avoid accidental commits. In next dev, getRequestContext() is unavailable unless next.config.ts enables setupDevPlatform() from @cloudflare/next-on-pages/next-dev for development; this subtask does not change next.config.ts. Seed script was manually verified via npx tsx with ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=changemenowabcd and produced a valid INSERT statement.\n\nTesting scope note: no separate adapter unit test was added because setting up a duplicate better-sqlite3 + drizzle-orm/better-sqlite3 harness would overlap heavily with lib/db/migration.test.ts. Adapter behavior is currently intended to be covered by Auth.js callback/e2e flow, with dedicated adapter unit tests deferred unless adapter logic starts changing frequently.\n\nValidation snapshot: pnpm test passing with 3 files / 25 tests, pnpm typecheck clean, pnpm lint clean, pnpm build successful; route output still shows /login as static and /api/auth/* plus /api/health as dynamic edge routes.\n</info added on 2026-05-20T14:40:12.512Z>",
+            "status": "done",
+            "testStrategy": "Run the seed script against local D1 and confirm the admin row is created, execute Vitest password tests successfully, and verify the documented setup reproduces a working login flow end-to-end.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T14:40:42.348Z"
+          }
+        ],
+        "updatedAt": "2026-05-20T14:40:42.348Z"
       },
       {
         "id": "6",
@@ -528,9 +692,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-20T13:29:28.158Z",
+      "lastModified": "2026-05-20T14:40:42.349Z",
       "taskCount": 25,
-      "completedCount": 3,
+      "completedCount": 5,
       "tags": [
         "master"
       ]

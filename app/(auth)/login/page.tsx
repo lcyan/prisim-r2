@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { Suspense, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { AlertTriangle, ArrowRight, Lock, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +15,20 @@ import { cn } from "@/lib/utils";
  */
 
 export default function LoginPage() {
+  // useSearchParams must live inside a Suspense boundary so Next.js can
+  // bail out to CSR at build time instead of failing static prerender.
+  return (
+    <Suspense fallback={<LoginShell />}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,11 +38,20 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setPending(true);
-    // Wire to /api/auth/[...nextauth] credentials flow in Task 5.
-    // Replace this stub with the real call:
     try {
-      await new Promise((r) => setTimeout(r, 600));
-      setError("auth.invalid_credentials");
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+      if (!res || res.error) {
+        // next-auth v5 buckets all Credentials failures into "CredentialsSignin"
+        // — do not differentiate "user not found" vs "wrong password" client-side.
+        setError("auth.invalid_credentials");
+        return;
+      }
+      router.replace(callbackUrl);
+      router.refresh();
     } catch {
       setError("auth.upstream_error");
     } finally {
@@ -128,6 +153,22 @@ export default function LoginPage() {
           cloudflare pages
         </p>
       </footer>
+    </div>
+  );
+}
+
+function LoginShell() {
+  // Suspense fallback while useSearchParams resolves. Matches the form
+  // chrome so layout doesn't shift; the actual inputs render once the
+  // client takes over.
+  return (
+    <div className="relative flex min-h-screen flex-col bg-background text-foreground">
+      <SignalLine />
+      <main className="flex flex-1 items-center justify-center px-6 py-10">
+        <div className="w-full max-w-[360px] opacity-50">
+          <Letterhead />
+        </div>
+      </main>
     </div>
   );
 }
