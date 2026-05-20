@@ -25,10 +25,16 @@ const SESSION_TTL_MS = 60 * 60 * 24 * 7 * 1000; // 7 days, matches authConfig
 
 /** Extra fields we stash on the JWT. Augmenting next-auth's JWT interface
  * fights the v5 module resolution under tsconfig moduleResolution:bundler,
- * so we just narrow with a type assertion at each callsite. */
+ * so we just narrow with a type assertion at each callsite.
+ *
+ * `csrfToken` is the *raw* token (not the hash) — required so /api/csrf can
+ * surface it to the browser as a cookie. It is NEVER exposed via the
+ * Session object (which is sent to the client as JSON). The double-submit
+ * defense lives in lib/api/middleware.requireCsrf, not in JWT presence. */
 interface SessionJWT {
   sessionToken?: string;
   userId?: string;
+  csrfToken?: string;
 }
 
 interface AuthEnv extends DbEnv {
@@ -79,13 +85,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user, trigger }) {
       if (user && trigger === "signIn" && user.id) {
         const adapter = getAdapter();
-        const { token: sessionToken } = await adapter.createSession({
+        const { token: sessionToken, csrfToken } = await adapter.createSession({
           userId: user.id,
           expiresAt: new Date(Date.now() + SESSION_TTL_MS),
         });
         const t = token as typeof token & SessionJWT;
         t.sessionToken = sessionToken;
         t.userId = user.id;
+        t.csrfToken = csrfToken;
       }
       return token;
     },

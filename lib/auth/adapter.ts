@@ -26,6 +26,7 @@ import "server-only";
 import { and, eq, gt } from "drizzle-orm";
 import { ulid } from "ulid";
 import { type Db, schema } from "@/lib/db/client";
+import { generateCsrfToken, hashCsrfToken } from "./csrf";
 
 const te = new TextEncoder();
 
@@ -46,6 +47,9 @@ export interface SessionUser {
 export interface SessionRecord {
   user: SessionUser;
   expiresAt: Date;
+  /** sha256 hex of the CSRF token bound to this session; null only for
+   * legacy rows created before the column existed. */
+  csrfTokenHash: string | null;
 }
 
 export function createD1Adapter(db: Db) {
@@ -77,20 +81,23 @@ export function createD1Adapter(db: Db) {
       return row ?? null;
     },
 
-    /** Persist a new session row. Returns the *raw* token (to be embedded in
-     * the JWT) — only the hash is stored. */
+    /** Persist a new session row + matching CSRF token. Returns BOTH raw
+     * tokens — only their hashes are stored. Both go into the JWT; the CSRF
+     * token is later surfaced to the client by GET /api/csrf. */
     async createSession(args: {
       userId: string;
       expiresAt: Date;
-    }): Promise<{ token: string }> {
+    }): Promise<{ token: string; csrfToken: string }> {
       const token = ulid();
+      const csrfToken = generateCsrfToken();
       await db.insert(schema.sessions).values({
         id: ulid(),
         userId: args.userId,
         tokenHash: await hashSessionToken(token),
+        csrfTokenHash: await hashCsrfToken(csrfToken),
         expiresAt: args.expiresAt,
       });
-      return { token };
+      return { token, csrfToken };
     },
 
     /** Look up a non-expired session row by its raw token. Does an explicit
@@ -103,7 +110,7 @@ export function createD1Adapter(db: Db) {
           eq(schema.sessions.tokenHash, tokenHash),
           gt(schema.sessions.expiresAt, new Date()),
         ),
-        columns: { userId: true, expiresAt: true },
+        columns: { userId: true, expiresAt: true, csrfTokenHash: true },
       });
       if (!session) return null;
       const user = await db.query.users.findFirst({
@@ -111,7 +118,11 @@ export function createD1Adapter(db: Db) {
         columns: { id: true, email: true },
       });
       if (!user) return null;
-      return { user, expiresAt: session.expiresAt };
+      return {
+        user,
+        expiresAt: session.expiresAt,
+        csrfTokenHash: session.csrfTokenHash,
+      };
     },
 
     /** Idempotent — silently no-ops if the session is already gone. */

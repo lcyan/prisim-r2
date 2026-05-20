@@ -8,6 +8,13 @@
       "when": 1779282942689,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1779288742546,
+      "tag": "0001_session_csrf_token_hash",
+      "breakpoints": true
     }
   ]
 }

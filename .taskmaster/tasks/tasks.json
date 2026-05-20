@@ -395,14 +395,109 @@
         "id": "6",
         "title": "CSRF 保护 + 输入验证中间件",
         "description": "为所有 POST/PATCH/DELETE 路由强制 X-CSRF-Token 校验；CSRF token 登录时随 session 下发，存 cookie + meta；统一 Zod 输入验证；统一错误响应格式。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "5"
         ],
         "priority": "high",
         "details": "1) lib/auth/csrf.ts：登录成功时生成 32 字节随机 token，sha256(token) 与 session_id 绑定存 D1（或加列到 sessions），同时下发 httpOnly=false 的 `csrf` cookie；2) 客户端从 cookie 读后放 X-CSRF-Token header；3) lib/api/middleware.ts：`requireSession(req)` 返回 user 或 401；`requireCsrf(req, session)` 比对 hash 一致；`withApi(handler)` 高阶函数把这两步组合 + try/catch 统一错误响应；4) 统一错误：`{ error: { code, message, requestId } }`，错误码字符串集中在 lib/api/errors.ts；5) lib/api/schemas.ts 集中所有 Zod schema（z.infer 复用类型）；6) 在每个 route handler 第一行 `const input = Schema.parse(await req.json())`；7) requestId 用 crypto.randomUUID()，落审计日志。",
         "testStrategy": "Vitest 单测：POST 不带 X-CSRF-Token 返回 401；token 错误返回 401；Zod 校验失败返回 400 + code='validation.invalid'；所有错误响应都含 requestId 字段。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Define unified API error codes and response formatter",
+            "description": "Create centralized error definitions and a shared formatter for consistent API error responses with request IDs.",
+            "dependencies": [],
+            "details": "Add lib/api/errors.ts to declare string error codes such as auth.unauthorized, csrf.invalid, validation.invalid, and internal.unexpected. Implement helpers/classes that serialize errors as { error: { code, message, requestId } } and support mapping Zod and auth failures to HTTP status codes.\n<info added on 2026-05-20T15:10:29.350Z>\nImplement lib/api/errors.ts with ApiErrorCode defined as an as const object and derive the ApiErrorCode union via typeof ApiErrorCode[keyof typeof ApiErrorCode] so codes are grep-friendly, runtime-enumerable, and consistently named as <domain>.<reason>. Include at least auth.unauthorized, csrf.invalid, validation.invalid, resource.not_found, confirmation.required, rate_limited, and internal.unexpected.\n\nAdd an ApiError class carrying code, status, message, and optional details, plus an ApiErrors factory that centralizes the standard code/status pairs to avoid handwritten status codes drifting at call sites.\n\nImplement toErrorResponse to normalize thrown values into the shared payload shape { error: { code, message, requestId } } and always attach the same requestId to both the response body and x-request-id header. It must explicitly intercept ZodError from Schema.parse(...) and convert it to validation.invalid instead of leaking to a generic 500.\n\nUnknown thrown values must always collapse to HTTP 500 with code internal.unexpected and the fixed message \"Unexpected server error\". Do not reuse raw Error.message in this fallback path to avoid leaking internal SQL, filesystem paths, or other server details.\n\nAdd unit coverage in tests/unit/api/errors.test.ts with 11 cases covering code-to-status mapping, ApiErrors factory helpers, ZodError normalization, unknown/internal error fallback non-leakage, and the guarantee that every error response includes requestId in both body and x-request-id header.\n</info added on 2026-05-20T15:10:29.350Z>",
+            "status": "done",
+            "testStrategy": "Unit test error formatter output shape, status mapping, and presence of requestId for known error types.",
+            "updatedAt": "2026-05-20T15:12:34.919Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement CSRF token generation and session binding on login",
+            "description": "Add CSRF token creation, hashing, persistence, and cookie issuance during successful login.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create lib/auth/csrf.ts with logic to generate a 32-byte random token, hash it with sha256, and bind the hash to the session_id in D1 or the sessions table. Update the login flow to set a non-httpOnly csrf cookie and expose the token for client-side header usage, while never storing the raw token server-side.\n<info added on 2026-05-20T15:10:41.585Z>\nAdopt double-submit cookie plus server-side hash binding: issue a non-httpOnly csrf cookie readable by frontend JS, require clients to copy it into X-CSRF-Token, and validate on server with sha256(headerToken) against sessions.csrf_token_hash. Also embed the raw CSRF token in SessionJWT.csrfToken so a future /api/csrf endpoint can re-issue the cookie without an extra DB read. Session revocation remains implicit: deleting the D1 session row invalidates CSRF because requireSession must pass before CSRF validation.\n\nImplement lib/auth/csrf.ts with generateCsrfToken() using 32 random bytes from crypto.getRandomValues encoded as base64url without padding, hashCsrfToken() producing a 64-character lowercase sha256 hex string, a timingSafeEqual() helper that returns false on length mismatch and otherwise compares via XOR aggregation, and buildCsrfCookie() that emits Path=/, Max-Age=7d, SameSite=Lax, Secure in production only, and never HttpOnly.\n\nSchema update: add nullable csrf_token_hash text to sessions for backward compatibility with existing rows, but require all new createSession writes to populate it. Generate the migration with drizzle-kit, rename it to 0001_session_csrf_token_hash.sql, and update meta/_journal.json tag accordingly.\n\nAdapter changes: createSession must generate both session token and csrf token, persist the session token hash plus csrf_token_hash in a single D1 write, and return { token, csrfToken }. Extend getSessionAndUser to include csrfTokenHash for middleware validation and update the SessionRecord interface with the new field.\n\nAuth integration: in auth/index.ts, set SessionJWT.csrfToken inside the jwt() callback on signIn trigger. Because Auth.js v5 with Credentials uses JWT strategy and does not allow setting cookies from session(), rely on a GET /api/csrf bootstrap path to distribute the csrf cookie when needed.\n\nDocumented decisions: do not store raw csrf_token in D1; store only the hash for defense in depth in case the database leaks. Use SameSite=Lax instead of Strict so the cookie is available on the first post-login navigation to dashboard.\n\nAdd unit tests in tests/unit/auth/csrf.test.ts covering 11 cases including token entropy/format, deterministic hashing, timingSafeEqual length mismatch returning false without throwing, and cookie string assembly.\n</info added on 2026-05-20T15:10:41.585Z>",
+            "status": "done",
+            "testStrategy": "Unit test token generation length, hash consistency, persistence behavior, and login response/cookie emission.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T15:12:34.932Z"
+          },
+          {
+            "id": 3,
+            "title": "Build session, CSRF, and request wrapper middleware",
+            "description": "Implement reusable middleware helpers that enforce session auth, CSRF checks, and unified try/catch behavior.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Add lib/api/middleware.ts with requireSession(req) to resolve the current session user or throw 401, requireCsrf(req, session) to compare X-CSRF-Token hash against the stored session-bound hash, and withApi(handler) to generate requestId via crypto.randomUUID(), run auth/CSRF checks for POST/PATCH/DELETE, catch exceptions, and emit normalized error responses while writing audit logs.\n<info added on 2026-05-20T15:10:53.610Z>\nImplement lib/api/middleware.ts with three exports: requireSession, requireCsrf, and withApi. withApi(handler) should be a HOF used as export const POST = withApi(async (req, ctx) => { ... }), with pipeline order: generate requestId via crypto.randomUUID() -> requireSession using JWT + D1 revocation check -> for mutating methods requireCsrf -> invoke handler -> normalize success response -> catch errors with toErrorResponse. Define MUTATING_METHODS as POST/PATCH/PUT/DELETE; skip CSRF for GET/HEAD/OPTIONS.\n\nrequireSession must read the session JWT via next-auth/jwt getToken(req, secret) instead of auth() to avoid side effects, sourcing AUTH_SECRET from getRequestContext().env.AUTH_SECRET with fallback to process.env.AUTH_SECRET for local dev. Do not pass cookieName; Auth.js v5 will resolve __Secure- prefixed production cookies vs dev cookies automatically based on req.url. After decoding the JWT, perform a D1-backed revocation check by calling adapter.getSessionAndUser so that deleted session rows immediately return 401 even if the JWT is still unexpired.\n\nrequireCsrf must validate X-CSRF-Token by hashing the presented raw token and comparing it against the session-bound hash stored in D1, rather than comparing raw values directly. Missing or mismatched token should return 401 csrf.invalid.\n\nwithApi should pass a context object containing at least userId and requestId into the wrapped handler. If the handler returns any JSON-serializable value, automatically respond with Response.json(value, { status: 200 }) and include x-request-id. If the handler returns a fully formed Response, mutate its headers in place to add x-request-id only when the header is absent, preserving any custom value already set by the handler and avoiding a new Response allocation.\n\nError handling should map ZodError to 400 validation.invalid and suppress console.error for those cases. For non-Zod errors, log console.error with method, url, and requestId for correlation, and return a sanitized 500 response that does not leak internal details such as SQL errors. Middleware should not write audit logs; route handlers remain responsible for calling recordAudit because operation metadata is route-specific.\n\nAdd tests in tests/unit/api/middleware.test.ts with 13 cases, mocking getToken, @cloudflare/next-on-pages getRequestContext, and the auth adapter. Cover: POST without JWT -> 401 auth.unauthorized; POST missing X-CSRF-Token -> 401 csrf.invalid; POST wrong CSRF token -> 401 csrf.invalid; POST valid token -> 200 with ctx.userId and requestId available; GET skips CSRF; revoked D1 session -> 401; handler throwing ZodError -> 400 validation.invalid; handler throwing unknown Error -> 500 with sanitized body; handler returning Response -> inject x-request-id while preserving existing custom headers.\n</info added on 2026-05-20T15:10:53.610Z>",
+            "status": "done",
+            "testStrategy": "Vitest unit tests for missing session, missing CSRF header, invalid token, valid token pass-through, and requestId generation on thrown errors.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T15:12:34.940Z"
+          },
+          {
+            "id": 4,
+            "title": "Centralize Zod schemas and inferred API input types",
+            "description": "Create a shared schema module for API payload validation and reusable TypeScript inference.",
+            "dependencies": [
+              1
+            ],
+            "details": "Add lib/api/schemas.ts and move or define all route input schemas there using Zod. Export both schema objects and z.infer-derived types so handlers and UI code can reuse the same contracts. Establish a naming convention per route/action to simplify imports and future expansion.\n<info added on 2026-05-20T15:11:02.615Z>\nImplement lib/api/schemas.ts as the single shared Zod contract module for server and client, using the naming convention <Domain><Verb>Schema plus matching exported <Domain><Verb>Input = z.infer<typeof ...>. Add shared primitive schemas: UlidSchema, BucketNameSchema, ObjectKeySchema, ConfirmationTokenSchema, and LoginSchema. BucketNameSchema should enforce S3-style bucket naming with total length 3-63 and regex ^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$ so names stay lowercase alphanumeric with . and -, and never start or end with - or .. ObjectKeySchema should require length 1-1024 and reject leading /. ConfirmationTokenSchema should enforce length 16-128. Leave commented placeholder business schemas such as ConnectionsCreateSchema so task 7 CRUD work can uncomment and extend in place.\n\nAdd a shared parseJson(req, schema) helper that combines await req.json() with schema.parse(). If JSON parsing throws SyntaxError, wrap it into a ZodError so withApi can consistently map it to 400 validation.invalid instead of leaking a raw SyntaxError as 500. When constructing the wrapped ZodError for Zod 4, include input: undefined on the issue object to satisfy the updated issue shape.\n\nNote: Zod 4 email validation is stricter than Zod 3, so LoginSchema tests should use addresses like alice@example.com rather than a@b.c.\n\nAdd tests in tests/unit/api/schemas.test.ts covering 13 cases total: boundary and invalid/valid cases for each primitive schema, plus parseJson with valid JSON, schema-mismatched JSON, and malformed non-JSON input.\n</info added on 2026-05-20T15:11:02.615Z>",
+            "status": "done",
+            "testStrategy": "Unit test representative schemas with valid and invalid payloads and verify inferred types compile in typecheck.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T15:12:34.949Z"
+          },
+          {
+            "id": 5,
+            "title": "Integrate schema parsing and middleware into all mutating route handlers",
+            "description": "Update POST, PATCH, and DELETE handlers to use the shared wrapper and perform schema parsing at the top of each handler.",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Refactor each mutating route to export edge runtime if needed, wrap handlers with withApi, call the appropriate Schema.parse(await req.json()) as the first line inside the handler, and remove duplicated auth/error handling. Ensure validation failures propagate as validation.invalid with HTTP 400 via the shared formatter.\n<info added on 2026-05-20T15:12:17.428Z>\nCurrent repo state: there are no custom mutating route handlers yet, except the Auth.js v5 catch-all route (/api/auth/[...nextauth], which uses its own built-in CSRF system and must not be wrapped with withApi) plus GET /api/csrf and GET /api/health. Therefore this subtask does not modify existing routes and only delivers reusable infrastructure.\n\nDelivered behavior/contract:\nwithApi is exported, and lib/api/middleware.ts includes a usage example at the top.\nZodError -> HTTP 400 validation.invalid is centrally mapped inside withApi; route handlers should just call await parseJson(req, Schema) via the helper from schemas.ts and must not duplicate try/catch for validation.\nCSRF enforcement for POST/PATCH/PUT/DELETE is controlled by the MUTATING_METHODS set inside middleware; new mutating routes do not need to call requireCsrf explicitly.\n\nAdoption timing:\nTask 7 credential CRUD routes and later R2 operation routes will be the first consumers.\n\nRequired route shape for all new mutating endpoints:\nexport const POST = withApi(async (req, ctx) => { const input = await parseJson(req, Schema); ... })\nKeep this convention for PATCH/PUT/DELETE as well so future grep-based boundary audits remain straightforward.\n\nPitfalls / exclusions:\nDo not wrap /api/auth/* with withApi. Auth.js/NextAuth CSRF and this app-level CSRF are two independent token systems; stacking them will conflict, and the Credentials provider already validates its form POST internally.\nGET /api/csrf is a bootstrap endpoint and must remain outside withApi. It is GET-only and exists so the client can obtain a CSRF token before mutating requests. Implement it as an inline handler that calls requireSession, sets the CSRF cookie directly, and returns the token.\nGET /api/health remains outside this flow.\n</info added on 2026-05-20T15:12:17.428Z>",
+            "status": "done",
+            "testStrategy": "Route-level tests for representative POST/PATCH/DELETE endpoints verifying valid requests succeed and invalid bodies return 400 with the unified error payload.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T15:12:34.960Z"
+          },
+          {
+            "id": 6,
+            "title": "Add client-side CSRF header propagation from cookie",
+            "description": "Ensure the frontend reads the CSRF cookie and includes it in X-CSRF-Token for all mutating API requests.",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement a small client utility or fetch wrapper that reads the csrf cookie value and attaches it to X-CSRF-Token on POST, PATCH, and DELETE requests. Update existing API callers to use the wrapper consistently and document the requirement for future client mutations.\n<info added on 2026-05-20T15:12:26.959Z>\nAdd lib/api/client.ts as the browser-only fetch wrapper used by all TanStack Query mutation hooks, exporting apiFetch, readCookie, ensureCsrfToken, and ApiClientError. apiFetch should infer method, normalize Headers, support a json payload option that auto-serializes and sets content-type, default credentials to \"include\", and for mutating methods inject X-CSRF-Token by first reading the csrf cookie and lazily bootstrapping GET /api/csrf via ensureCsrfToken when missing. For JSON error responses on 4xx/5xx, parse { error: { code, message, requestId } } and throw ApiClientError carrying those fields; for non-JSON failures throw a normal Error. Return undefined on 204 responses. Keep cookie parsing dependency-free using string splitting, and preserve values containing \"=\" by joining the remainder after the first split.\n\nImplement app/api/csrf/route.ts as a GET-only edge runtime bootstrap endpoint without withApi. Use explicit try/catch plus toErrorResponse, call requireSession, read the raw csrf token from ctx.csrfToken on the JWT/session context, write the cookie via buildCsrfCookie on the response Set-Cookie header, return { csrfToken, cookieName }, and send cache-control: no-store to prevent intermediaries from caching the cookie bootstrap. If a valid session exists but csrfToken is absent in an older JWT/session, return a 500 internal error instructing the client flow to re-login.\n\nTesting requirements: add tests/unit/api/client.test.ts with 10 cases covering multi-cookie parsing, missing cookie, cookie values containing \"=\", X-CSRF-Token only on mutating methods, lazy bootstrap through /api/csrf, ApiClientError field mapping, and 204 => undefined. In Vitest, declare fetch mocks with a generic vi.fn<(url, init?) => Promise<Response>> signature to avoid Headers/lib.dom tuple typing issues, stub document via vi.stubGlobal(\"document\", { cookie: ... }) and clean up with vi.unstubAllGlobals(), and define ApiFetchInit so body is explicitly re-added after omitting RequestInit.body to preserve FormData/Blob callers.\n</info added on 2026-05-20T15:12:26.959Z>",
+            "status": "done",
+            "testStrategy": "Unit test cookie parsing and header injection logic; optional integration test confirming a browser-originated mutating request includes X-CSRF-Token.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T15:12:34.968Z"
+          },
+          {
+            "id": 7,
+            "title": "Verify end-to-end behavior with audit logging and regression tests",
+            "description": "Add comprehensive tests covering CSRF enforcement, validation failures, unified error shape, and requestId logging.",
+            "dependencies": [
+              3,
+              5,
+              6
+            ],
+            "details": "Write Vitest cases for POST without X-CSRF-Token returning 401, wrong token returning 401, Zod validation failure returning 400 with code validation.invalid, and all error responses including requestId. Add assertions or mocks to confirm requestId is sent to audit logging paths during handled failures.\n<info added on 2026-05-20T15:12:34.899Z>\nCompleted end-to-end test and build verification for this middleware slice.\n\nTest coverage added/validated:\n- tests/unit/api/errors.test.ts: 11 cases\n- tests/unit/auth/csrf.test.ts: 11 cases\n- tests/unit/api/schemas.test.ts: 13 cases\n- tests/unit/api/middleware.test.ts: 13 cases, including required assertions for POST without token -> 401, wrong token -> 401, ZodError -> 400 with code validation.invalid, and all error responses including requestId\n- tests/unit/api/client.test.ts: 10 cases\n\nFinal verification from clean master to current changes:\n- pnpm test -> 8 files / 75 tests passed\n- pnpm typecheck -> 0 errors\n- pnpm lint -> 0 errors\n- pnpm build -> compiled successfully; new route /api/csrf listed (129 B)\n\nExplicitly deferred from this subtask:\n- audit_log write-path mock assertions: middleware itself does not write audit entries; route handlers will call recordAudit in task 7+\n- browser-side jsdom/E2E coverage: Playwright cases postponed until after task 7 when real mutating UI flows exist\n\nNotes/pitfalls encountered:\n1. Zod v4 email validation is stricter than v3; legacy fixture a@b.c fails LoginSchema tests, so fixtures were updated to alice@example.com.\n2. Middleware tests must vi.mock(\"@/lib/db/client\") and \"@/lib/auth/adapter\") before importing withApi, otherwise real D1 bindings are pulled in; Vitest hoisting behavior matches Jest here.\n3. next build passing is not sufficient for Pages runtime validation; next-on-pages / wrangler pages dev edge-runtime verification remains for the later integration-test phase.\n</info added on 2026-05-20T15:12:34.899Z>",
+            "status": "done",
+            "testStrategy": "Run Vitest suites for middleware and route handlers, using mocked D1/session storage and audit logger to validate both responses and side effects.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-20T15:12:34.979Z"
+          }
+        ],
+        "updatedAt": "2026-05-20T15:12:34.979Z"
       },
       {
         "id": "7",
@@ -692,9 +787,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-20T14:40:42.349Z",
+      "lastModified": "2026-05-20T15:12:34.979Z",
       "taskCount": 25,
-      "completedCount": 5,
+      "completedCount": 6,
       "tags": [
         "master"
       ]

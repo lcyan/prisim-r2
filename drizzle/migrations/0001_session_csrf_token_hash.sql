@@ -1,0 +1,1 @@
+ALTER TABLE `sessions` ADD `csrf_token_hash` text;

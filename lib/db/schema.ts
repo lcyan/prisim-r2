@@ -128,6 +128,11 @@ export const sessions = sqliteTable("sessions", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   tokenHash: text("token_hash").notNull(),
+  // sha256(rawCsrfToken). Nullable because rows created before this column
+  // existed have no token; new rows are always populated by createSession().
+  // Verification is via lib/api/middleware.requireCsrf — see lib/auth/csrf.ts
+  // for the full design rationale.
+  csrfTokenHash: text("csrf_token_hash"),
   expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
