@@ -2,7 +2,7 @@
   "master": {
     "tasks": [
       {
-        "id": 1,
+        "id": "1",
         "title": "项目初始化：Next.js 15 + TS strict + Tailwind v4 + shadcn/ui",
         "description": "使用 pnpm 创建 Next.js 15 App Router 项目，启用 TypeScript strict，集成 Tailwind CSS v4（@theme in CSS）和 shadcn/ui 基础组件，配置 ESLint/Prettier，搭建基础目录骨架（app/、lib/、components/、stores/、hooks/、tests/）。",
         "status": "done",
@@ -96,7 +96,7 @@
         "updatedAt": "2026-05-20T12:41:40.798Z"
       },
       {
-        "id": 2,
+        "id": "2",
         "title": "Cloudflare Pages + Edge Runtime 配置",
         "description": "配置 wrangler.toml、next.config.ts 以支持 Cloudflare Pages 部署和 edge runtime；准备 D1 binding；所有 route handler 加 `export const runtime = 'edge'` 规范。",
         "status": "done",
@@ -110,7 +110,7 @@
         "updatedAt": "2026-05-20T12:55:00.855Z"
       },
       {
-        "id": 3,
+        "id": "3",
         "title": "D1 数据库 schema 与迁移",
         "description": "实现 5 张表（users / connections / shares / audit_log / sessions），写迁移脚本（drizzle-kit 或纯 SQL），并提供本地与 production 的执行命令。",
         "status": "done",
@@ -202,7 +202,7 @@
         "updatedAt": "2026-05-20T13:29:28.158Z"
       },
       {
-        "id": 4,
+        "id": "4",
         "title": "AES-GCM 凭证加解密模块（Web Crypto）",
         "description": "实现 lib/crypto/aes-gcm.ts：基于 Web Crypto subtle，AES-GCM-256，每行随机 12 字节 IV，AAD 用 connection.id；导出 encryptCredential / decryptCredential，主密钥从 env ENCRYPTION_KEY (base64, 32 字节) 加载。",
         "status": "done",
@@ -281,7 +281,7 @@
         "updatedAt": "2026-05-20T14:12:21.684Z"
       },
       {
-        "id": 5,
+        "id": "5",
         "title": "Auth.js v5 自托管认证（edge + PBKDF2）",
         "description": "实现登录/登出/会话校验。PBKDF2-SHA256 600k 迭代（OWASP 推荐），自写最小 D1 adapter；不做注册页（单用户应用，通过 seed 脚本加 admin）。",
         "status": "done",
@@ -392,7 +392,7 @@
         "updatedAt": "2026-05-20T14:40:42.348Z"
       },
       {
-        "id": 6,
+        "id": "6",
         "title": "CSRF 保护 + 输入验证中间件",
         "description": "为所有 POST/PATCH/DELETE 路由强制 X-CSRF-Token 校验；CSRF token 登录时随 session 下发，存 cookie + meta；统一 Zod 输入验证；统一错误响应格式。",
         "status": "done",
@@ -500,7 +500,7 @@
         "updatedAt": "2026-05-20T15:12:34.979Z"
       },
       {
-        "id": 7,
+        "id": "7",
         "title": "D1 滑动窗口限流器",
         "description": "实现基于 D1 的 sliding window 限流，覆盖 /api/auth/login (10/5min/IP)、/api/r2/presign (60/min/user)、/api/share/create (30/min/user)、写操作总和 (600/min/user)。429 响应必须含 Retry-After。",
         "status": "done",
@@ -594,7 +594,7 @@
         "updatedAt": "2026-05-20T16:09:56.386Z"
       },
       {
-        "id": 8,
+        "id": "8",
         "title": "审计日志写入模块",
         "description": "lib/audit/log.ts 提供 `logAudit({userId, connectionId?, op, bucket?, key?, status, errorMsg?, req})`，从 req 自动提取 IP 和 UA；写失败不阻塞主流程（nofail）。",
         "status": "done",
@@ -674,7 +674,7 @@
         "updatedAt": "2026-05-21T01:35:27.399Z"
       },
       {
-        "id": 9,
+        "id": "9",
         "title": "R2 S3 客户端工厂 + 预签名 helper",
         "description": "lib/r2/client.ts 给定明文凭证返回配置好的 S3Client（region='auto'、endpoint=https://<account>.r2.cloudflarestorage.com）；lib/r2/presign.ts 封装 presignPut / presignGet；lib/r2/control.ts 封装服务端调用（list/delete/multipart create/complete/abort）。",
         "status": "done",
@@ -757,7 +757,7 @@
         "updatedAt": "2026-05-21T04:46:33.865Z"
       },
       {
-        "id": 10,
+        "id": "10",
         "title": "Connection（R2 凭证）CRUD API",
         "description": "实现 GET/POST/PATCH/DELETE /api/connections。POST 加密落库；GET 返回 masked 值；PATCH 仅允许改 name；DELETE 校验无关联 share 后删除。所有写操作走 CSRF + 限流 + 审计。",
         "status": "done",
@@ -854,7 +854,7 @@
         "updatedAt": "2026-05-21T06:35:10.271Z"
       },
       {
-        "id": 11,
+        "id": "11",
         "title": "Connection 管理 UI",
         "description": "app/(dashboard)/settings/connections 页面：列表、添加（含'测试连接'）、改名、删除（typed 确认）。使用 shadcn Table + Dialog + Form。",
         "status": "done",
@@ -959,10 +959,10 @@
         "updatedAt": "2026-05-21T08:00:20.059Z"
       },
       {
-        "id": 12,
+        "id": "12",
         "title": "桶列表 API + UI（只读）",
         "description": "GET /api/r2/buckets?cid= 服务端解密凭证调 listBuckets；UI 在 dashboard 顶部下拉/侧边显示当前 connection 下的桶。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "9",
           "10",
@@ -971,10 +971,72 @@
         "priority": "high",
         "details": "1) app/api/r2/buckets/route.ts (GET)，runtime=edge，input { cid }；2) decryptCredential -> makeS3Client -> listBuckets -> 返回 [{name, createdAt}]；3) 更新 connection.last_used_at；4) 错误：connection.not_found / connection.invalid_credentials；5) UI：hooks/use-buckets.ts，BucketSwitcher 组件（shadcn Select），切换后 zustand activeBucket 更新；6) 桶列表也接 TanStack Query，cache 5 分钟；7) V1 不做桶创建/删除（CF 控制台代劳，UI 加提示链接）。",
         "testStrategy": "Vitest：mock listBuckets 返回桶；E2E：选 connection -> 桶下拉显示真实 R2 桶；切换 connection 桶列表刷新。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement read-only GET /api/r2/buckets Edge route with auth, decryption, and scoped bucket listing",
+            "description": "Create the buckets API route that validates cid, enforces user scope, decrypts stored R2 credentials, lists buckets, updates usage metadata, and returns safe bucket summaries.",
+            "dependencies": [],
+            "details": "Add app/api/r2/buckets/route.ts with runtime='edge'. Use existing session/auth middleware to require the current user, parse query input { cid }, load the connection only if it belongs to that user, decrypt access credentials server-side, create the S3/R2 client, call listBuckets, map results to [{ name, createdAt }], update connection.last_used_at, apply rate limiting, and emit audit events for success/failure. Return structured errors for connection.not_found and connection.invalid_credentials, and ensure no ciphertext, IV, secret, or raw provider error leaks into responses or logs.\n<info added on 2026-05-21T11:34:43.061Z>\nImplement app/api/r2/buckets/route.ts as GET with runtime = 'edge'. Validate query via parseQuery(req, R2BucketsQuerySchema) and add parseQuery to lib/api/schemas.ts as the query-string counterpart to parseJson, using Object.fromEntries(req.nextUrl.searchParams.entries()) so single-value params like cid are parsed correctly. Scope the connection lookup by both id and userId, matching the presign route behavior; if not found, return 404 connection.not_found to avoid ULID enumeration.\n\nWhen reading encrypted credential blobs, reuse the same asU8 helper pattern from the presign route so both local Buffer and production ArrayBuffer values work under D1/better-sqlite3 differences. Decrypt access key and secret key in parallel with Promise.all, and pass connection.id as AES-GCM AAD to decryptCredential. If decryption fails, emit audit event security.decrypt_failed and return 500 internal without exposing CryptoIntegrityError details.\n\nCreate the R2/S3 client from decrypted credentials and call listBuckets. Map the response into BucketSummary objects in lib/api/types.ts with shape { name: string; createdAt: number | null }. Because ListBucketsCommand may return optional Name values, filter out undefined and empty-string names so only non-empty string bucket names are returned. Convert creation dates to epoch milliseconds or null.\n\nHandle provider errors so R2CredentialError returns 401 auth.unauthorized; let other R2 errors bubble to withApi for generic 500 handling rather than leaking raw provider details. Do not add rate limiting here: TanStack Query's 5-minute stale window already suppresses client frequency, and if caching is removed later this route can reuse RateLimitPolicies.presignByUser. On success, update connection.last_used_at only after listBuckets succeeds, and wrap that update in try/catch so metadata write failure is non-fatal. Do not emit success audit logs for this read-only high-frequency endpoint, consistent with GET /api/connections.\n</info added on 2026-05-21T11:34:43.061Z>",
+            "status": "pending",
+            "testStrategy": "Vitest route tests with mocked DB, decryptCredential, makeS3Client, and listBuckets; assert scoped access, last_used_at update, audit calls, rate limit handling, and sanitized error responses.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Define BucketSummary API types and build TanStack Query hook for bucket retrieval",
+            "description": "Add shared client-facing bucket response types and implement a reusable hook that fetches buckets for the active connection with caching.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create or extend lib/api/types with a BucketSummary type and any related response typing used by the UI. Implement hooks/use-buckets.ts using TanStack Query with a 5 minute cache/stale policy, query key including cid, and a fetcher calling GET /api/r2/buckets?cid=. Normalize createdAt values as needed for client use, surface typed error codes, and disable querying when no active connection is selected.\n<info added on 2026-05-21T11:34:49.305Z>\nAdd BucketSummary in lib/api/types.ts as the shared client-facing bucket item shape used by the UI, plus the buckets list response typing consumed by the hook.\n\nImplement hooks/use-buckets.ts with these decisions:\nquery key is the tuple ['buckets', cid ?? null], so the “no active connection” state maps to one stable cache slot and never collides with a real cid\nexport BUCKETS_STALE_TIME_MS = 5 * 60 * 1000 and use it for staleTime; tests should pin this constant because changing it affects R2 round-trip cost assumptions\nenabled must be typeof cid === 'string' && cid.length > 0; when cid is null/empty the hook should stay idle, and UI will detect that via isPending with no data\nbuild the request URL with URLSearchParams for cid instead of string interpolation, to stay safe if cid character constraints ever change\nuse apiFetch so GET requests automatically omit X-CSRF-Token\nV1 has no bucket CRUD mutations, so do not add invalidate logic; instead export bucketsQueryKey for consumers that need queryClient.invalidateQueries\n\nImplementation note: TanStack Query still requires a queryFn even when enabled=false, so inside the hook it is acceptable to assert cid as string when wiring the fetcher/queryFn.\n</info added on 2026-05-21T11:34:49.305Z>",
+            "status": "pending",
+            "testStrategy": "Vitest hook tests using mocked fetch/query client to verify success mapping, disabled state without cid, proper query keying, cache behavior configuration, and error propagation.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Extend active connection Zustand store to track activeBucket and reset it on connection changes",
+            "description": "Update the existing dashboard state store so the selected bucket is persisted separately and cleared whenever the active connection changes.",
+            "dependencies": [],
+            "details": "Modify stores/active-connection.ts to include activeBucket plus setter actions. Ensure changing activeConnectionId clears activeBucket immediately to avoid cross-connection leakage. Preserve existing persistence behavior where appropriate, and keep selectors/actions ergonomic for BucketSwitcher and dashboard consumers.\n<info added on 2026-05-21T11:34:56.252Z>\nKeep activeConnectionId and activeBucket in the same Zustand store so setActiveConnectionId can synchronously clear activeBucket and prevent cross-connection bucket leakage; do not split into separate stores because that would force all consumers to coordinate resets manually.\n\nAdd activeBucket plus setActiveBucket, and make reset semantics explicit:\nsetActiveConnectionId(newId) clears activeBucket only when newId !== current activeConnectionId, so re-selecting the same connection does not unnecessarily clear the bucket.\nclearActiveConnectionId() should also clear activeBucket, since \"nothing selected\" means both connection and bucket are unset.\n\nTighten persistence by using partialize with an explicit shape { activeConnectionId, activeBucket } instead of spreading state, so future transient fields such as switching are not accidentally persisted to localStorage. Bump persist version from 1 to 2 and add a migrate hook that injects activeBucket: null for legacy v1 snapshots that only stored activeConnectionId; this establishes a reusable migration pattern for later persistence-shape changes.\n\nTesting/update notes:\nbeforeEach/afterEach store resets must clear both activeConnectionId and activeBucket; previous resets that only touched activeConnectionId will leak bucket state between tests.\nFor Zustand typing, partialize inference is stricter than expected; explicitly listing persisted fields is more stable than returning a spread state object.\n</info added on 2026-05-21T11:34:56.252Z>",
+            "status": "pending",
+            "testStrategy": "Vitest store tests verifying setActiveBucket works, switching connection clears activeBucket, and previous bucket selection cannot survive across different connections.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Build BucketSwitcher UI component and integrate it into the dashboard top area",
+            "description": "Create the read-only bucket selector component using shadcn Select and wire it into the dashboard page so users can view and switch buckets under the current connection.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Implement BucketSwitcher to consume the active connection state and useBuckets hook, render loading/empty/error states, and display bucket names in a shadcn Select. On selection, update zustand activeBucket. Integrate the component into /app/(dashboard)/page.tsx top section or sidebar area as specified. Include a small V1 help hint/link indicating bucket creation and deletion are handled in the Cloudflare dashboard, not this app.\n<info added on 2026-05-21T11:35:03.031Z>\nImplement components/features/dashboard/bucket-switcher.tsx as a client component using shadcn dropdown-menu instead of select.tsx, since the requirement is a shadcn-style bucket picker and dropdown-menu is already installed. Consume the active connection Zustand state plus useBuckets, and do not trigger bucket fetching when there is no activeConnectionId; in that case render a disabled trigger labeled \"No connection\".\n\nRender the switcher as a button trigger wrapped with DropdownMenuTrigger asChild, with max-width and truncate on the label so long bucket names do not break the header layout. Use DropdownMenuItem onSelect rather than onClick so Radix focus management and close behavior work correctly. On selection, update Zustand activeBucket.\n\nSupport loading, empty, and error states inside the dropdown. For error messaging, map ApiClientError.code values to clearer copy for connection.invalid_credentials and auth.unauthorized, and otherwise fall back to err.message. For each bucket row, show the bucket name and createdAt formatted as YYYY-MM-DD via toISOString().slice(0, 10) to avoid adding a date formatting dependency.\n\nMount the BucketSwitcher in app/(dashboard)/layout.tsx top navigation instead of a dedicated /dashboard page so bucket switching is always available across dashboard routes, including /settings/connections. Keep layout as a server component for auth() SSR and render BucketSwitcher as a client island within the top nav.\n\nAdd a fixed footer/help item in the dropdown linking to https://dash.cloudflare.com/?to=/:account/r2 with copy such as \"Create bucket in Cloudflare\", making it explicit that V1 does not support bucket create/delete in-app.\n</info added on 2026-05-21T11:35:03.031Z>",
+            "status": "pending",
+            "testStrategy": "Component tests verifying bucket options render from hook data, selection updates the store, empty/error states are shown correctly, and the dashboard integration hides or disables the switcher when no connection is active.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Add comprehensive Vitest coverage for route, hook, store, and security boundaries",
+            "description": "Write focused automated tests covering the new API and UI state flows, including isolation guarantees and secret-handling constraints.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Add test suites for the route, use-buckets hook, active connection store, and BucketSwitcher-related logic as needed. Explicitly verify user scope isolation, audit emission, last_used_at updates, invalid credential handling, and that responses/logged payloads never expose ciphertext or credential fragments. Include tests that prove one user's cid cannot read another user's buckets and that connection switches invalidate stale bucket state.\n<info added on 2026-05-21T11:35:11.407Z>\nVitest coverage for store/hook/route is complete. Suite is green at 22 test files / 283 tests total, with 30 new cases added.\n\nAdded coverage in tests/unit/stores/active-connection.test.ts for activeBucket defaulting to null, setActiveBucket behavior, switching active connection cascading to clear active bucket, re-selecting the same connection id not clearing bucket state, clearActiveConnectionId also clearing active bucket, and persist partialize exposing only the intended public surface to prevent accidental credential setter persistence.\n\nAdded coverage in tests/unit/hooks/use-buckets.test.ts for bucketsQueryKey tuple shape, nullish cid normalization to a null segment, fetchBuckets URL construction including URLSearchParams encoding and special-character edge cases, no CSRF requirement for GET, ApiClientError passthrough, and pinning BUCKETS_STALE_TIME_MS.\n\nAdded coverage in tests/unit/api/r2-buckets-route.test.ts for happy path BucketSummary[] responses including filtering empty bucket names, touching last_used_at, decrypt failure returning 500 plus security.decrypt_failed audit, R2CredentialError returning 401, missing and non-ULID cid returning 400, cross-user cid access returning 404 without changing the other user’s last_used_at or audit records, unauthenticated requests returning 401, GET working without CSRF header, and response bodies never containing plaintext credentials.\n\nRoute test strategy follows r2-presign-route.test.ts: real D1 sqlite plus real crypto, while mocking only the outer SDK/JWT/env boundaries. The route mocks @/lib/r2/control.listBuckets instead of the SDK layer, matching the pattern used in connections-route.test.ts. Seed encryption key uses 0x03 to distinguish this suite from presign (0x01) and connections (0x02) fixtures.\n\nImplementation notes: the vi.mock factory closes over listBucketsImpl, so the reference variable must be declared before vi.mock. Because vi.mock is hoisted and the route is imported as import { GET as bucketsGET }, the route import must come after the mock setup. Credential non-leak assertions should use res.text() and grep the full payload rather than JSON.stringify, which is more robust across error responses as well.\n</info added on 2026-05-21T11:35:11.407Z>",
+            "status": "pending",
+            "testStrategy": "Vitest with mocks/spies for DB, auth context, audit logger, decryptor, and API fetch; assertions for authorization boundaries, sanitized outputs, and store/query behavior under both success and failure cases.",
+            "parentId": "undefined"
+          }
+        ],
+        "updatedAt": "2026-05-21T11:35:11.420Z"
       },
       {
-        "id": 13,
+        "id": "13",
         "title": "对象列表 API（游标分页）",
         "description": "GET /api/r2/list?cid=&bucket=&prefix=&cursor= 服务端 list，返回 { objects: [{key, size, etag, lastModified}], prefixes: [], nextCursor }。基于 R2 ContinuationToken。",
         "status": "pending",
@@ -988,7 +1050,7 @@
         "subtasks": []
       },
       {
-        "id": 14,
+        "id": "14",
         "title": "对象浏览器 UI（表格 + 面包屑 + 游标分页）",
         "description": "/dashboard/[bucket]/[...prefix] 路由：面包屑 + 文件夹/对象表格 + Load More 按钮 + 多选 checkbox。",
         "status": "pending",
@@ -1001,7 +1063,7 @@
         "subtasks": []
       },
       {
-        "id": 15,
+        "id": "15",
         "title": "/api/r2/presign 端点",
         "description": "POST /api/r2/presign，输入 { cid, op: 'put'|'get'|'upload-part', bucket, key, ttl?, uploadId?, partNumber? }；服务端解密 -> 生成 presigned URL；ttl 默认 put=15min, get=15min；写一条 audit_log (presign.put/get)。",
         "status": "done",
@@ -1094,7 +1156,7 @@
         "updatedAt": "2026-05-21T05:26:46.431Z"
       },
       {
-        "id": 16,
+        "id": "16",
         "title": "Multipart 控制面端点（create / complete / abort）",
         "description": "POST /api/r2/multipart/create、/complete、/abort。这是 Security Invariant #3 的合法服务端调用（只交换元数据，不传字节）。complete 接 parts 列表；abort 用于取消。",
         "status": "pending",
@@ -1110,7 +1172,7 @@
         "subtasks": []
       },
       {
-        "id": 17,
+        "id": "17",
         "title": "Upload Queue store + dispatcher（3×3 并发）",
         "description": "Zustand store 管理上传任务的内存状态机；dispatcher 协程：3 个文件并发，每文件 3 个 part 并发；不持久化（关页面=丢失）；取消即 abort。",
         "status": "pending",
@@ -1124,7 +1186,7 @@
         "subtasks": []
       },
       {
-        "id": 18,
+        "id": "18",
         "title": "Upload UI（拖拽 + 进度 + 取消）",
         "description": "Dropzone 组件接收拖拽文件入队；底部 fixed Upload Tray 显示进度条/暂停（V1 不做，灰显）/取消/重试；新任务 toast 提示。",
         "status": "pending",
@@ -1138,7 +1200,7 @@
         "subtasks": []
       },
       {
-        "id": 19,
+        "id": "19",
         "title": "单文件下载（presigned GET）",
         "description": "对象表格 Download 按钮：调 /api/r2/presign op='get' ttl=900 -> 浏览器 window.location 或 a[download] 触发原生下载。",
         "status": "pending",
@@ -1152,7 +1214,7 @@
         "subtasks": []
       },
       {
-        "id": 20,
+        "id": "20",
         "title": "删除 API（HMAC confirm token）+ 删除 UI（typed 确认）",
         "description": "POST /api/r2/delete/prepare 返 confirmToken (HMAC, 5min)；POST /api/r2/delete 校验 token 后批量 delete；UI 弹窗要求输入 bucket 名才能确认。",
         "status": "pending",
@@ -1168,7 +1230,7 @@
         "subtasks": []
       },
       {
-        "id": 21,
+        "id": "21",
         "title": "分享链接 API + UI（1h/1d/7d）",
         "description": "POST /api/share/create 生成 presigned GET + 入库 shares 表；GET /api/share 列表分页（按 expires_at 过滤未过期）；DELETE /api/share/:id 仅删记录（协议层不能撤）。",
         "status": "pending",
@@ -1184,7 +1246,7 @@
         "subtasks": []
       },
       {
-        "id": 22,
+        "id": "22",
         "title": "预览：图片 + 文本（前 1MB 流式）",
         "description": "对象行 Preview 按钮 -> Dialog；图片直接 <img src={presignedUrl}>；文本类对象 fetch presigned URL Range: bytes=0-1048575 取首 MB，UTF-8 decode 显示。",
         "status": "pending",
@@ -1198,7 +1260,7 @@
         "subtasks": []
       },
       {
-        "id": 23,
+        "id": "23",
         "title": "审计日志查看器",
         "description": "GET /api/audit ?cursor=&op=&bucket= 列表分页；UI /(dashboard)/audit 页表格展示。",
         "status": "pending",
@@ -1212,7 +1274,7 @@
         "subtasks": []
       },
       {
-        "id": 24,
+        "id": "24",
         "title": "Vitest 单元测试套件",
         "description": "覆盖 crypto/auth/r2/api/audit/rate-limit 核心模块，目标 80%+ 行覆盖；route handler 用 mock D1 + mock S3 测。",
         "status": "pending",
@@ -1235,7 +1297,7 @@
         "subtasks": []
       },
       {
-        "id": 25,
+        "id": "25",
         "title": "Playwright E2E 关键流 + 部署/CORS 文档",
         "description": "Playwright 覆盖：登录、添加 connection、浏览桶、上传（小/大）、下载、删除（typed 确认）、生成分享。CLAUDE.md 补 Security Invariant #3 豁免脚注；README 加 R2 CORS 配置示例 + multipart lifecycle 提示。",
         "status": "pending",
@@ -1255,14 +1317,12 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-21T08:00:20.060Z",
+      "lastModified": "2026-05-21T11:35:11.420Z",
       "taskCount": 25,
-      "completedCount": 12,
+      "completedCount": 13,
       "tags": [
         "master"
-      ],
-      "created": "2026-05-21T08:00:20.180Z",
-      "description": "Tasks for master context"
+      ]
     }
   }
 }

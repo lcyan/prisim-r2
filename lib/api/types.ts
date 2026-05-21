@@ -43,3 +43,24 @@ export interface ConnectionSummary {
    *  connection has never been used (just-created or probe-only). */
   lastUsedAt: number | null;
 }
+
+/**
+ * Public projection of one R2 bucket as returned by:
+ *   GET /api/r2/buckets?cid=…
+ *
+ * Mirrors what `listBuckets` (`@aws-sdk/client-s3` → `ListBucketsCommand`)
+ * gives us, normalized to JSON-friendly values:
+ *   - `name` is always a non-empty string. The route filters out entries
+ *     R2 returns without a Name (defensive — never observed in practice).
+ *   - `createdAt` is epoch milliseconds when R2 surfaces one, or null
+ *     when it doesn't. Some accounts/buckets predate the field; treating
+ *     "missing" as null instead of dropping the bucket keeps the listing
+ *     useful in those cases.
+ *
+ * The route NEVER includes anything credential-derived here — only the
+ * bucket-level metadata R2 itself returns.
+ */
+export interface BucketSummary {
+  name: string;
+  createdAt: number | null;
+}

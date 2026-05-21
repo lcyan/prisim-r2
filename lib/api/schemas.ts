@@ -108,6 +108,43 @@ export function maskAccessKey(accessKeyId: string): string {
   return `${accessKeyId.slice(0, 4)}****${accessKeyId.slice(-4)}`;
 }
 
+/* ─── r2 buckets (list) ──────────────────────────────────────── */
+//
+// GET /api/r2/buckets?cid=<ULID>
+//
+// The connection id is the only input — there's no body and no other
+// knob. We still go through Zod (rather than `searchParams.get + manual
+// check`) so the validation failure surfaces as the standard
+// validation.invalid envelope, identical to a body-validated route.
+
+export const R2BucketsQuerySchema = z.object({
+  cid: UlidSchema,
+});
+export type R2BucketsQueryInput = z.infer<typeof R2BucketsQuerySchema>;
+
+/**
+ * Parse a Request's query string against a Zod schema. Symmetric to
+ * `parseJson` but for GET routes where the input lives in the URL.
+ *
+ * Returns `z.infer<T>` on success; throws `ZodError` on failure, which
+ * withApi maps to a `validation.invalid` 400 with a flattened issue map.
+ *
+ * Multi-value params (e.g. `?k=1&k=2`) collapse to the FIRST value, since
+ * none of our endpoints use repeated keys. If that ever changes, switch
+ * the body to `searchParams.getAll` and bake `z.array(...)` into the
+ * schema — for now `Object.fromEntries` is the right shape.
+ */
+export async function parseQuery<T extends z.ZodTypeAny>(
+  req: Request,
+  schema: T,
+): Promise<z.infer<T>> {
+  const url = new URL(req.url);
+  // Object.fromEntries yields a string-keyed record of single values;
+  // good enough for ULID/string/single-number params our schemas use.
+  const raw = Object.fromEntries(url.searchParams.entries());
+  return schema.parse(raw);
+}
+
 /* ─── r2 presign ─────────────────────────────────────────────── */
 
 // Hard upper bound on URL lifetime (seconds). The task brief calls out

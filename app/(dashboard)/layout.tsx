@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { auth } from "@/lib/auth";
+import { BucketSwitcher } from "@/components/features/dashboard/bucket-switcher";
 import { Logo } from "@/components/features/dashboard/logo";
 import { SignOutButton } from "@/components/features/dashboard/sign-out-button";
 
@@ -29,7 +30,14 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <div className="h-[2px] w-full bg-primary" aria-hidden />
       <header className="flex items-center justify-between border-b border-border bg-card px-6 py-3">
-        <Logo />
+        <div className="flex items-center gap-4">
+          <Logo />
+          {/* BucketSwitcher reads activeConnectionId from the Zustand store
+              and shows a disabled placeholder until the user picks one — so
+              it's safe to render on every dashboard page (settings included)
+              without coupling to a route-specific layout. */}
+          <BucketSwitcher />
+        </div>
         <nav className="flex items-center gap-6">
           <Link
             href="/settings/connections"
