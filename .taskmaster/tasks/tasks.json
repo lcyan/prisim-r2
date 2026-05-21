@@ -831,7 +831,7 @@
         "id": "15",
         "title": "/api/r2/presign 端点",
         "description": "POST /api/r2/presign，输入 { cid, op: 'put'|'get'|'upload-part', bucket, key, ttl?, uploadId?, partNumber? }；服务端解密 -> 生成 presigned URL；ttl 默认 put=15min, get=15min；写一条 audit_log (presign.put/get)。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "9",
           "7",
@@ -840,7 +840,85 @@
         "priority": "high",
         "details": "1) app/api/r2/presign/route.ts；2) Zod discriminated union by op；3) put -> presignPut(ttl=900)，get -> presignGet(ttl=900)，upload-part -> presignUploadPart(ttl=900)；4) 限流：60/min/user（rate-limit.ts）；5) 返回 { url, expiresAt: Date.now() + ttl*1000 }；6) audit_log.op = `presign.${op==='get'?'get':'put'}`（part 也算 put 类）；7) ttl 上限 7200 (2 小时) 防滥用；8) URL 不入库（避免泄漏）。",
         "testStrategy": "Vitest：3 种 op 各返回合法 presigned URL；ttl 超 7200 返 400；触发限流第 61 次返 429 + Retry-After；audit_log 写入一行。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create request schema and route scaffold for POST /api/r2/presign",
+            "description": "Add the new API route file and define validated request parsing for all supported presign operations.",
+            "dependencies": [],
+            "details": "Create app/api/r2/presign/route.ts with a POST handler. Define a Zod discriminated union keyed by op to support put, get, and upload-part. Shared fields should include cid, bucket, key, and optional ttl, while upload-part must additionally require uploadId and partNumber. Prepare consistent JSON error responses for invalid input.\n<info added on 2026-05-21T05:25:24.561Z>\nIn lib/api/schemas.ts, add shared constants R2_PRESIGN_MAX_TTL_SECONDS = 7200 and R2_PRESIGN_DEFAULT_TTL_SECONDS = 900 so route code, clients, and docs all reference one source of truth instead of duplicating magic numbers.\n\nDefine R2PresignBaseShape using the existing UlidSchema, BucketNameSchema, and ObjectKeySchema to keep cid validation aligned with the rest of the API and guarantee a valid Crockford base32 ULID. Use ttl: z.number().int().positive().max(R2_PRESIGN_MAX_TTL_SECONDS).optional() so 0, negatives, and decimals are rejected, 7200 is accepted, and 7201 is rejected.\n\nExport R2PresignSchema as z.discriminatedUnion(\"op\", [...]) rather than z.union, with put/get/upload-part variants sharing R2PresignBaseShape. The upload-part variant must additionally require uploadId: z.string().min(1).max(256) and partNumber: z.number().int().min(1).max(10_000). The 10_000 ceiling matches the S3 multipart part-number limit; the 256-char uploadId cap is a defensive guardrail for SDK URL builder stability rather than an S3 spec requirement.\n\nIn app/api/r2/presign/route.ts, set export const runtime = \"edge\" and export const POST = withApi(handler, { rateLimit: ... }). Inside handler, call await parseJson(req, R2PresignSchema) and rely on withApi to map any ZodError to the standard 400 response format.\n\nDo not keep the schema local to route.ts: lib/api/schemas.ts is the intended centralized location, and the inferred type will be reused by future hooks/components. discriminatedUnion is also preferred for stronger TypeScript narrowing and better parser behavior for literal-tagged object unions.\n\nTesting pitfall notes: use ulid() to generate cid values in tests, since a hand-written 27-character “ULID” will always fail validation. Also ensure bucket names satisfy BucketNameSchema minimum length; use a valid value like \"buk\" instead of \"b\" or tests will incorrectly fail at schema validation with 400 before reaching expected 404/429/500 paths.\n</info added on 2026-05-21T05:25:24.561Z>",
+            "status": "done",
+            "testStrategy": "Vitest schema tests for valid/invalid payloads per op, including missing uploadId/partNumber for upload-part.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T05:26:46.386Z"
+          },
+          {
+            "id": 2,
+            "title": "Integrate authentication, connection lookup, and credential decryption",
+            "description": "Resolve the caller identity, load the target connection, and decrypt stored credentials before presigning.",
+            "dependencies": [
+              1
+            ],
+            "details": "Within the route handler, obtain the current user from the existing auth flow, enforce user-scoped access to the requested cid, and fetch the related connection record. Use the existing decryption utility from prior tasks to recover access credentials. Return appropriate errors for missing connections or decrypt failures, and avoid ever persisting or logging decrypted secrets or generated URLs.\n<info added on 2026-05-21T05:25:33.918Z>\nUse withApi so ctx.userId comes from the built-in D1 session validation and revocation-check middleware rather than re-resolving auth inside the handler.\n\nLoad the connection via drizzle with a strictly user-scoped predicate:\ndb.select().from(schema.connections).where(and(eq(schema.connections.id, cid), eq(schema.connections.userId, ctx.userId))).get()\nThe WHERE must include both id and user_id to prevent presigning with another user's guessed ULID.\n\nIf no matching connection is found, return ApiErrors.notFound() instead of 403. Cross-user access attempts must also resolve to 404, and tests expect that path to avoid writing any audit row under the other user's identity.\n\nDecrypt access_key and secret_key in parallel with Promise.all using decryptCredential twice. Read env.ENCRYPTION_KEY from getRequestContext().env, use connection.id as AAD for both decryptions, and ensure argument order matches aes-gcm.ts: ciphertext first, iv second.\n\nNormalize drizzle blob values with an asU8 helper before decryption. Cloudflare D1 may return ArrayBuffer while Node/Vitest returns Buffer (Uint8Array subclass); convert both to Uint8Array so decryptCredential receives the expected type.\n\nCatch all decryption failures uniformly, write one audit row with op=\"security.decrypt_failed\" and status=\"failure\", then throw ApiErrors.internal(). Do not expose CryptoIntegrityError details or any AES-GCM integrity failure message to clients, per aes-gcm.ts guidance. Treat this as a server-side at-rest encryption integrity problem, not a user credential/auth problem, so do not map it to 401.\n\nDo not switch this lookup path to raw env.DB queries; keep route-layer database access on drizzle for schema-coupled type safety and compile-time protection during schema changes.\n</info added on 2026-05-21T05:25:33.918Z>",
+            "status": "done",
+            "testStrategy": "Vitest with mocked auth/DB/decrypt utilities covering authorized success, connection not found, and decrypt failure paths.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T05:26:46.398Z"
+          },
+          {
+            "id": 3,
+            "title": "Enforce rate limiting and TTL normalization rules",
+            "description": "Apply abuse-prevention checks before generating presigned URLs and compute safe expiration values.",
+            "dependencies": [
+              2
+            ],
+            "details": "Use rate-limit.ts to enforce 60 requests per minute per user for this endpoint. Normalize ttl by applying the default of 900 seconds for put/get/upload-part when absent, and clamp/reject values above 7200 seconds with a 400 response. Compute expiresAt as Date.now() + ttl * 1000 for successful responses. Include Retry-After when the limiter blocks the request.\n<info added on 2026-05-21T05:25:40.609Z>\nMove TTL constants into lib/api/schemas.ts as shared definitions: R2_PRESIGN_MAX_TTL_SECONDS = 7200 and R2_PRESIGN_DEFAULT_TTL_SECONDS = 900. Keep ttl in the presign input schema as z.number().int().positive().max(R2_PRESIGN_MAX_TTL_SECONDS).optional(); rely on withApi’s ZodError -> 400 mapping for over-limit/invalid ttl inputs, so the route must not duplicate manual 400 validation. In the route handler, only apply the fallback with input.ttl ?? R2_PRESIGN_DEFAULT_TTL_SECONDS, preserving omitted-vs-provided semantics instead of using .default(900) in schema.\n\nUse withApi rate-limit options instead of route-local limiter code: rateLimit: ({ ctx }) => RateLimitBundles.presignByUser(ctx.userId). RateLimitBundles already orders the narrow presign 60/min policy before the broader write-aggregate 600/min policy and writes the first tripped policy into error.details.policy. Retry-After is injected by ApiErrors.rateLimitedWithRetry in lib/api/errors.ts, so the route should not set rate-limit headers directly.\n\nAdd tests to verify rate limiting happens before handler execution: 60 successful requests followed by the 61st returning 429, with audit_log containing exactly 60 rows because the blocked request never reaches the handler. Also lock schema boundaries with tests for ttl = 7200 accepted, and 7201, 0, -1, and 1.5 rejected.\n</info added on 2026-05-21T05:25:40.609Z>",
+            "status": "done",
+            "testStrategy": "Vitest for default ttl behavior, ttl > 7200 rejection, and simulated 61st request returning 429 with Retry-After.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T05:26:46.408Z"
+          },
+          {
+            "id": 4,
+            "title": "Implement operation-specific presigned URL generation",
+            "description": "Generate the correct presigned URL based on op using decrypted credentials and normalized ttl.",
+            "dependencies": [
+              3
+            ],
+            "details": "Instantiate or reuse the S3/R2 client factory with decrypted credentials, bucket context, and endpoint details from the connection. Route put requests to presignPut(ttl=normalizedTtl), get requests to presignGet(ttl=normalizedTtl), and upload-part requests to presignUploadPart(ttl=normalizedTtl) using uploadId and partNumber. Ensure the response only returns { url, expiresAt } and that the URL is never stored in the database.\n<info added on 2026-05-21T05:25:46.599Z>\nUse makeS3Client({ accountId, accessKeyId, secretAccessKey }) to create a fresh per-request S3Client in this route; do not cache in lib/r2/client.ts to avoid cross-tenant credential reuse. Dispatch URL generation with switch(input.op) and call presignPut, presignGet, or presignUploadPart directly so the discriminated union preserves narrowing in the upload-part branch without casts for input.uploadId/input.partNumber. Compute ttl once as the normalized value from input.ttl ?? 900 and pass that same ttl into all three helpers instead of handling defaults inside each helper. Return only { url, expiresAt: Date.now() + ttl * 1000 }, with expiresAt as a millisecond epoch so clients do not need timezone assumptions. Wrap the presign phase in a unified catch: write a failure audit entry with op=auditOpFor(op) and status=failure, then map R2CredentialError to 401 via ApiErrors.unauthorized with message \"R2 credentials rejected\"; rethrow all other errors so withApi handles them as 500. Do not introduce a generic presign(op, client, ...) wrapper, because the helper signatures are intentionally distinct and a wrapper would lose useful type narrowing for upload-part. Keep the switch exhaustive via the discriminated union and no default branch.\n</info added on 2026-05-21T05:25:46.599Z>",
+            "status": "done",
+            "testStrategy": "Vitest mocking presignPut/presignGet/presignUploadPart to verify each op selects the correct helper and returns url plus expiresAt.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T05:26:46.415Z"
+          },
+          {
+            "id": 5,
+            "title": "Write audit logging for presign usage without leaking URLs",
+            "description": "Record a single audit_log entry for each successful or failed presign attempt using the defined op mapping.",
+            "dependencies": [
+              4
+            ],
+            "details": "Call logAudit with userId, connectionId, bucket, key, request metadata, and status. Map op to audit_log.op as presign.get for get and presign.put for both put and upload-part. Do not include the generated presigned URL in audit data or any persistent storage. If audit logging fails, rely on the existing nofail behavior so the API still responds normally.\n<info added on 2026-05-21T05:25:53.336Z>\nGuarantee exactly one audit_log row for each request that reaches the handler. Requests rejected earlier by withApi interception (429 rate limit, 401 CSRF, 400 Zod validation) are not counted as presign attempts and must not write audit rows.\n\nAdd an auditOpFor(input.op) helper that maps get -> presign.get and both put/upload-part -> presign.put, keeping the audit op space narrow to only presign.get and presign.put for presign attempts.\n\nHandle three audit outcomes:\n1) Successful presign generation: write status=success with bucket and key.\n2) Presign helper throws, including R2CredentialError: write status=failure with bucket/key when available and errorMsg=err.name.\n3) Credential decryption fails before a presign attempt: write a single audit row with op=security.decrypt_failed instead of a presign.* op.\n\nAlways await logAudit rather than fire-and-forget so the insert flushes before the Worker returns a Response.\n\nDo not pass or persist the signed URL in audit under any circumstance. logAudit should receive no url field, and tests should include a full-table SELECT/JSON stringify assertion that the stored audit data never contains the SIGNED_URL substring.\n\nDo not introduce presign.upload_part into the audit codebook; upload-part is intentionally normalized to presign.put. Do not wrap audit failures into API 500s; rely on lib/audit/log.ts nofail behavior so audit outages do not break the business response. On success audits, omit errorMsg entirely rather than explicitly setting null.\n</info added on 2026-05-21T05:25:53.336Z>",
+            "status": "done",
+            "testStrategy": "Vitest asserting one audit log call per request with correct op mapping, and confirming upload-part is logged as presign.put.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T05:26:46.423Z"
+          },
+          {
+            "id": 6,
+            "title": "Finalize endpoint responses and add comprehensive route tests",
+            "description": "Polish success/error handling and add end-to-end route-level test coverage for the new endpoint.",
+            "dependencies": [
+              5
+            ],
+            "details": "Return JSON responses with proper HTTP status codes for success, validation failures, auth issues, rate limiting, not found, and upstream credential/presign errors. Add route-level Vitest coverage for all three ops producing legal presigned URLs, ttl abuse returning 400, limiter returning 429 plus Retry-After, and audit logging being invoked once. Keep implementation edge-compatible if the surrounding API layer requires it.\n<info added on 2026-05-21T05:26:09.046Z>\nSplit tests into two files: append focused R2PresignSchema unit coverage in tests/unit/api/schemas.test.ts for boundary values, missing required fields, and unknown op; add a new fat integration suite in tests/unit/api/r2-presign-route.test.ts covering full route behavior end to end.\n\nAdopt a fat integration setup with real better-sqlite3 in-memory SQLite, real drizzle-orm/better-sqlite3, and real AES-GCM by seeding credentials through encryptCredential instead of stubbing crypto, so tests catch security regressions such as missing AND userId filtering or incorrect AAD binding. Keep only the outer edges mocked: getSignedUrl, @cloudflare/next-on-pages getRequestContext for env.DB/ENCRYPTION_KEY/AUTH_SECRET injection, next-auth/jwt getToken for session token control, @/lib/auth/adapter createD1Adapter for session existence control, and @/lib/db/client.getDb returning the shared drizzle instance.\n\nProvide a handwritten D1 facade that forwards prepare/bind/first to the same better-sqlite3 connection so rate-limit.ts raw SQL UPSERTs execute against the same database. Use a fixed ENCRYPTION_KEY equal to base64(0x01 repeated 32 times) for deterministic encryption while remaining compatible with keyCache semantics where different raw key strings map to different cache slots.\n\nIntegration coverage should include: put/get/upload-part happy paths with url presence and expiresAt asserted within a ±1 second window; ttl=7201 returning 400; upload-part missing partNumber returning 400; nonexistent cid returning 404; cross-user cid access returning 404 without polluting the other user’s audit rows; forced decrypt failure by mutating ciphertext to 0xff repeated 48 returning 500 and writing security.decrypt_failed audit; getSignedUrl throwing InvalidAccessKeyId returning 401 and a presign.put failure audit; 60 successful requests followed by the 61st returning 429 with Retry-After and details.policy = \"presign:user:<userId>\", while audit rows remain exactly 60; upload-part audit op normalized to presign.put; full-table JSON serialization containing no SIGNED_URL substring to guard against future url persistence; missing session returning 401 auth.unauthorized; and CSRF mismatch returning 401 csrf.invalid.\n\nPrefer real audit row inserts over spy-only audit mocks so op/status/bucket/object_key/userId fields are validated from persisted rows. Prefer real encrypt/decrypt over spying decryptCredential so the invariant that AAD is bound to connection.id is locked by tests.\n\nImplementation pitfalls to account for: when mocking @/lib/db/client, preserve existing schema re-exports via spreading the actual module before overriding getDb, otherwise route imports receive undefined schema; use ulid() to generate nonexistent cids instead of hand-written literals because UlidSchema requires exactly 26 Crockford base32 characters; use \"buk\" as the shortest valid bucket in tests because BucketNameSchema.min(3) rejects shorter values; and define the discriminated union with shared base shape spread into z.object({...R2PresignBaseShape, op: z.literal(...)}) for clarity and zod 4 alignment.\n\nValidation target: 36 new tests passing, full Vitest suite green, plus clean typecheck, lint, and production build with the route listed at /api/r2/presign.\n</info added on 2026-05-21T05:26:09.046Z>",
+            "status": "done",
+            "testStrategy": "Route integration-style Vitest with mocked dependencies covering happy paths for put/get/upload-part and all specified failure cases.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T05:26:46.431Z"
+          }
+        ],
+        "updatedAt": "2026-05-21T05:26:46.431Z"
       },
       {
         "id": "16",
@@ -1004,9 +1082,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-21T04:46:33.865Z",
+      "lastModified": "2026-05-21T05:26:46.431Z",
       "taskCount": 25,
-      "completedCount": 9,
+      "completedCount": 10,
       "tags": [
         "master"
       ]

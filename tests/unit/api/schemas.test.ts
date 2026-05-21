@@ -11,6 +11,8 @@ import {
   ConfirmationTokenSchema,
   LoginSchema,
   ObjectKeySchema,
+  R2PresignSchema,
+  R2_PRESIGN_MAX_TTL_SECONDS,
   UlidSchema,
   parseJson,
 } from "@/lib/api/schemas";
@@ -78,5 +80,114 @@ describe("parseJson helper", () => {
     await expect(parseJson(jsonRequest("not-json"), schema)).rejects.toMatchObject({
       name: "ZodError",
     });
+  });
+});
+
+describe("R2PresignSchema", () => {
+  const VALID_CID = "01HWXYZABCDEFGHJKMNPQRSTVW";
+  const baseFields = {
+    cid: VALID_CID,
+    bucket: "my-bucket",
+    key: "path/file.bin",
+  };
+
+  it("accepts a minimal put payload (ttl optional)", () => {
+    const r = R2PresignSchema.safeParse({ ...baseFields, op: "put" });
+    expect(r.success).toBe(true);
+  });
+
+  it("accepts a get payload with ttl at the upper bound (7200)", () => {
+    const r = R2PresignSchema.safeParse({
+      ...baseFields,
+      op: "get",
+      ttl: R2_PRESIGN_MAX_TTL_SECONDS,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects ttl above 7200 (anti-abuse cap)", () => {
+    const r = R2PresignSchema.safeParse({
+      ...baseFields,
+      op: "get",
+      ttl: R2_PRESIGN_MAX_TTL_SECONDS + 1,
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects ttl <= 0 and non-integer ttl", () => {
+    for (const ttl of [0, -1, 1.5]) {
+      const r = R2PresignSchema.safeParse({
+        ...baseFields,
+        op: "put",
+        ttl,
+      });
+      expect(r.success).toBe(false);
+    }
+  });
+
+  it("accepts an upload-part payload with uploadId + partNumber", () => {
+    const r = R2PresignSchema.safeParse({
+      ...baseFields,
+      op: "upload-part",
+      uploadId: "upload-123",
+      partNumber: 1,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects upload-part without uploadId", () => {
+    const r = R2PresignSchema.safeParse({
+      ...baseFields,
+      op: "upload-part",
+      partNumber: 1,
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects upload-part without partNumber", () => {
+    const r = R2PresignSchema.safeParse({
+      ...baseFields,
+      op: "upload-part",
+      uploadId: "u1",
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects upload-part with partNumber out of S3 range", () => {
+    for (const partNumber of [0, 10_001, 1.5, -1]) {
+      const r = R2PresignSchema.safeParse({
+        ...baseFields,
+        op: "upload-part",
+        uploadId: "u1",
+        partNumber,
+      });
+      expect(r.success).toBe(false);
+    }
+  });
+
+  it("rejects an unknown op (discriminator narrowing)", () => {
+    const r = R2PresignSchema.safeParse({
+      ...baseFields,
+      op: "delete",
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects a non-ULID cid (prevents enumeration of malformed IDs)", () => {
+    const r = R2PresignSchema.safeParse({
+      ...baseFields,
+      cid: "not-a-ulid",
+      op: "get",
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects an invalid bucket name", () => {
+    const r = R2PresignSchema.safeParse({
+      ...baseFields,
+      bucket: "UPPERCASE-BAD",
+      op: "get",
+    });
+    expect(r.success).toBe(false);
   });
 });

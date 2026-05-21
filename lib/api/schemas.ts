@@ -69,6 +69,69 @@ export type LoginInput = z.infer<typeof LoginSchema>;
 // });
 // export type ConnectionsCreateInput = z.infer<typeof ConnectionsCreateSchema>;
 
+/* ─── r2 presign ─────────────────────────────────────────────── */
+
+// Hard upper bound on URL lifetime (seconds). The task brief calls out
+// 7200 (2h) as a deliberate anti-abuse cap: a leaked presigned URL is a
+// bearer credential for that object, so longer TTLs raise blast radius.
+// Bake the number into the schema (not the route) so any future presign
+// route stays consistent.
+export const R2_PRESIGN_MAX_TTL_SECONDS = 7200;
+
+/** Default URL lifetime when the caller omits `ttl`. 15 min mirrors the
+ *  contract documented in CLAUDE.md (`presign 默认 put=15min, get=15min`).
+ *  Centralized so the route handler and any docs stay in sync. */
+export const R2_PRESIGN_DEFAULT_TTL_SECONDS = 900;
+
+// Fields common to every op. Defined as a shape (plain object) so each
+// discriminated-union arm can spread it — `.extend()` works too, but the
+// spread form is what the zod 4 docs recommend for sharing a base with
+// strict typing intact.
+const R2PresignBaseShape = {
+  cid: UlidSchema,
+  bucket: BucketNameSchema,
+  key: ObjectKeySchema,
+  ttl: z
+    .number()
+    .int()
+    .positive()
+    .max(R2_PRESIGN_MAX_TTL_SECONDS)
+    .optional(),
+} as const;
+
+/**
+ * POST /api/r2/presign — input schema.
+ *
+ * Discriminated by `op`:
+ *   - `put`          → presign a single-shot PUT (browser uploads one body)
+ *   - `get`          → presign a download
+ *   - `upload-part`  → presign one PUT of a multipart upload, identified by
+ *                      (uploadId, partNumber); the route layer counts this as
+ *                      `presign.put` for audit purposes.
+ *
+ * partNumber range mirrors the S3 spec: 1..10000, 1-based.
+ * uploadId is treated as opaque — R2 mints it via createMultipartUpload —
+ * but we cap the length to keep a malformed value from blowing past the
+ * SDK's URL-builder limits and showing up as an opaque 4xx.
+ */
+export const R2PresignSchema = z.discriminatedUnion("op", [
+  z.object({
+    ...R2PresignBaseShape,
+    op: z.literal("put"),
+  }),
+  z.object({
+    ...R2PresignBaseShape,
+    op: z.literal("get"),
+  }),
+  z.object({
+    ...R2PresignBaseShape,
+    op: z.literal("upload-part"),
+    uploadId: z.string().min(1).max(256),
+    partNumber: z.number().int().min(1).max(10_000),
+  }),
+]);
+export type R2PresignInput = z.infer<typeof R2PresignSchema>;
+
 /* ─── helper ─────────────────────────────────────────────────── */
 
 /**
