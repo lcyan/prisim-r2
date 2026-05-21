@@ -132,3 +132,32 @@ export interface R2PresignResponse {
   url: string;
   expiresAt: number;
 }
+
+/**
+ * Public projection of POST /api/r2/multipart/create.
+ *
+ *   - `uploadId` is the opaque token R2 mints when CreateMultipartUpload
+ *     succeeds. The browser carries it (alongside the bucket+key) into each
+ *     per-part presign call so all parts attach to the same upload, and
+ *     into the eventual complete/abort call. It's safe to log — it does
+ *     not authenticate anything by itself.
+ */
+export interface R2MultipartCreateResponse {
+  uploadId: string;
+}
+
+/**
+ * Public projection of POST /api/r2/multipart/complete.
+ *
+ *   - `etag` — the multipart-complete ETag R2 returns. NOT the MD5 of the
+ *     object body (S3 uses `<md5-of-parts>-<count>` form for multipart);
+ *     clients should treat it as opaque rather than compare against any
+ *     local checksum.
+ *   - `location` — the URL R2 returns identifying the finalized object.
+ *     Both fields are optional because the SDK types them as optional;
+ *     R2 in practice always returns both for a successful Complete call.
+ */
+export interface R2MultipartCompleteResponse {
+  etag: string | null;
+  location: string | null;
+}

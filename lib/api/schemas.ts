@@ -245,6 +245,75 @@ export const R2PresignSchema = z.discriminatedUnion("op", [
 ]);
 export type R2PresignInput = z.infer<typeof R2PresignSchema>;
 
+/* ─── r2 multipart control-plane ─────────────────────────────── */
+//
+// POST /api/r2/multipart/create  → starts a multipart upload; returns the
+//   opaque uploadId that the browser then carries into per-part presigns.
+// POST /api/r2/multipart/complete → finalizes after every part PUT
+//   succeeded; takes the parts list (collected from per-part ETags) and
+//   returns { etag, location }.
+// POST /api/r2/multipart/abort   → cancels an in-progress upload (204).
+//
+// Field rules:
+//   - `cid`, `bucket`, `key` reuse the shared primitives so the wire
+//     contract stays identical to the presign endpoint (same ULID format,
+//     same S3 bucket-naming + object-key rules).
+//   - `contentType` is forwarded into CreateMultipartUploadCommand so R2
+//     serves the eventual GET with the right `Content-Type`. Length cap
+//     mirrors common HTTP header sane defaults; the optional `.strict()`
+//     keeps callers from sneaking extra fields past the schema.
+//   - `uploadId` is opaque (minted by R2 on create). Bounded so a
+//     malformed value can't blow past the SDK's URL builder limits.
+//   - `parts`: 1..10000 mirrors the S3 spec for max-parts-per-upload;
+//     `partNumber` is 1-based. `etag` is the value the browser receives
+//     from each part's PUT response — we treat it as opaque (S3 quoting
+//     varies and R2 may or may not emit the surrounding quotes; the
+//     SDK accepts either, so we don't normalize here).
+
+export const R2MultipartCreateSchema = z
+  .object({
+    cid: UlidSchema,
+    bucket: BucketNameSchema,
+    key: ObjectKeySchema,
+    contentType: z.string().min(1).max(255).optional(),
+  })
+  .strict();
+export type R2MultipartCreateInput = z.infer<typeof R2MultipartCreateSchema>;
+
+/** Per-part record in the complete payload. Exported so the route handler
+ *  + tests + future browser hook share one source of truth on the shape. */
+export const R2MultipartPartSchema = z
+  .object({
+    partNumber: z.number().int().min(1).max(10_000),
+    etag: z.string().min(1).max(256),
+  })
+  .strict();
+export type R2MultipartPart = z.infer<typeof R2MultipartPartSchema>;
+
+export const R2MultipartCompleteSchema = z
+  .object({
+    cid: UlidSchema,
+    bucket: BucketNameSchema,
+    key: ObjectKeySchema,
+    uploadId: z.string().min(1).max(256),
+    // Non-empty — completing with zero parts is meaningless and S3 returns
+    // MalformedXML anyway. Catching it at validation gives a clean 400
+    // instead of an opaque upstream failure.
+    parts: z.array(R2MultipartPartSchema).min(1).max(10_000),
+  })
+  .strict();
+export type R2MultipartCompleteInput = z.infer<typeof R2MultipartCompleteSchema>;
+
+export const R2MultipartAbortSchema = z
+  .object({
+    cid: UlidSchema,
+    bucket: BucketNameSchema,
+    key: ObjectKeySchema,
+    uploadId: z.string().min(1).max(256),
+  })
+  .strict();
+export type R2MultipartAbortInput = z.infer<typeof R2MultipartAbortSchema>;
+
 /* ─── helper ─────────────────────────────────────────────────── */
 
 /**

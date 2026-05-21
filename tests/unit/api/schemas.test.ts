@@ -11,6 +11,9 @@ import {
   ConfirmationTokenSchema,
   LoginSchema,
   ObjectKeySchema,
+  R2MultipartAbortSchema,
+  R2MultipartCompleteSchema,
+  R2MultipartCreateSchema,
   R2PresignSchema,
   R2_PRESIGN_MAX_TTL_SECONDS,
   UlidSchema,
@@ -189,5 +192,139 @@ describe("R2PresignSchema", () => {
       op: "get",
     });
     expect(r.success).toBe(false);
+  });
+});
+
+describe("R2 multipart schemas", () => {
+  const VALID_CID = "01HWXYZABCDEFGHJKMNPQRSTVW";
+  const base = {
+    cid: VALID_CID,
+    bucket: "my-bucket",
+    key: "big/blob.bin",
+  };
+
+  describe("R2MultipartCreateSchema", () => {
+    it("accepts the minimal payload (contentType optional)", () => {
+      expect(R2MultipartCreateSchema.safeParse(base).success).toBe(true);
+    });
+
+    it("accepts an explicit contentType", () => {
+      const r = R2MultipartCreateSchema.safeParse({
+        ...base,
+        contentType: "application/octet-stream",
+      });
+      expect(r.success).toBe(true);
+    });
+
+    it("rejects extra fields (strict)", () => {
+      const r = R2MultipartCreateSchema.safeParse({
+        ...base,
+        rogueField: "nope",
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("rejects a non-ULID cid", () => {
+      const r = R2MultipartCreateSchema.safeParse({
+        ...base,
+        cid: "not-a-ulid",
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("rejects an empty contentType (must be 1..255 chars)", () => {
+      const r = R2MultipartCreateSchema.safeParse({
+        ...base,
+        contentType: "",
+      });
+      expect(r.success).toBe(false);
+    });
+  });
+
+  describe("R2MultipartCompleteSchema", () => {
+    const completeBase = {
+      ...base,
+      uploadId: "upload-abc-123",
+      parts: [{ partNumber: 1, etag: '"etag-1"' }],
+    };
+
+    it("accepts a valid payload with one part", () => {
+      expect(R2MultipartCompleteSchema.safeParse(completeBase).success).toBe(
+        true,
+      );
+    });
+
+    it("accepts an unsorted multi-part list (route + control sort internally)", () => {
+      const r = R2MultipartCompleteSchema.safeParse({
+        ...completeBase,
+        parts: [
+          { partNumber: 3, etag: '"e3"' },
+          { partNumber: 1, etag: '"e1"' },
+          { partNumber: 2, etag: '"e2"' },
+        ],
+      });
+      expect(r.success).toBe(true);
+    });
+
+    it("rejects an empty parts array (matches S3 contract)", () => {
+      const r = R2MultipartCompleteSchema.safeParse({
+        ...completeBase,
+        parts: [],
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("rejects partNumber out of S3 range (1..10000)", () => {
+      for (const partNumber of [0, 10_001, 1.5, -1]) {
+        const r = R2MultipartCompleteSchema.safeParse({
+          ...completeBase,
+          parts: [{ partNumber, etag: '"e"' }],
+        });
+        expect(r.success).toBe(false);
+      }
+    });
+
+    it("rejects parts with empty etag", () => {
+      const r = R2MultipartCompleteSchema.safeParse({
+        ...completeBase,
+        parts: [{ partNumber: 1, etag: "" }],
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("rejects missing uploadId", () => {
+      const rest: Omit<typeof completeBase, "uploadId"> = {
+        cid: completeBase.cid,
+        bucket: completeBase.bucket,
+        key: completeBase.key,
+        parts: completeBase.parts,
+      };
+      const r = R2MultipartCompleteSchema.safeParse(rest);
+      expect(r.success).toBe(false);
+    });
+  });
+
+  describe("R2MultipartAbortSchema", () => {
+    const abortBase = { ...base, uploadId: "upload-abc-123" };
+
+    it("accepts a valid payload", () => {
+      expect(R2MultipartAbortSchema.safeParse(abortBase).success).toBe(true);
+    });
+
+    it("rejects extra fields (strict — no `parts` smuggled through)", () => {
+      const r = R2MultipartAbortSchema.safeParse({
+        ...abortBase,
+        parts: [{ partNumber: 1, etag: '"e"' }],
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("rejects empty uploadId", () => {
+      const r = R2MultipartAbortSchema.safeParse({
+        ...abortBase,
+        uploadId: "",
+      });
+      expect(r.success).toBe(false);
+    });
   });
 });

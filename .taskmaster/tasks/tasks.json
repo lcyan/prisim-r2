@@ -1291,7 +1291,7 @@
         "id": "16",
         "title": "Multipart 控制面端点（create / complete / abort）",
         "description": "POST /api/r2/multipart/create、/complete、/abort。这是 Security Invariant #3 的合法服务端调用（只交换元数据，不传字节）。complete 接 parts 列表；abort 用于取消。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "9",
           "6",
@@ -1301,7 +1301,74 @@
         "priority": "high",
         "details": "1) create：input { cid, bucket, key, contentType? }，调 createMultipartUpload，返回 { uploadId }；audit op='upload.create'；2) complete：input { cid, bucket, key, uploadId, parts: [{partNumber:number, etag:string}] }，parts.sort by partNumber，调 completeMultipartUpload，返回 { etag, location }；audit op='upload.complete'；3) abort：input { cid, bucket, key, uploadId }，调 abortMultipartUpload，204；audit op='upload.abort'；4) 限流归 'write' 类（600/min/user）；5) CSRF 必须。",
         "testStrategy": "Vitest mock S3：create 返回 uploadId；complete 校验 parts 顺序；abort 调用 SDK 一次；input 校验 parts 至少 1 项；E2E：上传 200MB 文件能成功 create -> upload-part(presigned) -> complete。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Add multipart request/response Zod schemas in lib/api/schemas.ts",
+            "description": "Define and export the validation schemas needed by the multipart create, complete, and abort control-plane endpoints.",
+            "dependencies": [],
+            "details": "Add Zod schemas for create input { cid, bucket, key, contentType? }, complete input { cid, bucket, key, uploadId, parts }, and abort input { cid, bucket, key, uploadId }. Ensure parts is a non-empty array of objects with numeric partNumber and string etag, and add a transform/refinement path suitable for later sorting or route-level sorting. Follow existing schema naming and export conventions already used by presign and list APIs.\n<info added on 2026-05-21T14:01:38.796Z>\nImplemented in lib/api/schemas.ts:\nR2MultipartCreateSchema with { cid, bucket, key, contentType? } and .strict(); contentType now enforces 1..255 chars so empty string is rejected, and strict mode blocks unexpected extra fields.\nR2MultipartPartSchema exported as a standalone named schema constant so route code, tests, and future client hooks can share the same multipart part shape.\nR2MultipartCompleteSchema with parts length constrained to 1..10_000 to match the S3 spec upper bound. Parts are intentionally not sorted or transformed at schema level; sorting is deferred to lib/r2/control.completeMultipartUpload so the route can forward parts exactly as provided and tests can assert that behavior.\nR2MultipartAbortSchema limited to { cid, bucket, key, uploadId } with .strict() to prevent abuse via smuggled fields such as parts.\n\nRejected alternative: sorting parts via schema .transform() was intentionally not used, because the control wrapper already performs sorting and duplicating that contract in schema would be redundant and would make it harder to express tests asserting that the route does not pre-sort.\n\nTests added in tests/unit/api/schemas.test.ts: 12 new specs covering create/complete/abort happy paths, strict extra-field rejection, and invalid boundary cases. Verified with pnpm test schemas.test.ts passing. Also avoided the initial ESLint no-unused-vars issue from destructuring out uploadId by switching to an explicit Omit-based/test-data construction approach.\n</info added on 2026-05-21T14:01:38.796Z>",
+            "status": "done",
+            "testStrategy": "Add schema-focused unit tests or route validation assertions covering valid payloads, missing required fields, and complete.parts minimum length enforcement.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T14:03:20.779Z"
+          },
+          {
+            "id": 2,
+            "title": "Implement POST /api/r2/multipart/create route",
+            "description": "Create the multipart upload initialization endpoint using the established secure server-side R2 route pattern.",
+            "dependencies": [
+              1
+            ],
+            "details": "Add app/api/r2/multipart/create/route.ts with edge runtime and wrap the handler with withApi + RateLimitBundles.writeOnlyByUser, enforcing CSRF. Parse input with the new schema, perform user-scoped connection lookup using userId AND cid, decrypt credentials with AES-GCM using AAD=cid, construct makeS3Client per request, call createMultipartUpload with bucket/key/contentType, return { uploadId }, map R2CredentialError to 401, and await audit logging on both success and failure paths with op='upload.create'.\n<info added on 2026-05-21T14:01:46.009Z>\nImplemented in app/api/r2/multipart/create/route.ts with edge runtime, reusing the same boilerplate pattern as presign/list: user-scoped connection lookup by cid + user_id, parallel AES-GCM credential decrypt with AAD=cid, single per-request makeS3Client construction, createMultipartUpload call, and awaited audit op='upload.create'. Response shape is { uploadId }.\n\nRate limiting intentionally uses RateLimitBundles.writeOnlyByUser only (the shared 600/min/user write aggregate). There is no separate multipart.create cap because the effective throttle is the subsequent per-part presign limit (60/min/user); one create maps to one upload and is naturally constrained there. This rationale is documented in the route header comment to prevent future confusion about the lack of multipart-specific limiting.\n\nError handling aligns with presign/list: R2CredentialError maps to 401 and records an awaited 'upload.create' failure audit; decrypt failures map to 500 and record awaited 'security.decrypt_failed' audit. Both paths explicitly await logAudit so the Pages worker does not exit before the audit write completes.\n\nThe local asU8(blob) helper is duplicated here as a fourth copy (after presign/buckets/list/create). A TODO was added in the route header: if a fifth route needs the same helper, lift it into lib/db/blob.ts instead of copying again.\n\nShared connection lookup + decrypt extraction was considered and rejected for now to stay consistent with the existing project style guidance favoring a few similar inline blocks over premature abstraction; revisit only after additional R2 routes make the shared helper clearly justified.\n</info added on 2026-05-21T14:01:46.009Z>",
+            "status": "done",
+            "testStrategy": "Integration test with mocked S3 client verifying successful uploadId response, 401 mapping for credential failures, CSRF enforcement, and audit invocation on success and error.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T14:03:20.794Z"
+          },
+          {
+            "id": 3,
+            "title": "Implement POST /api/r2/multipart/complete route",
+            "description": "Create the multipart completion endpoint that validates and sorts uploaded parts before finalizing the upload.",
+            "dependencies": [
+              1
+            ],
+            "details": "Add app/api/r2/multipart/complete/route.ts following the same edge-runtime route structure and middleware stack. Validate body with the complete schema, resolve the user-owned connection, decrypt credentials with AAD=cid, build the S3 client, sort parts by ascending partNumber before invoking completeMultipartUpload, and return { etag, location }. Apply write-class rate limiting, require CSRF, map R2CredentialError to 401, and await audit logging for both success and failure using op='upload.complete'.\n<info added on 2026-05-21T14:01:51.916Z>\nImplemented app/api/r2/multipart/complete/route.ts with edge runtime. Response output is normalized to { etag, location } using ?? null because the SDK fields are optional. Added R2MultipartCompleteResponse to lib/api/types.ts, following the existing R2*Response naming, so V2 callers always receive null instead of omitted fields.\n\nImportant contract decision: the route does not sort parts before calling lib/r2/control.completeMultipartUpload and forwards parts exactly as provided. Sorting remains inside the control wrapper, which already performs sort([...parts]) by partNumber and documents that the S3 InvalidPartOrder contract belongs there. Keeping sort in the wrapper preserves the “route forwards parts as-given” behavior and avoids duplicating or obscuring responsibility.\n\nRegression coverage was added in r2-multipart-routes.test.ts using out-of-order parts [3,1,2], asserting the mocked control wrapper receives [3,1,2] unchanged from the route. The actual sorting behavior remains covered in tests/unit/r2/control.test.ts.\n\nError mapping matches the create route: R2CredentialError maps to 401 and logs upload.complete failure; decrypt failure maps to 500 and logs security.decrypt_failed.\n</info added on 2026-05-21T14:01:51.916Z>",
+            "status": "done",
+            "testStrategy": "Integration test with mocked S3 verifying parts are sent in sorted order, response includes etag/location, invalid empty parts payload is rejected, and audit/error mapping behave as expected.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T14:03:20.804Z"
+          },
+          {
+            "id": 4,
+            "title": "Implement POST /api/r2/multipart/abort route",
+            "description": "Create the multipart abort endpoint to cancel an in-progress multipart upload without transferring object bytes.",
+            "dependencies": [
+              1
+            ],
+            "details": "Add app/api/r2/multipart/abort/route.ts using the same secure server-side route conventions as sibling endpoints. Validate request input, fetch the connection with userId AND cid constraints, decrypt access credentials with AAD=cid, create the S3 client, call abortMultipartUpload with bucket/key/uploadId, and return HTTP 204 with no body. Include CSRF enforcement, write-only per-user rate limiting, R2CredentialError to 401 mapping, and awaited audit rows on success/failure with op='upload.abort'.\n<info added on 2026-05-21T14:01:59.300Z>\nImplemented app/api/r2/multipart/abort/route.ts on edge runtime. The handler returns a bare `new Response(null, { status: 204 })` so the success path stays truly no-body; `withApi` detects `Response` instances, skips default JSON wrapping, and only injects the `x-request-id` header.\n\nKept rate limiting aligned with the sibling multipart control-plane routes by using `writeOnlyByUser`, so abort/reset cleanup is governed by the same write-class budget as create/complete.\n\nError handling matches create/complete: `R2CredentialError` maps to 401 and still records awaited failure audit rows with `op='upload.abort'`; decrypt failures map to 500 with `security.decrypt_failed`, also with awaited audit logging.\n\nDeliberately did not add a special 4xx mapping for R2 `NoSuchUpload` on stale/unknown `uploadId`. That case currently flows through `mapR2Error` as `R2UpstreamError` (5xx). This is acceptable because the UI treats abort as fire-and-forget cleanup and does not branch on that condition. If product requirements later need to distinguish “already cleaned up” from genuine failures, extend `lib/r2/errors.ts` with a dedicated mapping then.\n\nTest note: assert `await res.text()` is `\"\"` to verify the 204 response has no body, and assert `res.headers.get(\"x-request-id\")` still matches the expected UUID pattern to confirm trace header injection remains intact for bare `Response` returns.\n</info added on 2026-05-21T14:01:59.300Z>",
+            "status": "done",
+            "testStrategy": "Integration test with mocked S3 ensuring abortMultipartUpload is called exactly once with expected params, 204 is returned, and CSRF plus credential error handling work properly.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T14:03:20.813Z"
+          },
+          {
+            "id": 5,
+            "title": "Add Vitest integration coverage for all multipart control-plane routes",
+            "description": "Create comprehensive integration tests covering create, complete, and abort route behavior and shared security invariants.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Add or extend Vitest route tests to cover the three new endpoints using the same mocking style as existing API route tests. Mock S3 SDK calls, connection lookup, decrypt path, and audit writes. Verify create returns uploadId, complete sorts parts before SDK invocation, abort returns 204, write-class rate limit wrapper is wired, CSRF is required, user-scoped connection access is enforced, R2CredentialError maps to 401, and audit is awaited on both success and failure paths.\n<info added on 2026-05-21T14:02:10.400Z>\nAdded tests/unit/api/r2-multipart-routes.test.ts as a single fat integration spec covering create, complete, and abort in one shared fixture setup, matching the existing r2-list-route.test.ts / r2-presign-route.test.ts pattern. The shared setup reuses D1-shaped sqlite, drizzle, AES-GCM encryption fixtures, fake JWT, fake session store, Cloudflare next-on-pages mock, and auth-adapter mock, with ENCRYPTION_KEY_B64 set to 0x07.repeat(32) to keep multipart fixtures grep-friendly and visually distinct from other route suites.\n\nCoverage added:\nCreate route: happy path returns uploadId, verifies contentType passthrough, allows omitted contentType, and writes awaited upload.create success audit; rejects unknown extra fields via strict schema; rejects non-ULID cid; returns 404 for cross-user connection access to avoid enumeration leaks; returns 401 for unauthenticated and CSRF mismatch; maps decrypt failure to 500 with security.decrypt_failed audit; maps R2CredentialError to 401 with upload.create failure audit.\nComplete route: verifies unsorted parts are passed through to the control wrapper unchanged as a regression guard at the route layer; normalizes missing etag/location in the response to null; writes awaited upload.complete success audit; rejects empty parts with 400 at schema layer; rejects missing uploadId with 400; maps R2CredentialError to 401 with upload.complete failure audit.\nAbort route: returns 204 with no body while preserving x-request-id header; asserts abortMultipartUpload is called exactly once with expected parameters; writes awaited upload.abort success audit; maps R2CredentialError to 401 with upload.abort failure audit; hosts the shared write-class rate limit coverage because it is the lightest route.\n\nRate-limit test was optimized to avoid a slow 600-request loop: instead of incrementing through the full writeAggregate budget, the test inserts a preseeded rate_limit_buckets row with count=599 and then sends two requests to assert one success followed by 429, while still checking retry-after, 429 body, and details.policy through the real limiter path.\n\nTest harness fixes and decisions:\nCross-user 404 coverage now stores the returned user object from seedUserAndConnection({ loginAs: true }) and explicitly uses userB.csrfToken, avoiding the earlier fakeJwt.token overwrite bug from repeated loginAs seeding.\nControl-layer mocks use top-level vi.fn wrappers for createMultipartUpload, completeMultipartUpload, and abortMultipartUpload and spread them inside vi.mock(\"@/lib/r2/control\"), allowing isolated mockReset calls in beforeEach without cross-test leakage.\nAdjusted destructuring patterns to satisfy ESLint no-unused-vars by avoiding underscore-prefixed throwaway bindings and using explicit field selection/Omit style where needed.\n\nValidation status: pnpm typecheck passes, pnpm lint passes with no warnings/errors, pnpm test passes with 386 tests across 28 files, and pnpm build succeeds with Next.js detecting /api/r2/multipart/create, /api/r2/multipart/complete, and /api/r2/multipart/abort as edge functions.\n</info added on 2026-05-21T14:02:10.400Z>",
+            "status": "done",
+            "testStrategy": "Run Vitest integration suite for all three routes with success, validation failure, unauthorized/credential failure, and SDK failure scenarios.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T14:03:20.822Z"
+          }
+        ],
+        "updatedAt": "2026-05-21T14:03:20.822Z"
       },
       {
         "id": "17",
@@ -1502,9 +1569,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-21T13:21:10.769Z",
+      "lastModified": "2026-05-21T14:03:20.823Z",
       "taskCount": 25,
-      "completedCount": 16,
+      "completedCount": 17,
       "tags": [
         "master"
       ]
