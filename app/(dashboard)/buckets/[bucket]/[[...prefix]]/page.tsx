@@ -25,6 +25,7 @@ import {
   type ObjectRow,
   type RowAction,
 } from "@/components/features/files/object-table";
+import { Dropzone } from "@/components/features/upload/dropzone";
 import { useObjects } from "@/hooks/use-objects";
 import { useDownloadObject } from "@/hooks/use-download";
 import { ApiClientError } from "@/lib/api/client";
@@ -203,20 +204,25 @@ export default function BucketBrowserPage() {
         prefix={prefix}
         onNavigate={onBreadcrumbClick}
       />
-      <ObjectTable
-        items={items}
-        isLoading={isPending}
-        isError={isError}
-        errorMessage={error?.message ?? null}
-        onRetry={() => void refetch()}
-        onFolderClick={onFolderClick}
-        onAction={onRowAction}
-        hasNextPage={Boolean(hasNextPage)}
-        isFetchingNextPage={isFetchingNextPage}
-        onLoadMore={() => void fetchNextPage()}
-        selectedCount={selectedCount}
-        onClearSelection={clearSelection}
-      />
+      {/* Dropzone wraps the table so a drag anywhere over the listing
+          drops into the current prefix. Browse button + hint render
+          above the table from inside the component. */}
+      <Dropzone cid={cid} bucket={bucket} prefix={prefix}>
+        <ObjectTable
+          items={items}
+          isLoading={isPending}
+          isError={isError}
+          errorMessage={error?.message ?? null}
+          onRetry={() => void refetch()}
+          onFolderClick={onFolderClick}
+          onAction={onRowAction}
+          hasNextPage={Boolean(hasNextPage)}
+          isFetchingNextPage={isFetchingNextPage}
+          onLoadMore={() => void fetchNextPage()}
+          selectedCount={selectedCount}
+          onClearSelection={clearSelection}
+        />
+      </Dropzone>
     </div>
   );
 }

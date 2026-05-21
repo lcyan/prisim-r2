@@ -220,8 +220,14 @@ describe("lib/uploads/multipart", () => {
         return { uploadId: "mp-X" };
       }
       if (url.endsWith("/api/r2/multipart/complete")) {
-        const ApiClientError = (await import("@/lib/api/client")).ApiClientError;
-        throw new ApiClientError("upload.complete_failed", "S3 said no", 500, "req-1");
+        const { ApiClientError } = await import("@/lib/api/client");
+        const { ApiErrorCode } = await import("@/lib/api/errors");
+        throw new ApiClientError(
+          ApiErrorCode.InternalUnexpected,
+          "S3 said no",
+          500,
+          "req-1",
+        );
       }
       if (url.endsWith("/api/r2/multipart/abort")) return undefined;
       if (url.endsWith("/api/r2/presign")) {

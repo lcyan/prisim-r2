@@ -1466,7 +1466,7 @@
         "id": "18",
         "title": "Upload UI（拖拽 + 进度 + 取消）",
         "description": "Dropzone 组件接收拖拽文件入队；底部 fixed Upload Tray 显示进度条/暂停（V1 不做，灰显）/取消/重试；新任务 toast 提示。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "17",
           "14"
@@ -1474,7 +1474,74 @@
         "priority": "high",
         "details": "1) components/features/upload/Dropzone.tsx：监听 dragover/drop，多文件支持，文件大小校验（单文件 < 5GB R2 限制）；2) UploadTray 固定底部，列表项展示文件名/进度条(shadcn Progress)/速率/剩余时间/Cancel 按钮；3) 任务完成后 5 秒自动从列表移除（done 状态 fade out）；4) 失败显示 Retry 按钮；5) 关闭页面前若有 in-flight 任务 window.onbeforeunload 提示；6) Tray 折叠/展开切换。",
         "testStrategy": "Playwright：拖一个小文件成功上传，进度条到 100%；拖一个大文件中途点 Cancel，UI 状态变 'Canceled' 且后端 abort 被调；同时拖 5 个文件，Tray 显示 3 个 uploading + 2 个 queued。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement Dropzone file validation and queueing helpers",
+            "description": "Create the core pure helper logic for partitioning files, validating the 5GB limit, and generating upload keys before wiring the UI.",
+            "dependencies": [],
+            "details": "Add a helper module used by Dropzone, e.g. validateAndPartitionFiles(files, prefix), that separates accepted vs skipped files based on file.size <= 5*1024^3 and returns queued/skipped counts plus key mapping via `${prefix}${file.name}`. Keep this logic DOM-independent so Vitest can run in node without jsdom.\n<info added on 2026-05-21T16:05:31.544Z>\nImplement this in lib/uploads/dropzone-utils.ts alongside the other upload helpers, not under components, so the logic stays framework-free and can be tested in Vitest's node environment without jsdom.\n\nExport:\n- MAX_UPLOAD_BYTES = 5 * 1024 ** 3\n- validateAndPartitionFiles(files: readonly File[]): { accepted: File[]; skipped: { file: File; reason: 'too-large' | 'empty' }[] }\n- describeSkipped(...)\n- describeQueued(...)\n- keyForFile(prefix, file)\n\nBehavior requirements:\n- validateAndPartitionFiles must treat the input as readonly and never mutate it.\n- Skip files with size === 0 using reason 'empty'.\n- Skip files with size > MAX_UPLOAD_BYTES using reason 'too-large'.\n- Accept only files with 0 < size <= MAX_UPLOAD_BYTES.\n- keyForFile(prefix, file) should return `${prefix}${file.name}` with no URL encoding.\n\nToast formatting helpers:\n- describeSkipped / describeQueued should format the partition results into toast title/description payloads and return null when no toast is needed, so callers can avoid extra branching.\n- For a single skipped/queued file, mention the filename directly and wrap it in “”.\n- For multiple skipped files of the same/different reasons, use count-based copy instead of listing names to reduce toast noise.\n- Use distinct singular vs plural wording for 0/1/N cases.\n\nRationale to preserve in implementation:\n- 5 GiB matches the R2 single-PUT ceiling; no need to raise it further for V1.\n- 0-byte files are intentionally rejected because browsers may emit them when users drag directories, and multipart failures are otherwise confusing, even though R2 can store empty objects.\n- Do not URL-encode the key here because the presign endpoint signs the raw key and the SDK handles wire encoding later.\n</info added on 2026-05-21T16:05:31.544Z>",
+            "status": "done",
+            "testStrategy": "Unit test helper with mock file-like objects for under-limit, over-limit, mixed batches, and key generation behavior.",
+            "updatedAt": "2026-05-21T16:06:38.851Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Build the Dropzone component with drag-drop and browse support",
+            "description": "Implement the new dropzone UI component that accepts dropped files or manual selection and enqueues valid uploads.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create components/features/upload/dropzone.tsx to wrap a target area, handle dragenter/dragover/dragleave/drop with preventDefault, and expose a hidden multiple file input triggered by a Browse button. Use useUploadQueueStore.enqueueMany(cid, bucket, files, keyForFile), disable interactions when cid or bucket is missing while still rendering guidance text, and show toast.error for skipped >5GB files plus toast.success summarizing queued vs skipped counts after selection or drop.\n<info added on 2026-05-21T16:05:40.925Z>\nUX requirements:\nUse a drag-state overlay with pointer-events: none so child interactions remain intact and the hover/landing feel is correct. Keep a persistent top hint row visible at all times with UploadCloud icon, a visible Browse button, and the text “Max 5 GB · per file”, so Browse stays keyboard-reachable even when the user is not dragging. When dragging files over the target, show the destination bucket/prefix inside the overlay so users understand exactly where files will be uploaded.\n\nImplementation decisions:\nImplement drag-and-drop manually with dragenter/dragover/dragleave/drop rather than react-dropzone to avoid extra bundle cost and because validation is custom anyway. Track nested drag enter/leave with a ref counter (dragCounterRef) instead of a boolean, since moving across child boundaries fires dragleave and otherwise causes hover flicker. Implement hasFiles(dataTransfer) to support both DOMStringList in Safari and array-like types in Chrome/Firefox; iterate by index with a for loop rather than relying on includes(). Set dataTransfer.dropEffect = \"copy\" during dragover so Safari does not show a “not allowed” cursor. The hidden file input should use sr-only + tabIndex={-1} + aria-hidden and be triggered only through the visible Browse button to keep the accessibility tree clean. After handling input.onChange, reset event.target.value = '' so selecting the same file again still triggers change. If cid or bucket is missing, still render the hint row but reject drop/browse interactions and show a toast guiding the user to pick a connection from the header.\n\nOut of scope / not implemented:\nDo not add a global page-wide highlight immediately when files enter the page, since it would overlap with the local overlay; consider that in V2. Directory drop blocking is not implemented in V1; Chrome may expose directories via webkitDirectory and that case is intentionally left unsupported for now.\n</info added on 2026-05-21T16:05:40.925Z>",
+            "status": "done",
+            "testStrategy": "Component-adjacent tests should mock enqueueMany and toast calls, then verify valid files are passed through, invalid files are skipped, and missing cid/bucket prevents enqueue.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T16:06:38.861Z"
+          },
+          {
+            "id": 3,
+            "title": "Integrate Dropzone into the bucket page around the object table",
+            "description": "Mount the dropzone on the bucket browser page so the main object browsing area accepts drag-and-drop uploads.",
+            "dependencies": [
+              2
+            ],
+            "details": "Update app/(dashboard)/buckets/[bucket]/[[...prefix]]/page.tsx to render Dropzone alongside or wrapping the ObjectTable region, passing cid, bucket, and prefix-derived key behavior so the visible browser area becomes the upload target. Ensure disabled-state messaging appears when required params are unavailable and existing table interactions remain intact.\n<info added on 2026-05-21T16:05:44.901Z>\nRender Dropzone inside app/(dashboard)/buckets/[bucket]/[[...prefix]]/page.tsx as a wrapper around ObjectTable so the full object-browser/list region becomes the drag target for uploads to the current prefix. Keep the hint/browse row rendered above ObjectTable within the Dropzone, visually separated from FileBreadcrumb. Let Dropzone own conversion of cid/bucket/prefix into the enqueueMany keyForFile callback so page.tsx does not duplicate key-building logic. Do not add an extra cid guard in page.tsx for the normal branch; Dropzone already handles nullable cid internally. Preserve the existing early-return no-cid placeholder path that still renders FileBreadcrumb plus the prompt card without Dropzone, since uploads cannot be enqueued there. Do not change the outer container structure around ObjectTable; spacing should continue inheriting the parent flex-column gap-4 layout.\n</info added on 2026-05-21T16:05:44.901Z>",
+            "status": "done",
+            "testStrategy": "Manual integration verification that dragging over the object table area highlights the drop target and dropping files triggers queueing with the expected prefix.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T16:06:38.872Z"
+          },
+          {
+            "id": 4,
+            "title": "Add upload queue provider effects for auto-removal and unload guard",
+            "description": "Implement provider-side side effects for completed-task cleanup and navigation protection during active uploads.",
+            "dependencies": [
+              1
+            ],
+            "details": "Extend upload-queue-provider.tsx or a dedicated hook to subscribe to store changes, detect newly done tasks, and schedule removeOne/removeDone after 5000ms while clearing timers if a task is retried before expiry. Also attach window.onbeforeunload only when any task is in an in-flight status and remove the handler cleanly on state change or unmount, without affecting canceled tasks.\n<info added on 2026-05-21T16:05:53.625Z>\nRefactor both side effects into lib/uploads/effects.ts.\n\nAdd startAutoRemoveDone() implemented with plain store.subscribe(handleChange) plus a previous Map diff instead of Zustand selector subscribe. Important bug fix: initialize previous as new Map(), not useUploadQueueStore.getState().tasks, otherwise the first handleChange treats prev/current as unchanged and skips scheduling already-existing done tasks; this is the root cause covered by the test \"does not re-schedule for tasks already in 'done' on subscribe ticks\". Track pending timers in a Map<id, timerHandle>; when a task leaves done (including retry back to queued or dismiss/remove), clear and delete its timer to avoid leaks. Before a timeout removes a task, re-read the latest store state and only then call removeOne; removeOne is idempotent, and this extra guard prevents races. Inject setTimeout/clearTimeout via opts so tests can drive behavior with vi.useFakeTimers() and advanceTimersByTime().\n\nAdd startBeforeUnloadGuard() using addEventListener/removeEventListener instead of assigning window.onbeforeunload, so other modules are not overwritten. In the handler call preventDefault() and set (event as unknown as { returnValue: string }).returnValue = '' for Safari compatibility; use the unknown bridge because lib.dom types Event.returnValue as deprecated boolean, and direct intersection typing collapses to never under TS strict mode. Define a minimal BeforeUnloadHost interface so tests can pass a stub host without jsdom. Maintain a listenerAttached boolean to keep attachment/removal idempotent and ensure only one active listener at a time.\n\nMount both from components/features/upload/upload-queue-provider.tsx inside useEffect, and ensure the returned cleanup actually unsubscribes/tears down the effect. The dispatcher intentionally does not expose cleanup because its worker loop is module-level guarded and should keep running across route changes.\n</info added on 2026-05-21T16:05:53.625Z>",
+            "status": "done",
+            "testStrategy": "Use fake timers to verify done tasks are removed after 5 seconds, retries cancel pending removal timers, and mocked window.onbeforeunload is added/removed according to in-flight task presence.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T16:06:38.884Z"
+          },
+          {
+            "id": 5,
+            "title": "Add Vitest coverage for Dropzone helpers and provider side effects",
+            "description": "Write node-environment tests covering the remaining upload UI logic without relying on jsdom drag events.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Create Vitest cases for 5GB validation, enqueueMany invocation payloads, keyForFile prefix concatenation only, done-task auto-removal scheduling, and beforeunload guarding. Prefer pure-function and store/provider effect tests with vi.stubGlobal or simple window mocks so the suite stays compatible with the existing node test environment.\n<info added on 2026-05-21T16:06:01.625Z>\nAdd 24 node-environment Vitest cases split across tests/unit/uploads/dropzone-utils.test.ts and tests/unit/uploads/effects.test.ts.\n\ndropzone-utils.test.ts should cover:\nvalidateAndPartitionFiles: size==MAX boundary accepted, size>MAX rejected, size==0 handling, mixed valid/too-large/empty input preserving original order, and empty input.\ndescribeSkipped: null result, single filename message, multi-file count message, and concatenation when both too-large and empty buckets exist.\ndescribeQueued: null result, single filename message, and multi-file count message.\nkeyForFile: root prefix, nested prefix, and filenames containing spaces/parentheses to confirm no URL encoding is applied.\n\neffects.test.ts should cover:\nstartAutoRemoveDone: removeOne fires only after 5000ms (not at 4999ms, yes at 5000ms), initial pass also schedules already-done tasks to catch the previous initialization bug, retry clears a pending auto-remove timer via the valid setError -> failed -> retry -> queued path, and stop() cancels all pending timers.\nstartBeforeUnloadGuard: queued tasks already count as in-flight and mount the listener (same as preparing/uploading/completing), listener is removed after transition to done, multiple in-flight tasks still attach only once, the handler calls preventDefault and sets returnValue='' , and after stop() future enqueue calls do not mount again.\n\nTesting implementation notes:\nUse importFreshModules() with vi.resetModules() plus dynamic import to isolate the Zustand store instance per case and avoid cross-test state leakage.\nInject a host via effects.startBeforeUnloadGuard({ host }) using makeStubHost() so tests never touch window or jsdom.\nReuse the fakeFile factory from _fake-xhr.ts.\nFull suite target after this addition: pnpm test => 34 files, 439 tests, all green.\n</info added on 2026-05-21T16:06:01.625Z>",
+            "status": "done",
+            "testStrategy": "Run targeted Vitest suites with fake timers and mocked store/window APIs, asserting helper outputs, mocked action calls, timer cleanup, and beforeunload registration behavior.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T16:06:38.899Z"
+          }
+        ],
+        "updatedAt": "2026-05-21T16:06:38.899Z"
       },
       {
         "id": "19",
@@ -1647,9 +1714,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-21T15:29:34.082Z",
+      "lastModified": "2026-05-21T16:06:38.900Z",
       "taskCount": 25,
-      "completedCount": 18,
+      "completedCount": 19,
       "tags": [
         "master"
       ]
