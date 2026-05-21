@@ -15,12 +15,20 @@
 // back to `router.push(...)`. Anything more complicated than that should go
 // into a hook or a child component so the page stays readable.
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { FileBreadcrumb } from "@/components/features/files/breadcrumb";
-import { ObjectTable } from "@/components/features/files/object-table";
+import {
+  ObjectTable,
+  type ObjectRow,
+  type RowAction,
+} from "@/components/features/files/object-table";
 import { useObjects } from "@/hooks/use-objects";
+import { useDownloadObject } from "@/hooks/use-download";
+import { ApiClientError } from "@/lib/api/client";
+import { ApiErrorCode } from "@/lib/api/errors";
 import { useActiveConnectionStore } from "@/stores/active-connection";
 import {
   useSelectedKeysStore,
@@ -139,6 +147,37 @@ export default function BucketBrowserPage() {
     handleNavigate(prefixAtDepth(prefix, depth));
   };
 
+  // Single-file download. The hook itself only mints a presigned GET URL
+  // and hands it to the browser's native download manager — toast surface
+  // lives here so the page can branch on ApiClientError.code without
+  // dragging UI plumbing into the hook (matches use-connections.ts).
+  const downloadMutation = useDownloadObject();
+  const onRowAction = useCallback(
+    (action: RowAction, row: ObjectRow) => {
+      if (action !== "download") {
+        // Other actions (preview / share / delete) wire up in tasks 17/18/16.
+        // Leave the no-op so the buttons stay keyboard-reachable rather
+        // than appearing disabled.
+        return;
+      }
+      // Folder rows don't expose a Download button (RowActions only renders
+      // for file rows), but if a future bulk handler routes a "*bulk*" row
+      // through here we'd want to ignore it instead of presigning a phantom key.
+      if (row.kind !== "file" || !cid) return;
+      downloadMutation.mutate(
+        { cid, bucket, key: row.key },
+        {
+          onError: (err) => {
+            toast.error("Couldn’t start download", {
+              description: describeDownloadError(err),
+            });
+          },
+        },
+      );
+    },
+    [downloadMutation, cid, bucket],
+  );
+
   // While a connection is required to fetch anything useful, render the
   // breadcrumb anyway so the user understands the route + can use the
   // bucket-switcher control to pick a connection first.
@@ -171,6 +210,7 @@ export default function BucketBrowserPage() {
         errorMessage={error?.message ?? null}
         onRetry={() => void refetch()}
         onFolderClick={onFolderClick}
+        onAction={onRowAction}
         hasNextPage={Boolean(hasNextPage)}
         isFetchingNextPage={isFetchingNextPage}
         onLoadMore={() => void fetchNextPage()}
@@ -179,4 +219,27 @@ export default function BucketBrowserPage() {
       />
     </div>
   );
+}
+
+/** Translate the typed download error into a one-line toast description.
+ *  Branching on `code` (not `status`) so future renames of an HTTP status
+ *  don't silently regress the messaging. */
+function describeDownloadError(err: unknown): string {
+  if (err instanceof ApiClientError) {
+    switch (err.code) {
+      case ApiErrorCode.AuthUnauthorized:
+        // Two distinct causes share this code: OUR session expired, OR R2
+        // rejected the user's stored keys. The route's message ("R2
+        // credentials rejected") disambiguates — include it verbatim.
+        return `${err.message} (request ${err.requestId})`;
+      case ApiErrorCode.RateLimited:
+        return "Too many downloads. Wait a moment and try again.";
+      case ApiErrorCode.NotFound:
+        return "Connection not found. Re-add it from Settings → Connections.";
+      default:
+        return `${err.code} — ${err.message} (request ${err.requestId})`;
+    }
+  }
+  if (err instanceof Error) return err.message;
+  return "Unknown error";
 }

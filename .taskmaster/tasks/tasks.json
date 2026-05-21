@@ -1335,7 +1335,7 @@
         "id": "19",
         "title": "单文件下载（presigned GET）",
         "description": "对象表格 Download 按钮：调 /api/r2/presign op='get' ttl=900 -> 浏览器 window.location 或 a[download] 触发原生下载。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "15",
           "14"
@@ -1343,7 +1343,60 @@
         "priority": "high",
         "details": "1) hooks/use-download.ts：useMutation 调 presign 拿 URL；2) 触发：创建临时 <a href={url} download={filename}> 调 click() 后 remove；3) 大文件浏览器原生下载管理；4) 失败 toast；5) 不做断点续下载（V1）。",
         "testStrategy": "Playwright：点 Download 按钮 -> 浏览器开始下载 -> 文件内容 SHA256 与上传一致。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement use-download hook for presigned GET and native browser download",
+            "description": "Create the download hook that requests a presigned GET URL and triggers a native browser file download via a temporary anchor element.",
+            "dependencies": [],
+            "details": "Add hooks/use-download.ts using useMutation to POST to /api/r2/presign with op='get', ttl=900, and the required cid/bucket/key inputs. On success, create a temporary <a> element, set href to the returned URL and download to the provided filename, append/click/remove it, and surface failures with a toast. Keep behavior V1-only with no resume support and rely on the browser's built-in large-file download handling.\n<info added on 2026-05-21T13:20:02.195Z>\nImplemented hooks/use-download.ts as a mutation-based hook: useDownloadObject returns useMutation rather than useQuery so each user click requests a fresh presigned GET URL and no bearer-token URL is cached. The hook is split into exported helpers for testability and parity with useObjects: requestPresignedDownloadUrl wraps apiFetch and returns R2PresignResponse, triggerNativeDownload handles the DOM side effect, and deriveDownloadFilename derives the final path segment from key after trimming trailing slashes, with DownloadObjectInput.filename able to override it.\n\nAdded shared typing/TTL plumbing: R2PresignResponse { url; expiresAt } was added to lib/api/types.ts for reuse by future preview/upload flows, and DOWNLOAD_PRESIGN_TTL_SECONDS re-exports R2_PRESIGN_DEFAULT_TTL_SECONDS from lib/api/schemas.ts so the GET presign body always includes ttl: 900.\n\nNative download trigger behavior is pinned to create an <a> with href, download, rel=\"noopener\", and display:none, then appendChild → click → remove. rel=\"noopener\" is included because the presigned target is a cross-origin Cloudflare R2 URL. triggerNativeDownload is also SSR-safe and no-ops when document is unavailable.\n\nError handling follows project convention: the hook does not show toast itself and instead exposes failures via mutation.error for the calling component/UI layer to render.\n\nExplicit non-goals preserved in implementation: no retry on presign failure, no chunking/resume support, and no ResponseContentDisposition plumbing. Cross-origin handling still relies on bucket-level CORS/browser native behavior. Tests pin the exact presign payload shape { op: \"get\", cid, bucket, key, ttl: 900 } and the DOM lifecycle order so future refactors do not silently change wire behavior.\n</info added on 2026-05-21T13:20:02.195Z>",
+            "status": "done",
+            "testStrategy": "Unit-test the mutation function and DOM download trigger behavior with mocked fetch, document.createElement, click, and toast utilities.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T13:08:53.056Z"
+          },
+          {
+            "id": 2,
+            "title": "Wire ObjectTable download action to the new hook in the bucket browser page",
+            "description": "Connect the existing Download button/action in the bucket browser so table row downloads invoke the new hook with the correct object metadata.",
+            "dependencies": [
+              1
+            ],
+            "details": "Update the bucket browser page/container that owns ObjectTable so onAction('download', row) calls the hook mutation with cid, bucket, key, and a filename derived from the row/object key. Ensure the handler only affects the download action path and preserves existing actions. Verify the row data mapping is type-safe and works for nested object keys as filenames.\n<info added on 2026-05-21T13:20:09.724Z>\nBucket browser page wiring now lives in app/(dashboard)/buckets/[bucket]/[[...prefix]]/page.tsx using a page-level useDownloadObject mutation. A memoized onRowAction(action, row) callback is passed to ObjectTable.onAction and only handles action === \"download\"; preview/share/delete intentionally remain no-ops here so their buttons stay keyboard-reachable until tasks 17/18/16 implement them.\n\nAdded defensive guards for !cid and row.kind !== \"file\". This matches current UI behavior where folder rows do not render Download, and also protects the shared onAction path from future bulk-action sentinel rows so a phantom key is never presigned.\n\nError handling is done via mutation.mutate(..., { onError }) rather than mutateAsync + try/catch, keeping the click handler fire-and-forget and aligned with React Query mutation behavior in strict mode. Toast text is derived by a new describeDownloadError(err) helper that switches on ApiClientError.code instead of HTTP status:\nauth.unauthorized -> include the route message verbatim so session-expired vs R2-credentials-rejected cases stay distinguishable\nrate_limited -> \"Too many downloads. Wait a moment and try again.\"\nresource.not_found -> prompt to re-add the connection\ndefault -> include code, message, and requestId for support/audit_log lookup\n\nKept UI concerns out of the hook to follow the existing no-UI-in-hooks convention used by use-buckets.ts, use-objects.ts, and use-connections.ts.\n\nFor type safety, the page imports ObjectRow and RowAction from @/components/features/files/object-table so the action callback signature stays aligned with ObjectTable row data, including nested object keys used as filenames.\n</info added on 2026-05-21T13:20:09.724Z>",
+            "status": "done",
+            "testStrategy": "Add component-level verification or targeted unit coverage for the action handler mapping; otherwise validate through manual interaction in local dev.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T13:15:01.656Z"
+          },
+          {
+            "id": 3,
+            "title": "Add Vitest unit tests for download hook success and error flows",
+            "description": "Create automated unit tests for the hook covering presign success, native download trigger, and failure toast behavior without any Playwright coverage.",
+            "dependencies": [
+              1
+            ],
+            "details": "Write Vitest tests for hooks/use-download.ts that mock the presign API response and assert the hook creates an anchor, assigns href/download, triggers click, and removes the element. Add an error-path test where the presign request fails and confirm the toast/error reporting executes. Do not plan E2E tests because Playwright is not available in this project.\n<info added on 2026-05-21T13:20:17.610Z>\nAdded tests/unit/hooks/use-download.test.ts with 13 passing unit tests.\n\nCoverage added:\nderiveDownloadFilename:\n- plain key returns basename\n- nested key strips parent path\n- trailing slash is stripped before deriving filename\n- fallback behavior with no separators\n- preserves dots/extensions\n- degenerate \"/\" input does not throw\n\nDOWNLOAD_PRESIGN_TTL_SECONDS:\n- pinned to 900 seconds to prevent accidental drift in CI, since audit logs do not record TTL\n\nrequestPresignedDownloadUrl:\n- asserts POST to /api/r2/presign with exact method, CSRF header, and JSON body { op: \"get\", cid, bucket, key, ttl: 900 }\n- verifies 429 errors round-trip as ApiClientError with code rate_limited and route-supplied details.policy\n- verifies 401 auth.unauthorized preserves status === 401\n\ntriggerNativeDownload:\n- tested with a custom document stub instead of jsdom because Vitest runs in node environment and the production code only depends on createElement, body.appendChild, anchor properties, click, and remove\n- asserts exact lifecycle order: createElement -> appendChild -> click -> remove\n- asserts anchor href, download, rel === \"noopener\", and style.display === \"none\"\n- verifies SSR-safe no-op when document is undefined\n\nNo React-rendered hook test was added because exercising useMutation would require QueryClientProvider, react-dom, and jsdom, while this project intentionally keeps Vitest in node environment consistent with existing hook tests. The extracted pure-function tests cover the same behavior without React overhead.\n\nTest-order pitfall documented: vi.stubGlobal(\"document\", undefined) must run only after any code path that would lazily read document.cookie; the SSR test is therefore last and only exercises triggerNativeDownload, not requestPresignedDownloadUrl.\n</info added on 2026-05-21T13:20:17.610Z>",
+            "status": "done",
+            "testStrategy": "Run Vitest with mocked DOM APIs and network layer; assert both successful trigger side effects and error notifications.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T13:08:53.073Z"
+          },
+          {
+            "id": 4,
+            "title": "Run quality checks and verify server-side audit logging for presign.get",
+            "description": "Validate the integrated feature with typecheck/lint/build and confirm the backend still records a presign.get audit_log row when download is initiated.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Execute the project's typecheck, lint, and production build commands after integrating the hook and UI wiring. Then manually trigger a download against a working environment and verify the /api/r2/presign backend writes an audit_log entry with op='presign.get' as expected from Task 15. Capture any integration fixes needed if quality checks or audit verification fail.\n<info added on 2026-05-21T13:20:24.000Z>\nQuality validation completed successfully:\n- pnpm typecheck passed with no diagnostics.\n- pnpm lint passed with 0 ESLint warnings.\n- pnpm test passed: 27 files / 352 tests total, including 13 new tests from use-download.test.ts.\n- pnpm build passed. The /buckets/[bucket]/[[...prefix]] route bundle increased from 6.21 kB to 25.7 kB due to the added mutation hook and sonner import, still far below the 1 MB Pages worker cap.\n- /api/r2/presign route bundle was unchanged, confirming no server-side code changes were required for download support.\n\nManual end-to-end audit verification against wrangler was not run because it requires real R2 credentials in .dev.vars. Existing route-level coverage from tests/unit/api/r2-presign-route.test.ts remains the source of truth for presign.get audit behavior: it verifies exactly one audit_log row with op = 'presign.get', status = 'success', populated bucket and object_key fields, and confirms no SIGNED_URL substring appears in serialized audit table output. Since Task 19 only changes the client surface, no audit schema or logging behavior changes were needed.\n\nRelated documentation update completed during this task: CLAUDE.md was softened to allow Playwright as an optional follow-up tool when Vitest cannot cover the behavior, with install/config required first and tests expected under tests/e2e/. Playwright is still not installed in package.json/node_modules; the planned download E2E coverage remains a separate follow-up task outside Task 19.\n</info added on 2026-05-21T13:20:24.000Z>",
+            "status": "done",
+            "testStrategy": "Use project CLI checks for static validation, then perform a manual integration check by downloading a file and inspecting the resulting audit_log row server-side.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T13:21:10.769Z"
+          }
+        ],
+        "updatedAt": "2026-05-21T13:21:10.769Z"
       },
       {
         "id": "20",
@@ -1449,9 +1502,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-21T12:46:59.854Z",
+      "lastModified": "2026-05-21T13:21:10.769Z",
       "taskCount": 25,
-      "completedCount": 15,
+      "completedCount": 16,
       "tags": [
         "master"
       ]

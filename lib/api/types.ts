@@ -112,3 +112,23 @@ export interface R2ListResponse {
   prefixes: string[];
   nextCursor: string | null;
 }
+
+/**
+ * Public projection of POST /api/r2/presign.
+ *
+ * Returned for all three discriminated `op` variants (put / get / upload-part);
+ * the wire shape is intentionally identical so a single hook / typed response
+ * can drive uploads, downloads, and multipart PartUpload calls.
+ *
+ *   - `url` is the short-lived signed URL the browser uses directly against
+ *     R2. NEVER persisted server-side (CLAUDE.md security invariant #3); the
+ *     audit_log records that a presign happened, not the URL itself.
+ *   - `expiresAt` is epoch milliseconds — `Date.now() + ttl*1000` from the
+ *     server's clock. Clients compare against their own clock when deciding
+ *     to refresh; small drift (a few seconds) is acceptable because the TTL
+ *     itself bakes in a generous default (15 min).
+ */
+export interface R2PresignResponse {
+  url: string;
+  expiresAt: number;
+}

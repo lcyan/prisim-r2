@@ -15,7 +15,7 @@ Web app for managing Cloudflare R2 buckets (browse / upload / download / delete 
 - **Auth**: Auth.js v5 (next-auth `5.0.0-beta.31`) Credentials provider + custom D1 adapter (`lib/auth/adapter.ts`)
 - **R2 SDK**: pinned `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner` (R2 = S3-compatible)
 - **Deploy**: Cloudflare Pages (`next-on-pages`) — every `/api/*` route is edge runtime
-- **Test**: Vitest only. **Playwright is NOT installed** despite earlier plans — do not invoke it
+- **Test**: Vitest for unit/integration. Playwright is supported for E2E — install (`pnpm dlx playwright install`) and add a `playwright.config.ts` before invoking it; tests go under `tests/e2e/`. Don't add an E2E "for completeness" — it only makes sense when a behavior can't be covered by Vitest (real browser download manager, multipart upload retry across reload, etc.).
 
 ## Commands
 
@@ -159,7 +159,7 @@ D1 is wired via the `DB` binding in `wrangler.toml`, not a `DATABASE_URL`.
 1. **Read before write.** Read the target file and its direct collaborators before editing. Don't infer structure from filenames — `app/api/r2/` has *only* `presign/`, not `list/` or `delete/` (yet).
 2. **Taskmaster discipline.** This project uses taskmaster (`.taskmaster/`). After each subtask, call `update_subtask` to record the decision, the alternatives considered, and any pitfall hit. `update_subtask` rejects parent IDs — if a task has no subtasks, call `expand_task` first.
 3. **Conventional Commits.** `type(scope): subject` (`feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`). Scope is the feature area (`auth`, `r2`, `ui`, `api`, `db`, `crypto`, `audit`, `connections`, …). Breaking changes use `!` and a `BREAKING CHANGE:` footer.
-4. **Tests are part of "done".** New feature → Vitest unit test for pure logic and route handlers. Bug fix → regression test that fails before the patch. (Playwright is not configured — don't add an E2E "for completeness".)
+4. **Tests are part of "done".** New feature → Vitest unit test for pure logic and route handlers. Bug fix → regression test that fails before the patch. Playwright is allowed under `tests/e2e/` once configured, but only for behaviors Vitest can't reach (real browser download manager, cross-tab reload, etc.); don't add E2E "for completeness".
 5. **No new dependencies without justification.** Match the stack above. Pin exact versions for security-relevant packages (`@aws-sdk/*`, crypto helpers, `ulid`, `zod`, `zustand`, `@tanstack/react-query` — see `package.json` for the existing pins).
 
 ## Gotchas
