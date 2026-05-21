@@ -2,7 +2,7 @@
   "master": {
     "tasks": [
       {
-        "id": "1",
+        "id": 1,
         "title": "项目初始化：Next.js 15 + TS strict + Tailwind v4 + shadcn/ui",
         "description": "使用 pnpm 创建 Next.js 15 App Router 项目，启用 TypeScript strict，集成 Tailwind CSS v4（@theme in CSS）和 shadcn/ui 基础组件，配置 ESLint/Prettier，搭建基础目录骨架（app/、lib/、components/、stores/、hooks/、tests/）。",
         "status": "done",
@@ -96,7 +96,7 @@
         "updatedAt": "2026-05-20T12:41:40.798Z"
       },
       {
-        "id": "2",
+        "id": 2,
         "title": "Cloudflare Pages + Edge Runtime 配置",
         "description": "配置 wrangler.toml、next.config.ts 以支持 Cloudflare Pages 部署和 edge runtime；准备 D1 binding；所有 route handler 加 `export const runtime = 'edge'` 规范。",
         "status": "done",
@@ -110,7 +110,7 @@
         "updatedAt": "2026-05-20T12:55:00.855Z"
       },
       {
-        "id": "3",
+        "id": 3,
         "title": "D1 数据库 schema 与迁移",
         "description": "实现 5 张表（users / connections / shares / audit_log / sessions），写迁移脚本（drizzle-kit 或纯 SQL），并提供本地与 production 的执行命令。",
         "status": "done",
@@ -202,7 +202,7 @@
         "updatedAt": "2026-05-20T13:29:28.158Z"
       },
       {
-        "id": "4",
+        "id": 4,
         "title": "AES-GCM 凭证加解密模块（Web Crypto）",
         "description": "实现 lib/crypto/aes-gcm.ts：基于 Web Crypto subtle，AES-GCM-256，每行随机 12 字节 IV，AAD 用 connection.id；导出 encryptCredential / decryptCredential，主密钥从 env ENCRYPTION_KEY (base64, 32 字节) 加载。",
         "status": "done",
@@ -281,7 +281,7 @@
         "updatedAt": "2026-05-20T14:12:21.684Z"
       },
       {
-        "id": "5",
+        "id": 5,
         "title": "Auth.js v5 自托管认证（edge + PBKDF2）",
         "description": "实现登录/登出/会话校验。PBKDF2-SHA256 600k 迭代（OWASP 推荐），自写最小 D1 adapter；不做注册页（单用户应用，通过 seed 脚本加 admin）。",
         "status": "done",
@@ -392,7 +392,7 @@
         "updatedAt": "2026-05-20T14:40:42.348Z"
       },
       {
-        "id": "6",
+        "id": 6,
         "title": "CSRF 保护 + 输入验证中间件",
         "description": "为所有 POST/PATCH/DELETE 路由强制 X-CSRF-Token 校验；CSRF token 登录时随 session 下发，存 cookie + meta；统一 Zod 输入验证；统一错误响应格式。",
         "status": "done",
@@ -500,7 +500,7 @@
         "updatedAt": "2026-05-20T15:12:34.979Z"
       },
       {
-        "id": "7",
+        "id": 7,
         "title": "D1 滑动窗口限流器",
         "description": "实现基于 D1 的 sliding window 限流，覆盖 /api/auth/login (10/5min/IP)、/api/r2/presign (60/min/user)、/api/share/create (30/min/user)、写操作总和 (600/min/user)。429 响应必须含 Retry-After。",
         "status": "done",
@@ -594,7 +594,7 @@
         "updatedAt": "2026-05-20T16:09:56.386Z"
       },
       {
-        "id": "8",
+        "id": 8,
         "title": "审计日志写入模块",
         "description": "lib/audit/log.ts 提供 `logAudit({userId, connectionId?, op, bucket?, key?, status, errorMsg?, req})`，从 req 自动提取 IP 和 UA；写失败不阻塞主流程（nofail）。",
         "status": "done",
@@ -674,7 +674,7 @@
         "updatedAt": "2026-05-21T01:35:27.399Z"
       },
       {
-        "id": "9",
+        "id": 9,
         "title": "R2 S3 客户端工厂 + 预签名 helper",
         "description": "lib/r2/client.ts 给定明文凭证返回配置好的 S3Client（region='auto'、endpoint=https://<account>.r2.cloudflarestorage.com）；lib/r2/presign.ts 封装 presignPut / presignGet；lib/r2/control.ts 封装服务端调用（list/delete/multipart create/complete/abort）。",
         "status": "done",
@@ -757,7 +757,7 @@
         "updatedAt": "2026-05-21T04:46:33.865Z"
       },
       {
-        "id": "10",
+        "id": 10,
         "title": "Connection（R2 凭证）CRUD API",
         "description": "实现 GET/POST/PATCH/DELETE /api/connections。POST 加密落库；GET 返回 masked 值；PATCH 仅允许改 name；DELETE 校验无关联 share 后删除。所有写操作走 CSRF + 限流 + 审计。",
         "status": "done",
@@ -854,20 +854,112 @@
         "updatedAt": "2026-05-21T06:35:10.271Z"
       },
       {
-        "id": "11",
+        "id": 11,
         "title": "Connection 管理 UI",
         "description": "app/(dashboard)/settings/connections 页面：列表、添加（含'测试连接'）、改名、删除（typed 确认）。使用 shadcn Table + Dialog + Form。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "10"
         ],
         "priority": "high",
         "details": "1) hooks/use-connections.ts：useConnections() / useCreateConnection() / useUpdateConnection() / useDeleteConnection() (TanStack Query)，query key ['connections']；2) ConnectionsTable 组件：列 Name / Account ID / Access Key (masked) / Last Used / Actions；3) AddConnectionDialog：表单含 Name/AccountID/AccessKeyID/SecretAccessKey，提交时显示 loading，失败 toast 错误 message；4) RenameConnectionDialog：仅 name 输入；5) DeleteConnectionDialog：要求输入 connection name 才能确认；6) 切换 connection 用 Zustand store activeConnectionId（持久化到 localStorage，非凭证）。",
         "testStrategy": "Playwright E2E：登录 -> 进 Settings -> Add Connection 用有效/无效凭证 -> 验证列表更新；改名生效；删除前必须输入正确名字才高亮 Delete 按钮。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up app-wide client providers for React Query and Sonner",
+            "description": "Create a shared client-side providers component and integrate it into the root app layout.",
+            "dependencies": [],
+            "details": "Add components/providers.tsx as a client component that initializes a stable QueryClient instance and wraps children with QueryClientProvider and Sonner Toaster. Update app/layout.tsx to mount this Providers wrapper so all dashboard and settings pages can use TanStack Query and toast notifications.\n<info added on 2026-05-21T08:00:30.662Z>\nIn components/providers.tsx, initialize QueryClient with useState(() => new QueryClient(...)) to avoid SSR cross-request sharing. Configure defaultOptions with queries.staleTime = 30_000, queries.retry = 1, and mutations.retry = 0 so failed mutations are not retried and do not duplicate audit_log entries.\n\nWrap the provider tree with ThemeProvider using attribute=\"class\", defaultTheme=\"light\", and enableSystem={false}. This is required because components/ui/sonner.tsx uses useTheme(); without a ThemeProvider, useTheme() is undefined and production builds emit warnings even though Sonner falls back to \"system\" at runtime.\n\nProvider nesting/order should be ThemeProvider -> QueryClientProvider -> Toaster + children, with Toaster rendered inside the QueryClientProvider subtree but above the children slot in Providers. If Toaster is rendered under children instead, toast() calls may not find the container.\n\nMount a single Providers wrapper directly under app/layout.tsx body and use it for all app children, including login and dashboard routes.\n</info added on 2026-05-21T08:00:30.662Z>",
+            "status": "done",
+            "testStrategy": "Run the app and verify pages render without provider errors; confirm a child component using useQuery and a toast can mount successfully.",
+            "updatedAt": "2026-05-21T06:52:55.147Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement persisted active connection Zustand store",
+            "description": "Create the active connection selection store with localStorage persistence for only the active ID.",
+            "dependencies": [],
+            "details": "Add stores/active-connection.ts exporting useActiveConnectionStore. Use Zustand persist middleware with a storage key dedicated to connection state, and partialize persisted data so only activeConnectionId is saved. Include actions such as setActiveConnectionId and optional clearActiveConnectionId, ensuring no credential data is stored.\n<info added on 2026-05-21T08:00:38.418Z>\nUse zustand persist with createJSONStorage(() => localStorage) so storage access is lazy. Explicitly set partialize to persist only activeConnectionId and not actions. Add version: 1 now to reserve a future migration hook. Export ACTIVE_CONNECTION_STORAGE_KEY = 'prisim-r2:active-connection' and use it in persist config to avoid hardcoded literals and enable direct test assertions.\n\nTesting notes: in Node/Vitest, localStorage does not exist, but createJSONStorage defers evaluation until storage is accessed; if getStorage throws ReferenceError, zustand persist falls back to noop storage, so store tests do not need to mock localStorage. Add an API-surface guard asserting Object.keys(state).sort() equals ['activeConnectionId', 'clearActiveConnectionId', 'setActiveConnectionId'] so any future accidental public setter such as setSecretKey fails immediately.\n</info added on 2026-05-21T08:00:38.418Z>",
+            "status": "done",
+            "testStrategy": "Add unit tests to verify initial state, set/clear behavior, and persisted payload shape contains only activeConnectionId.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T06:54:49.989Z"
+          },
+          {
+            "id": 3,
+            "title": "Build TanStack Query hooks for connections CRUD",
+            "description": "Implement typed hooks for fetching and mutating connections via the existing API client.",
+            "dependencies": [],
+            "details": "Create hooks/use-connections.ts with useConnections, useCreateConnection, useUpdateConnection, and useDeleteConnection using query key ['connections']. Use lib/api/client.ts apiFetch for GET/POST/PATCH/DELETE calls, type request and response payloads from ConnectionSummary-compatible structures, surface ApiClientError correctly, and invalidate or optimistically update the connections query after mutations.\n<info added on 2026-05-21T08:00:53.868Z>\nRefactor hooks/use-connections.ts into two layers: exported plain async fetchers fetchConnections, createConnection, updateConnection, and deleteConnection that call apiFetch directly, plus React hooks wrapping them with useQuery/useMutation. Export a shared singleton CONNECTIONS_QUERY_KEY = ['connections'] as const and use it consistently for useQuery, invalidateQueries, and setQueryData.\n\nOn mutation success, perform double cache updates: first setQueryData for immediate UI response, then invalidateQueries to refetch and reconcile any server-side normalization such as trimming or lowercasing. Cache update rules: create prepends the new row, update replaces by id via map, delete removes by id via filter.\n\nMove ConnectionSummary out of app/api/connections/route.ts into a new browser-safe lib/api/types.ts, then update both client hooks and route files to import the type from there. This avoids Next.js client bundling errors caused by importing types from a server-only route module.\n\nTesting should focus on the four plain fetcher functions instead of rendering useQuery/useMutation hooks. Assert apiFetch URL, HTTP method, and payload wiring for each fetcher. For the query key, verify with toEqual(['connections']) and a length check rather than Object.isFrozen, since as const does not freeze at runtime.\n</info added on 2026-05-21T08:00:53.868Z>",
+            "status": "done",
+            "testStrategy": "Add unit tests with mocked fetch/apiFetch to verify correct endpoints, methods, payloads, and query invalidation behavior on mutation success.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T06:59:13.147Z"
+          },
+          {
+            "id": 4,
+            "title": "Create the connections table component with action controls",
+            "description": "Build the reusable table UI showing connection summaries and row-level actions.",
+            "dependencies": [],
+            "details": "Implement components/features/connections/connections-table.tsx using shadcn Table. Render columns Name, Account ID, Access Key (masked), Last Used, and Actions. Format nullable lastUsedAt values clearly, wire Rename and Delete action buttons through callback props, and keep the component presentation-focused so page state controls dialogs and selection behavior.",
+            "status": "done",
+            "testStrategy": "Render the component with sample data and verify all columns, masked values, empty-state handling, and action callbacks fire for the correct row.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T07:00:27.046Z"
+          },
+          {
+            "id": 5,
+            "title": "Implement add, rename, and delete connection dialogs",
+            "description": "Create the three dialog/form components for connection creation, renaming, and typed deletion confirmation.",
+            "dependencies": [],
+            "details": "Add components/features/connections/add-connection-dialog.tsx, rename-connection-dialog.tsx, and delete-connection-dialog.tsx using shadcn Dialog and native useState forms. The add dialog should collect name, accountId, accessKeyId, and secretAccessKey, show loading during submit, and display sonner error toasts from ApiClientError messages such as connection.invalid_credentials. The rename dialog should only edit the name. The delete dialog must require exact connection name input before enabling the Delete button.\n<info added on 2026-05-21T08:01:05.419Z>\nEach dialog file should export one outer *Dialog component and one inner *Form component. The outer component only owns the Radix/shadcn Dialog shell and passes onClose as () => onOpenChange(false); all form state and mutation hooks must live in the inner Form component so DialogContent unmount on close resets state naturally. Do not use useEffect to reset form/mutation on open changes; this avoids the react-hooks/set-state-in-effect ESLint violation and follows the React 19 unmount-resets-state pattern.\n\nAdd dialog should perform client-side validation mirroring the server ConnectionsCreateSchema before submit: name required/max as applicable, accountId must match 32 lowercase hex chars, accessKeyId min length 20, secretAccessKey min length 40, to prevent guaranteed 400s. Error toasts should go through a shared describeError() helper that maps ApiClientError.code to user-facing messages, explicitly covering connection.invalid_credentials, connection.in_use, and not_found.\n\nDelete confirmation must be intentionally strict: enable destructive submit only when confirmation === connection.name, with no trim and no case folding. This is deliberate for destructive safety and should not accept loosened pasted variants.\n\nCancel buttons in all dialogs should call the provided onClose callback instead of invoking onOpenChange directly with a boolean, to keep handler types consistent.\n</info added on 2026-05-21T08:01:05.419Z>",
+            "status": "done",
+            "testStrategy": "Component tests should verify form state changes, submit/loading states, toast error handling, and delete button enablement only when typed confirmation matches the connection name exactly.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T07:05:02.957Z"
+          },
+          {
+            "id": 6,
+            "title": "Assemble the dashboard connections settings page and dashboard layout integration",
+            "description": "Compose the hooks, store, table, and dialogs into the actual settings page and ensure dashboard layout wiring is complete.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "details": "Update app/(dashboard)/layout.tsx if needed for dashboard-shell placement and create app/(dashboard)/settings/connections/page.tsx as a client page that loads connections, displays loading/empty/error states, opens Add/Rename/Delete dialogs, triggers mutations, refreshes the list, and syncs activeConnectionId with the Zustand store. Ensure the page can coexist with the existing connection-switcher skeleton and uses the shared providers already mounted at app level.\n<info added on 2026-05-21T08:01:18.701Z>\nDashboard layout integration should use app/(dashboard)/layout.tsx as an async server component with export const runtime = 'edge'. Read the session via auth(), render session.user.email in the shell header, include a Connections navigation link, and mount a dedicated SignOutButton client child that calls next-auth/react signOut({ callbackUrl: '/login' }) to avoid adding server action complexity into the layout. Extract the logo/header brand into a separate server component child as well to keep layout.tsx minimal. The edge runtime requirement is mandatory here because auth() depends on the D1-backed adapter bindings that are only available on edge.\n\nThe connections settings page must be a client component ('use client') implemented with useConnections() and local dialog state only: addOpen, renameTarget, and deleteTarget. Wire activeConnectionId sync with the Zustand store through explicit onCreated, onDeleted, and onSelect callbacks. For loading, render a 3-row animated skeleton placeholder to prevent layout shift. For error state, show a retry action that calls refetch(). Do not special-case empty state in the page; let ConnectionsTable render its internal ConnectionsEmpty state so the page stays focused on data/loading/error orchestration.\n</info added on 2026-05-21T08:01:18.701Z>",
+            "status": "done",
+            "testStrategy": "Manual integration test: open the settings page, verify list loading, add/rename/delete flows update the table, errors toast properly, and selecting an active connection persists across reloads.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T07:15:48.618Z"
+          },
+          {
+            "id": 7,
+            "title": "Add unit tests for store and hooks pure logic with mocked fetch",
+            "description": "Create focused tests covering the Zustand store and connection hooks behavior without full UI rendering.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "details": "Under tests/unit, add tests for stores/active-connection.ts and hooks/use-connections.ts. Mock fetch or apiFetch responses, including success and ApiClientError-like failures, to validate store persistence logic, hook request construction, success paths, and cache invalidation. Keep the tests centered on pure logic and client-side state transitions rather than end-to-end UI behavior.\n<info added on 2026-05-21T08:01:42.725Z>\nImplemented three focused unit test files:\ntests/unit/stores/active-connection.test.ts with 6 cases, including public page pin behavior;\ntests/unit/format/connections.test.ts covering maskAccountId as a pure function, asserting U+2026 ellipsis output rather than three dots and passthrough for values shorter than 8 chars;\ntests/unit/hooks/use-connections.test.ts with 8 cases covering the shared query key and all 4 fetchers, asserting request url/method/body construction and ApiClientError propagation.\n\nTo keep hook tests isolated from React component imports, moved maskAccountId out of connections-table.tsx into lib/format/connections.ts.\n\nFixed a client build issue caused by lib/auth/csrf.ts importing server-only while lib/api/client.ts consumed CSRF_COOKIE_NAME and CSRF_HEADER_NAME from it. Extracted those two string constants into lib/auth/csrf-constants.ts with no server-only import, and re-exported them from lib/auth/csrf.ts so existing route handler and test imports continue to work. The hook tests import csrf-constants directly to avoid re-triggering the server-only dependency chain.\n\nValidation result: test suite passes at 20 files / 259 tests total, including 18 newly added cases, and pnpm build, typecheck, and lint all pass.\n</info added on 2026-05-21T08:01:42.725Z>",
+            "status": "done",
+            "testStrategy": "Run the unit suite to confirm mocked network scenarios pass, store persistence is deterministic, and hooks behave correctly for fetch, create, update, and delete operations.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T08:00:20.059Z"
+          }
+        ],
+        "updatedAt": "2026-05-21T08:00:20.059Z"
       },
       {
-        "id": "12",
+        "id": 12,
         "title": "桶列表 API + UI（只读）",
         "description": "GET /api/r2/buckets?cid= 服务端解密凭证调 listBuckets；UI 在 dashboard 顶部下拉/侧边显示当前 connection 下的桶。",
         "status": "pending",
@@ -882,7 +974,7 @@
         "subtasks": []
       },
       {
-        "id": "13",
+        "id": 13,
         "title": "对象列表 API（游标分页）",
         "description": "GET /api/r2/list?cid=&bucket=&prefix=&cursor= 服务端 list，返回 { objects: [{key, size, etag, lastModified}], prefixes: [], nextCursor }。基于 R2 ContinuationToken。",
         "status": "pending",
@@ -896,7 +988,7 @@
         "subtasks": []
       },
       {
-        "id": "14",
+        "id": 14,
         "title": "对象浏览器 UI（表格 + 面包屑 + 游标分页）",
         "description": "/dashboard/[bucket]/[...prefix] 路由：面包屑 + 文件夹/对象表格 + Load More 按钮 + 多选 checkbox。",
         "status": "pending",
@@ -909,7 +1001,7 @@
         "subtasks": []
       },
       {
-        "id": "15",
+        "id": 15,
         "title": "/api/r2/presign 端点",
         "description": "POST /api/r2/presign，输入 { cid, op: 'put'|'get'|'upload-part', bucket, key, ttl?, uploadId?, partNumber? }；服务端解密 -> 生成 presigned URL；ttl 默认 put=15min, get=15min；写一条 audit_log (presign.put/get)。",
         "status": "done",
@@ -1002,7 +1094,7 @@
         "updatedAt": "2026-05-21T05:26:46.431Z"
       },
       {
-        "id": "16",
+        "id": 16,
         "title": "Multipart 控制面端点（create / complete / abort）",
         "description": "POST /api/r2/multipart/create、/complete、/abort。这是 Security Invariant #3 的合法服务端调用（只交换元数据，不传字节）。complete 接 parts 列表；abort 用于取消。",
         "status": "pending",
@@ -1018,7 +1110,7 @@
         "subtasks": []
       },
       {
-        "id": "17",
+        "id": 17,
         "title": "Upload Queue store + dispatcher（3×3 并发）",
         "description": "Zustand store 管理上传任务的内存状态机；dispatcher 协程：3 个文件并发，每文件 3 个 part 并发；不持久化（关页面=丢失）；取消即 abort。",
         "status": "pending",
@@ -1032,7 +1124,7 @@
         "subtasks": []
       },
       {
-        "id": "18",
+        "id": 18,
         "title": "Upload UI（拖拽 + 进度 + 取消）",
         "description": "Dropzone 组件接收拖拽文件入队；底部 fixed Upload Tray 显示进度条/暂停（V1 不做，灰显）/取消/重试；新任务 toast 提示。",
         "status": "pending",
@@ -1046,7 +1138,7 @@
         "subtasks": []
       },
       {
-        "id": "19",
+        "id": 19,
         "title": "单文件下载（presigned GET）",
         "description": "对象表格 Download 按钮：调 /api/r2/presign op='get' ttl=900 -> 浏览器 window.location 或 a[download] 触发原生下载。",
         "status": "pending",
@@ -1060,7 +1152,7 @@
         "subtasks": []
       },
       {
-        "id": "20",
+        "id": 20,
         "title": "删除 API（HMAC confirm token）+ 删除 UI（typed 确认）",
         "description": "POST /api/r2/delete/prepare 返 confirmToken (HMAC, 5min)；POST /api/r2/delete 校验 token 后批量 delete；UI 弹窗要求输入 bucket 名才能确认。",
         "status": "pending",
@@ -1076,7 +1168,7 @@
         "subtasks": []
       },
       {
-        "id": "21",
+        "id": 21,
         "title": "分享链接 API + UI（1h/1d/7d）",
         "description": "POST /api/share/create 生成 presigned GET + 入库 shares 表；GET /api/share 列表分页（按 expires_at 过滤未过期）；DELETE /api/share/:id 仅删记录（协议层不能撤）。",
         "status": "pending",
@@ -1092,7 +1184,7 @@
         "subtasks": []
       },
       {
-        "id": "22",
+        "id": 22,
         "title": "预览：图片 + 文本（前 1MB 流式）",
         "description": "对象行 Preview 按钮 -> Dialog；图片直接 <img src={presignedUrl}>；文本类对象 fetch presigned URL Range: bytes=0-1048575 取首 MB，UTF-8 decode 显示。",
         "status": "pending",
@@ -1106,7 +1198,7 @@
         "subtasks": []
       },
       {
-        "id": "23",
+        "id": 23,
         "title": "审计日志查看器",
         "description": "GET /api/audit ?cursor=&op=&bucket= 列表分页；UI /(dashboard)/audit 页表格展示。",
         "status": "pending",
@@ -1120,7 +1212,7 @@
         "subtasks": []
       },
       {
-        "id": "24",
+        "id": 24,
         "title": "Vitest 单元测试套件",
         "description": "覆盖 crypto/auth/r2/api/audit/rate-limit 核心模块，目标 80%+ 行覆盖；route handler 用 mock D1 + mock S3 测。",
         "status": "pending",
@@ -1143,7 +1235,7 @@
         "subtasks": []
       },
       {
-        "id": "25",
+        "id": 25,
         "title": "Playwright E2E 关键流 + 部署/CORS 文档",
         "description": "Playwright 覆盖：登录、添加 connection、浏览桶、上传（小/大）、下载、删除（typed 确认）、生成分享。CLAUDE.md 补 Security Invariant #3 豁免脚注；README 加 R2 CORS 配置示例 + multipart lifecycle 提示。",
         "status": "pending",
@@ -1163,12 +1255,14 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-21T06:35:10.271Z",
+      "lastModified": "2026-05-21T08:00:20.060Z",
       "taskCount": 25,
-      "completedCount": 11,
+      "completedCount": 12,
       "tags": [
         "master"
-      ]
+      ],
+      "created": "2026-05-21T08:00:20.180Z",
+      "description": "Tasks for master context"
     }
   }
 }

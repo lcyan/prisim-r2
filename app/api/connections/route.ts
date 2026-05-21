@@ -31,6 +31,7 @@ import {
   ConnectionsCreateSchema,
   maskAccessKey,
 } from "@/lib/api/schemas";
+import type { ConnectionSummary } from "@/lib/api/types";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import {
   encryptCredential,
@@ -45,17 +46,11 @@ export const runtime = "edge";
 
 type ConnectionsEnv = DbEnv & CryptoEnv;
 
-/** Public shape returned by GET (and after POST). Mirrors what hooks expect
- *  on the client; defined here rather than in lib/api/schemas.ts because
- *  it's an output contract, not an input one. */
-export interface ConnectionSummary {
-  id: string;
-  name: string;
-  accountId: string;
-  accessKeyMasked: string;
-  createdAt: number;
-  lastUsedAt: number | null;
-}
+// ConnectionSummary is now defined in lib/api/types.ts so the hooks layer
+// (which runs in the browser) can type its payloads without crossing the
+// server-only boundary. The interface is re-exported as a convenience for
+// any consumer that already imports from this route's module.
+export type { ConnectionSummary };
 
 function rowToSummary(row: {
   id: string;

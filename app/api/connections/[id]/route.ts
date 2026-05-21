@@ -32,8 +32,7 @@ import {
 } from "@/lib/api/schemas";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import { logAudit } from "@/lib/audit/log";
-
-import type { ConnectionSummary } from "../route";
+import type { ConnectionSummary } from "@/lib/api/types";
 
 export const runtime = "edge";
 

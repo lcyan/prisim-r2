@@ -12,7 +12,7 @@
 //
 // This file is browser-only — never imported by route handlers.
 
-import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from "@/lib/auth/csrf";
+import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from "@/lib/auth/csrf-constants";
 import type { ApiErrorCode, ApiErrorPayload } from "./errors";
 
 const MUTATING_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);

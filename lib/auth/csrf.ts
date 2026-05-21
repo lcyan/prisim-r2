@@ -22,11 +22,13 @@
 
 import "server-only";
 
-/** Cookie name carrying the raw CSRF token to the browser. Non-httpOnly so
- * JS can copy it into the X-CSRF-Token header. */
-export const CSRF_COOKIE_NAME = "csrf";
-/** Header the client MUST send on POST/PATCH/PUT/DELETE. */
-export const CSRF_HEADER_NAME = "x-csrf-token";
+// Cookie + header NAMES are also referenced from the browser-side fetch
+// wrapper (lib/api/client.ts). Re-export the constants from the shared
+// browser-safe module so existing `import from "@/lib/auth/csrf"` call
+// sites (route handlers, tests) keep working unchanged.
+export { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from "./csrf-constants";
+
+import { CSRF_COOKIE_NAME } from "./csrf-constants";
 
 const te = new TextEncoder();
 
