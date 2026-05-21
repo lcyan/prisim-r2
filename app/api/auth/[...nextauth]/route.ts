@@ -6,10 +6,9 @@
 //
 // POST is wrapped: the credentials callback path (where the actual password
 // check happens) gets an IP sliding-window limit (10 / 5 min) so brute-force
-// guessing is bounded. Other POST sub-paths (signout, CSRF token rotation,
-// provider redirects) stay unthrottled — the limit is per-IP-per-bucket,
-// and sharing a bucket with signout would let a single tab's logout block
-// a legitimate user from logging back in.
+// guessing is bounded, and a failure-only audit-log write so we keep IP/UA
+// for the request — events.signIn (lib/auth/index.ts) only fires on
+// *success* and has no req to read.
 //
 // Edge runtime is required because the full config uses getRequestContext()
 // to reach the D1 binding, which only exists inside the Pages worker.
@@ -22,6 +21,7 @@ import {
   getClientIp,
   RateLimitPolicies,
 } from "@/lib/api/rate-limit";
+import { logAudit } from "@/lib/audit/log";
 import type { DbEnv } from "@/lib/db/client";
 
 export const runtime = "edge";
@@ -31,8 +31,23 @@ import { POST as nextAuthPost } from "@/lib/auth/handlers";
 
 const LOGIN_PATH_RE = /\/api\/auth\/callback\/credentials\/?$/;
 
+/**
+ * Auth.js redirects on the credentials callback: success → callbackUrl,
+ * failure → /api/auth/signin?error=... (or /login?error= via our config).
+ * Both responses are 302 with a Location header. We peek at it to decide
+ * whether to audit-log a failure.
+ */
+function isLoginFailureRedirect(res: Response): boolean {
+  if (res.status !== 302) return false;
+  const location = res.headers.get("location");
+  if (!location) return false;
+  return /[?&]error=/.test(location);
+}
+
 export async function POST(req: Request): Promise<Response> {
-  if (LOGIN_PATH_RE.test(new URL(req.url).pathname)) {
+  const isLogin = LOGIN_PATH_RE.test(new URL(req.url).pathname);
+
+  if (isLogin) {
     const env = getRequestContext().env as unknown as DbEnv;
     const policy = RateLimitPolicies.loginByIp(getClientIp(req));
     const result = await checkLimit({
@@ -46,6 +61,15 @@ export async function POST(req: Request): Promise<Response> {
       // match presign/share-create 429s — clients can pattern-match on
       // `error.code === 'rate_limited'` regardless of endpoint.
       const requestId = crypto.randomUUID();
+      // Rate-limit denial is also worth auditing — the failed attempt never
+      // reached `authorize`, so no events.signIn would fire either way.
+      await logAudit({
+        userId: null,
+        op: "auth.login",
+        status: "failure",
+        errorMsg: "rate_limited",
+        req,
+      });
       return toErrorResponse(
         ApiErrors.rateLimitedWithRetry(
           result.retryAfter ?? 1,
@@ -56,7 +80,25 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
   }
+
   // NextAuth v5 POST signature accepts NextRequest only; the standard
   // Request shape we receive is structurally compatible.
-  return nextAuthPost(req as unknown as Parameters<typeof nextAuthPost>[0]);
+  const res = await nextAuthPost(
+    req as unknown as Parameters<typeof nextAuthPost>[0],
+  );
+
+  if (isLogin && isLoginFailureRedirect(res)) {
+    // authorize() returned null — we have req but no user. The companion
+    // success path is handled by events.signIn in lib/auth/index.ts, which
+    // does have a userId.
+    await logAudit({
+      userId: null,
+      op: "auth.login",
+      status: "failure",
+      errorMsg: "invalid_credentials",
+      req,
+    });
+  }
+
+  return res;
 }

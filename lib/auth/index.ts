@@ -16,6 +16,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 
+import { logAudit } from "@/lib/audit/log";
 import { getDb, type DbEnv } from "@/lib/db/client";
 import { createD1Adapter } from "./adapter";
 import { authConfig } from "./config";
@@ -126,6 +127,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   events: {
+    /**
+     * Successful sign-in. We have user.id but no Request — Auth.js v5
+     * doesn't surface req to events. IP/UA end up NULL here; the
+     * /api/auth/callback/credentials POST wrapper in route.ts records
+     * the *failed* attempts (where we DO have req but no user).
+     */
+    async signIn(message) {
+      const userId =
+        message.user && typeof message.user.id === "string"
+          ? message.user.id
+          : null;
+      if (!userId) return;
+      await logAudit({ userId, op: "auth.login", status: "success" });
+    },
+
     /** Delete the D1 session row so the JWT can never resolve again. */
     async signOut(message) {
       const tokenObj =
@@ -136,9 +152,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         tokenObj && typeof tokenObj.sessionToken === "string"
           ? tokenObj.sessionToken
           : null;
+      const userId =
+        tokenObj && typeof tokenObj.userId === "string"
+          ? tokenObj.userId
+          : null;
       if (sessionToken) {
         await getAdapter().deleteSession(sessionToken);
       }
+      // Log even when sessionToken was missing — a logout request with no
+      // server-side session row still represents user intent worth auditing.
+      await logAudit({ userId, op: "auth.logout", status: "success" });
     },
   },
 });

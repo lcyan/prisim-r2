@@ -597,27 +597,160 @@
         "id": "8",
         "title": "审计日志写入模块",
         "description": "lib/audit/log.ts 提供 `logAudit({userId, connectionId?, op, bucket?, key?, status, errorMsg?, req})`，从 req 自动提取 IP 和 UA；写失败不阻塞主流程（nofail）。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "3"
         ],
         "priority": "medium",
         "details": "1) 文件 `import 'server-only'`；2) `op` 类型联合：'connection.create' | 'connection.delete' | 'object.delete' | 'upload.create' | 'upload.complete' | 'upload.abort' | 'presign.put' | 'presign.get' | 'share.create' | 'share.delete' | 'security.decrypt_failed' | 'auth.login' | 'auth.logout'；3) IP 提取：req.headers.get('cf-connecting-ip') 优先，否则 'x-forwarded-for' 首项；4) UA：req.headers.get('user-agent')；5) try/catch DB insert，失败 console.error 但不抛；6) 不记 size/class/bytes（V2 用 CF Analytics）。",
         "testStrategy": "Vitest：成功路径插入一行，字段完整；DB 故障时函数返回 undefined 不抛；op 枚举类型强制（TS 编译时校验）。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Define audit log types, operation union, and shared constants",
+            "description": "Create the TypeScript types and constants required by the audit logging module, including the op union and audit log row shape.",
+            "dependencies": [],
+            "details": "Add server-side audit type definitions for allowed operations, input payload, status field, and persisted audit log row schema. Keep the op union exactly aligned with the listed values and explicitly omit any size/class/bytes fields for V2 compatibility.\n<info added on 2026-05-21T01:28:10.439Z>\n实现方式调整为与子任务 8.2 合并，在 lib/audit/log.ts 同一文件内同时导出类型与 nofail 写入函数；遵循 CLAUDE.md 的 “no excess abstractions” 原则，不新增独立的 lib/audit/types.ts，以减少小模块的跨文件跳转与导航成本。\n\n类型约束补充：\nAuditOp 使用 13 项 string literal union 进行白名单约束；数据库 schema 中 op 仍为 free-form text，依赖 TypeScript 在应用层强制限定允许值。\nAuditStatus 定义为 'success' | 'failure'。\nLogAuditInput.userId 必须为 string | null，用于覆盖失败登录等 pre-session 事件；该设计与 schema 的 nullable user_id 列保持一致，且符合 FK ON DELETE SET NULL。\n\n已考虑但拒绝的方案：\nA. 单独抽出 lib/audit/types.ts：模块体量过小，拆分后只会增加导航成本。\nB. 用 enum 表达 AuditOp：拒绝，TypeScript enum 会在 edge bundle 中产生运行时对象；string literal union 为零运行时成本。\nC. 用 boolean 表达 status：拒绝，'success'/'failure' 在 SQL 检索与排查时可读性更好，且数据库列本身也是 text。\n</info added on 2026-05-21T01:28:10.439Z>",
+            "status": "done",
+            "testStrategy": "Type-check with TypeScript and add compile-time assertions for allowed and disallowed op values.",
+            "updatedAt": "2026-05-21T01:35:27.364Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement the core nofail logAudit helper in lib/audit/log.ts",
+            "description": "Build the main logAudit function with automatic request metadata extraction and non-blocking error handling.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create lib/audit/log.ts with `import 'server-only'`. Implement `logAudit({ userId, connectionId?, op, bucket?, key?, status, errorMsg?, req })` to extract IP from `cf-connecting-ip` first, otherwise the first value from `x-forwarded-for`, and UA from `user-agent`. Wrap the D1 insert in try/catch, call console.error on failure, and never rethrow so the main request flow is not blocked.\n<info added on 2026-05-21T01:28:17.400Z>\nUse an optional second parameter for DB injection: `logAudit(input, db?)`. If `db` is absent, resolve it internally via `getDb(getRequestContext().env as DbEnv)` for production callers; tests can pass a stub/mock DB directly.\n\nMake `req` optional/nullable in the input type because some auth event callbacks such as `next-auth` `events.signOut` do not provide a request object.\n\nKeep request metadata extraction logic local instead of reusing rate-limit `getClientIp`, because audit logging needs different fallback semantics: read `cf-connecting-ip` first, else the first comma-separated value from `x-forwarded-for`, trimmed; if neither exists, persist `ip` as `null` rather than `\"unknown\"`. Read UA from `user-agent`, with `null` when unavailable.\n\nPreserve naming split between API input and schema fields: accept `key` on input to match R2 vocabulary, but map it to drizzle `objectKey` when inserting into the audit logs table.\n\nError handling remains nofail and awaited: wrap the drizzle insert in `try/catch`, `await` it (do not fire-and-forget in Pages/Workers), never rethrow, and log only minimal failure context such as `op` and `status` via `console.error` without dumping the full input payload, since `bucket`/`key` may be sensitive.\n</info added on 2026-05-21T01:28:17.400Z>",
+            "status": "done",
+            "testStrategy": "Unit test the helper with mocked Request headers and mocked DB insert behavior, asserting undefined/no throw on failures.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T01:35:27.373Z"
+          },
+          {
+            "id": 3,
+            "title": "Create D1 audit_logs schema and migration files",
+            "description": "Add the database table definition and migration needed to persist audit log records in D1.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create a migration for an `audit_logs` table containing the fields needed by the module: id, user_id, connection_id nullable, op, bucket nullable, key nullable, status, error_msg nullable, ip nullable, user_agent nullable, and created_at timestamp. Ensure column naming matches existing project conventions and supports inserts from the helper implementation.\n<info added on 2026-05-21T01:34:43.249Z>\nNo migration work is required for this subtask. The audit_log table, idx_audit_user_time index, and foreign keys are already defined in drizzle/migrations/0000_init.sql, and tests/unit/db/migration.test.ts already verifies table existence and ON DELETE SET NULL behavior for both user_id and connection_id.\n\nSchema alignment with lib/db/schema.ts auditLog:\nid text primary key\nuser_id text nullable, references users.id on delete set null\nconnection_id text nullable, references connections.id on delete set null\nop text not null\nbucket text nullable\nobject_key text nullable, mapped to TS field objectKey\nstatus text not null\nerror_msg text nullable, mapped to TS field errorMsg\nip text nullable\nua text nullable\ncreated_at integer not null, with Drizzle $defaultFn using new Date()\n\nSubtask can be closed because the database infrastructure is already in place and no additional schema or migration changes are needed.\n</info added on 2026-05-21T01:34:43.249Z>",
+            "status": "done",
+            "testStrategy": "Run migration locally against D1 and verify the table structure matches the insert payload expected by logAudit.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T01:35:27.382Z"
+          },
+          {
+            "id": 4,
+            "title": "Add Vitest coverage for success, nofail, IP fallback, and op validation",
+            "description": "Write focused tests that validate the audit logger behavior across normal and edge cases.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Add Vitest cases for successful insertion with all expected fields, DB failure that only logs and does not throw, IP extraction precedence using `cf-connecting-ip`, fallback to the first `x-forwarded-for` entry, UA extraction, and TypeScript-level validation that unsupported op values fail compilation.\n<info added on 2026-05-21T01:34:51.565Z>\nAdd tests/unit/audit/log.test.ts with 11 Vitest cases using pure-function testing plus injected stub Db, without relying on better-sqlite3 or executing real SQL.\n\nCover extractAuditMeta with 6 cases:\nnull/undefined request input\ncf-connecting-ip takes precedence\nx-forwarded-for fallback uses the first entry and trims whitespace\nno IP headers returns ip=null\nblank user-agent normalizes to ua=null\nblank cf-connecting-ip falls back to x-forwarded-for\n\nCover logAudit with 5 cases:\nsuccessful insert writes the full expected payload and explicitly verifies size/class/bytes columns are not present\noptional fields are normalized to null\nerror thrown during insert stage is swallowed and only logged\nPromise rejection from values stage is swallowed as well, validating the await/thenable chain\nAuditOp union witness covers all 13 allowed values at type level\n\nImportant test setup note: log.test.ts must mock @cloudflare/next-on-pages at the top via vi.mock(\"@cloudflare/next-on-pages\"), returning a getRequestContext that throws \"should not be called when Db stub injected\". This prevents Vitest from importing the real server-only chain and guards against accidentally using the production path. Follow the same mocking pattern already used in tests/unit/api/middleware.test.ts and middleware-rate-limit.test.ts.\n\nImportant stub behavior note: drizzle db.insert(t).values(o) behaves as PromiseLike rather than a plain Promise, so the stub should return Promise.resolve(...) to satisfy the contract. For the throwOn: \"values\" case, use Promise.reject(...) instead of synchronous throw so rejection through await is exercised and confirmed to be caught.\n\nDo not add a real drizzle-orm/better-sqlite3 SQL-compilation test here. Schema correctness is already covered by tests/unit/db/migration.test.ts, and logAudit SQL generation is delegated to drizzle, so duplicating that would only retest drizzle itself.\n</info added on 2026-05-21T01:34:51.565Z>",
+            "status": "done",
+            "testStrategy": "Use mocked D1 prepare/bind/run or equivalent repository abstraction, spy on console.error, and include type tests or tsd-style checks for op enum enforcement.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T01:35:27.391Z"
+          },
+          {
+            "id": 5,
+            "title": "Integrate logAudit into existing auth and credentials API routes",
+            "description": "Wire the audit logger into current API flows so key auth and credential events are recorded consistently.",
+            "dependencies": [
+              2,
+              4
+            ],
+            "details": "Update existing auth/credentials-related API route handlers to call `logAudit` for relevant outcomes such as `auth.login`, `auth.logout`, and credential or connection events where already available. Pass the request object through, include success/error status consistently, and ensure audit logging remains best-effort without changing route response behavior.\n<info added on 2026-05-21T01:35:01.212Z>\nIntegrated auth audit logging using a split strategy because no single NextAuth hook has both request context and resolved user identity.\n\nIn lib/auth/index.ts:\n- events.signIn logs auth.login with success status.\n- Uses user.id when available.\n- No req is available in NextAuth v5 event callbacks, so ip and userAgent are recorded as null.\n- events.signOut logs auth.logout with success status.\n- Resolves userId from token.userId when present; may be null for stale/deleted-session sign-outs.\n- Audit writes remain best-effort and must not affect auth flow.\n\nIn app/api/auth/[...nextauth]/route.ts POST wrapper:\n- Intercept callback/credentials requests only.\n- If rate limiting rejects before NextAuth handling, log auth.login failure with errorMsg=\"rate_limited\".\n- If nextAuthPost returns a 302 redirect whose Location contains an error query param, log auth.login failure with errorMsg=\"invalid_credentials\".\n- Because this layer has req, failed login audits here include full request-derived ip/userAgent.\n- Use an isLoginFailureRedirect helper based on /[?&]error=/ to detect failure redirects without coupling to internal NextAuth error codes.\n\nCurrent field coverage by outcome:\n- Login success: userId present, ip/userAgent null, errorMsg null.\n- Login invalid credentials: userId null, ip/userAgent present, errorMsg \"invalid_credentials\".\n- Login rate limited: userId null, ip/userAgent present, errorMsg \"rate_limited\".\n- Logout: userId from token or null, ip/userAgent null, errorMsg null.\n\nRejected alternatives:\n- Storing IP in JWT and reading it from events was rejected because it expands JWT attack surface and IP is mutable.\n- Handling all auth audit logging only in route.ts was rejected because successful login cannot reliably obtain userId before the redirect/cookie flow completes.\n- Logging inside authorize() was rejected because authorize lacks req and cannot observe pre-authorize rate-limit rejections.\n\nFuture V2 note:\n- To attach ip/userAgent to successful login audits, either intercept through NextAuth middleware options or inline the authorize flow inside route.ts and manage cookies manually instead of delegating to nextAuthPost.\n- Both approaches are more complex than needed for the current P1 audit requirement.\n</info added on 2026-05-21T01:35:01.212Z>",
+            "status": "done",
+            "testStrategy": "Add route-level tests or integration mocks verifying logAudit is invoked with the correct op/status values and that route responses remain unchanged when audit writes fail.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T01:35:27.399Z"
+          }
+        ],
+        "updatedAt": "2026-05-21T01:35:27.399Z"
       },
       {
         "id": "9",
         "title": "R2 S3 客户端工厂 + 预签名 helper",
         "description": "lib/r2/client.ts 给定明文凭证返回配置好的 S3Client（region='auto'、endpoint=https://<account>.r2.cloudflarestorage.com）；lib/r2/presign.ts 封装 presignPut / presignGet；lib/r2/control.ts 封装服务端调用（list/delete/multipart create/complete/abort）。",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           "4"
         ],
         "priority": "high",
         "details": "1) lib/r2/client.ts：`function makeS3Client({accountId, accessKeyId, secretAccessKey}): S3Client`，region='auto'，endpoint=`https://${accountId}.r2.cloudflarestorage.com`，forcePathStyle=true；返回的 client 不缓存；2) lib/r2/presign.ts：只导入 @aws-sdk/s3-request-presigner 的 getSignedUrl + 命令；`presignPut({client, bucket, key, ttl, contentType?})`、`presignGet({client, bucket, key, ttl})`、`presignUploadPart({client, bucket, key, uploadId, partNumber, ttl})`；3) lib/r2/control.ts：listObjects（v2 with ContinuationToken）、deleteObjects（DeleteObjectsCommand 批量，最多 1000 keys/批）、createMultipartUpload、completeMultipartUpload（接收 [{partNumber, etag}]）、abortMultipartUpload、listBuckets；4) 只 import 用到的 Command（保持 bundle 小）；5) 错误映射：InvalidAccessKeyId / SignatureDoesNotMatch -> throw new R2CredentialError；其他 -> R2UpstreamError 保留原 code 作为子字段。",
         "testStrategy": "Vitest：mock S3Client，验证 region='auto' 和 endpoint 格式；presignPut 返回 URL 含 X-Amz-Signature；deleteObjects 切批正确（>1000 keys 自动分多请求）；R2 报 InvalidAccessKeyId 时抛 R2CredentialError。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement R2 error classes and error-mapping helper in lib/r2/errors.ts",
+            "description": "Create the shared R2-specific error types and a helper that normalizes AWS/R2 SDK failures into project-level exceptions.",
+            "dependencies": [],
+            "details": "Add `import 'server-only'` at the top for server/edge-safe usage. Export concrete signatures: `class R2CredentialError extends Error`, `class R2UpstreamError extends Error { code?: string }`, and `function mapR2Error(error: unknown): never | Error`. The helper should inspect SDK-style error objects (`name`, `Code`, `$metadata`, etc.) and map `InvalidAccessKeyId` and `SignatureDoesNotMatch` to `new R2CredentialError(...)`. All other upstream failures should become `new R2UpstreamError(...)` while preserving the original upstream code on a child field such as `code` and optionally attaching `cause`. Keep implementation framework-agnostic and avoid importing the whole AWS SDK. Note edge runtime considerations: server-only module, no browser leakage, and keep imports minimal. Prepare this utility so client/presign/control wrappers can consistently `throw mapR2Error(err)` or equivalent. Tests should follow existing project style and use Vitest patterns compatible with aws-sdk-client-mock where needed.\n<info added on 2026-05-21T01:10:43.863Z>\nImplemented lib/r2/errors.ts with server-only import and a minimal, framework-agnostic helper surface:\nexport R2CredentialError, R2UpstreamError, and mapR2Error(err): R2CredentialError | R2UpstreamError.\n\nR2UpstreamError should carry both code and httpStatus for downstream audit logging and retry decisions, while preserving the original upstream error via cause only for server-side diagnostics. Do not expose cause-derived details to client-facing messages.\n\nExpand credential-classified SDK error names into a shared CREDENTIAL_ERROR_NAMES list:\nInvalidAccessKeyId, SignatureDoesNotMatch, AccessDenied, Unauthorized.\nAccessDenied and Unauthorized must also map to R2CredentialError because R2 may return them for valid-but-insufficient credentials, and UX should still prompt credential re-entry.\n\nAdd a small internal readSdkErrorCode helper that checks .name (AWS SDK v3/common modern path), .Code (XML envelope/legacy path), and .code (transport/system errors like ENOTFOUND) so error mapping remains robust across SDK changes and lower-level network failures. Also read $metadata?.httpStatusCode when present.\n\nmapR2Error should pass through existing R2CredentialError and R2UpstreamError instances unchanged to avoid double-wrapping and losing code/httpStatus context. For all other unknown failures, always return either R2CredentialError or R2UpstreamError; callers are expected to use throw mapR2Error(err) for explicit control flow and cleaner TypeScript narrowing.\n\nKeep messages diagnostic-only inside errors.ts: do not blindly forward raw SDK message text as client copy, and do not JSON.stringify(err) because AWS SDK error objects may contain circular references in $metadata/$response and may leak internal URLs. Audit logging must stay outside this module; route layers should call lib/audit/log separately if needed.\n</info added on 2026-05-21T01:10:43.863Z>",
+            "status": "done",
+            "testStrategy": "Unit test direct mapping cases: `InvalidAccessKeyId` -> instance of `R2CredentialError`, `SignatureDoesNotMatch` -> instance of `R2CredentialError`, arbitrary code like `InternalError` -> `R2UpstreamError` with preserved `code`, and unknown thrown values still become a safe upstream error.",
+            "updatedAt": "2026-05-21T01:10:54.215Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Build the makeS3Client factory in lib/r2/client.ts with R2 endpoint defaults",
+            "description": "Implement the S3 client factory that accepts plaintext credentials and returns a configured non-cached S3Client for Cloudflare R2.",
+            "dependencies": [
+              1
+            ],
+            "details": "Add `import 'server-only'`. Export `function makeS3Client(params: { accountId: string; accessKeyId: string; secretAccessKey: string }): S3Client`. Configure the returned client with `region: 'auto'`, `endpoint: \\`https://${accountId}.r2.cloudflarestorage.com\\``, `forcePathStyle: true`, and inline credentials from the provided params. Do not cache or memoize the client; each call returns a fresh `S3Client` instance. Add lightweight argument validation for required non-empty strings so invalid input fails fast before network use. Only import `S3Client` from `@aws-sdk/client-s3`; avoid broad imports to keep bundle size down. Mention edge runtime concern that this file is server-only and should not leak raw credentials to client code. Integrate with the error tool indirectly by keeping downstream callers responsible for mapping command errors rather than client construction.",
+            "status": "pending",
+            "testStrategy": "Mock or spy on `S3Client` construction and assert the config contains `region='auto'`, correct endpoint string, `forcePathStyle=true`, and passed credentials. Assert two factory calls return distinct instances and invalid empty params throw before constructing the client.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Implement presign helpers in lib/r2/presign.ts for put, get, and multipart part upload",
+            "description": "Add focused presigning helpers that wrap getSignedUrl with only the command classes required for each operation.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Add `import 'server-only'`. Export exact helpers: `async function presignPut(params: { client: S3Client; bucket: string; key: string; ttl: number; contentType?: string }): Promise<string>`, `async function presignGet(params: { client: S3Client; bucket: string; key: string; ttl: number }): Promise<string>`, and `async function presignUploadPart(params: { client: S3Client; bucket: string; key: string; uploadId: string; partNumber: number; ttl: number }): Promise<string>`. Only import `getSignedUrl` from `@aws-sdk/s3-request-presigner` plus the specific command classes actually used: `PutObjectCommand`, `GetObjectCommand`, and `UploadPartCommand`. Validate required bucket/key/uploadId, ensure `ttl` is a positive integer, and ensure `partNumber` is a positive integer for multipart. Include `ContentType` on the put command only when provided. Catch presign failures and map them through `mapR2Error`. Keep implementation small and edge-safe by avoiding unused SDK imports.",
+            "status": "pending",
+            "testStrategy": "Mock `getSignedUrl` and assert each helper instantiates the correct command with expected input, forwards `expiresIn: ttl`, includes `ContentType` only when supplied, validates bad ttl/partNumber, and maps credential-related presign failures to `R2CredentialError`.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Implement R2 control-plane wrappers in lib/r2/control.ts for list, delete, multipart, and bucket listing",
+            "description": "Create server-side wrappers around the needed S3 commands, including pagination support and batched deletes.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Add `import 'server-only'`. Export concrete async functions with typed params/returns: `listObjects(params: { client: S3Client; bucket: string; prefix?: string; continuationToken?: string; maxKeys?: number }): Promise<{ items: Array<{ key: string; size?: number; etag?: string; lastModified?: Date }>; continuationToken?: string; isTruncated: boolean }>`, `deleteObjects(params: { client: S3Client; bucket: string; keys: string[] }): Promise<{ deleted: string[]; errors: Array<{ key?: string; code?: string; message?: string }> }>`, `createMultipartUpload(params: { client: S3Client; bucket: string; key: string; contentType?: string }): Promise<{ uploadId: string }>`, `completeMultipartUpload(params: { client: S3Client; bucket: string; key: string; uploadId: string; parts: Array<{ partNumber: number; etag: string }> }): Promise<{ etag?: string; location?: string }>`, `abortMultipartUpload(params: { client: S3Client; bucket: string; key: string; uploadId: string }): Promise<void>`, and `listBuckets(params: { client: S3Client }): Promise<Array<{ name?: string; creationDate?: Date }>>`. Only import the command classes used: `ListObjectsV2Command`, `DeleteObjectsCommand`, `CreateMultipartUploadCommand`, `CompleteMultipartUploadCommand`, `AbortMultipartUploadCommand`, and `ListBucketsCommand`. For `listObjects`, forward `ContinuationToken` and return next token from `NextContinuationToken`. For `deleteObjects`, validate keys, short-circuit empty arrays, and chunk requests into batches of at most 1000 keys per command, aggregating deleted entries and per-key errors across responses. For `completeMultipartUpload`, validate non-empty parts, normalize/sort by `partNumber`, and map to AWS `CompletedPart` shape with `ETag`. Catch SDK errors in each wrapper and convert them via `mapR2Error`. Keep server-only and minimal-import discipline for edge runtime compatibility.",
+            "status": "pending",
+            "testStrategy": "Use aws-sdk-client-mock to assert `listObjects` passes continuation token and returns mapped items, `deleteObjects` sends multiple commands for >1000 keys and aggregates results, empty delete skips SDK calls, multipart create/complete/abort call the correct commands with normalized payloads, and upstream credential errors are remapped correctly.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Add comprehensive Vitest coverage for lib/r2/errors.ts, client.ts, presign.ts, and control.ts",
+            "description": "Write unit tests for all four R2 modules using the project’s existing mocking style and focused assertions for config, command inputs, batching, and error mapping.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Create or extend Vitest test files matching repository conventions. Use `aws-sdk-client-mock` for `S3Client` command-level behavior in control-plane tests and mock `@aws-sdk/s3-request-presigner` for presign helpers. Cover exported signatures and edge cases from all modules: error-class construction and mapping, `makeS3Client` config and non-caching behavior, presign helper command selection and ttl forwarding, list pagination, delete batching at the 1000-key boundary, multipart create/complete/abort payloads, and `listBuckets` result mapping. Ensure tests reflect server-only modules without importing unnecessary browser APIs and keep assertions aligned with existing project style.",
+            "status": "pending",
+            "testStrategy": "Assert happy paths and failure paths for every export: config fields on client creation, correct command constructors and inputs for presign/control helpers, chunking behavior for 1001+ deletes, sorted multipart parts on complete, returned values transformed as expected, and mapped thrown errors becoming `R2CredentialError` or `R2UpstreamError` with preserved upstream code.",
+            "parentId": "undefined"
+          }
+        ],
+        "updatedAt": "2026-05-21T01:10:54.215Z"
       },
       {
         "id": "10",
@@ -867,9 +1000,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-20T16:09:56.386Z",
+      "lastModified": "2026-05-21T01:35:27.400Z",
       "taskCount": 25,
-      "completedCount": 7,
+      "completedCount": 8,
       "tags": [
         "master"
       ]
