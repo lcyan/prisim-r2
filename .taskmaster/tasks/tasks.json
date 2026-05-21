@@ -760,7 +760,7 @@
         "id": "10",
         "title": "Connection（R2 凭证）CRUD API",
         "description": "实现 GET/POST/PATCH/DELETE /api/connections。POST 加密落库；GET 返回 masked 值；PATCH 仅允许改 name；DELETE 校验无关联 share 后删除。所有写操作走 CSRF + 限流 + 审计。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "4",
           "6",
@@ -770,7 +770,88 @@
         "priority": "high",
         "details": "1) app/api/connections/route.ts (GET, POST) 和 app/api/connections/[id]/route.ts (PATCH, DELETE)；2) 全部 `export const runtime = 'edge'`；3) POST schema：{ name: z.string().min(1).max(64), accountId: z.string().regex(/^[a-f0-9]{32}$/), accessKeyId: z.string().min(20), secretAccessKey: z.string().min(40) }；4) POST 流程：验证 -> 测试 R2（listBuckets 一次确认凭证有效）-> 失败返 'connection.invalid_credentials'（不回显 key）-> encryptCredential(accessKeyId, id) + encryptCredential(secretAccessKey, id) -> mask = accessKeyId.slice(0,4) + '****' + accessKeyId.slice(-4) -> INSERT；5) GET 返回 [{id, name, accountId, accessKeyMasked, createdAt, lastUsedAt}]，不含任何加密字段；6) PATCH 只改 name；7) DELETE 前 SELECT COUNT(*) FROM shares WHERE connection_id 看是否有未过期 share；有则提示先删 share（或 cascade，看产品决策——默认拒绝）；8) 每步写 audit_log。",
         "testStrategy": "Vitest：POST 凭证无效返 connection.invalid_credentials，响应无 access key 任何片段；GET 不返回 ciphertext/iv；解密失败时 GET 不应直接挂（不解密就够）；E2E：登录后添加 connection 成功，列表显示 masked。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create connection Zod schemas, route param validation, and access key masking utilities",
+            "description": "Define the shared validation schemas and masking helpers required by all connection CRUD routes.",
+            "dependencies": [],
+            "details": "Add Zod schemas for POST payload, PATCH payload, and connection id params in a shared server module. Include the exact accountId regex, name length constraints, and credential minimum lengths. Implement a pure masking utility that returns accessKeyId.slice(0,4) + '****' + accessKeyId.slice(-4), and export typed helpers so route handlers can reuse validation and safe response shaping without duplicating logic.\n<info added on 2026-05-21T06:09:57.422Z>\nIn lib/api/schemas.ts, add ConnectionsCreateSchema as a strict object with { name, accountId, accessKeyId, secretAccessKey }, using accountId regex /^[a-f0-9]{32}$/ to match the Cloudflare R2 account ID format from the brief. Add ConnectionsPatchSchema as a strict object that only allows { name }, so any attempt to PATCH accountId or access keys is rejected by Zod with 400 before handler logic. Add ConnectionIdParamSchema validating id as a ULID. Export a pure maskAccessKey helper that returns accessKeyId.slice(0,4) + '****' + accessKeyId.slice(-4); handlers can use it when writing masked values, while GET routes continue reading access_key_masked directly from the DB.\n\nIn lib/api/errors.ts, add ApiErrorCode entries and factory helpers for connection.invalid_credentials and connection.in_use. connectionInvalidCredentials should return 400, because the user session is valid and only the supplied R2 credentials were rejected. connectionInUse should return 409 to represent a resource-conflict condition blocking deletion when the connection is still referenced.\n\nIn lib/audit/log.ts, extend AuditOp to include 'connection.update' so PATCH rename operations can be logged consistently with the rest of the connection CRUD audit flow.\n</info added on 2026-05-21T06:09:57.422Z>",
+            "status": "done",
+            "testStrategy": "Unit test schema success/failure cases and masking output for normal and edge-length access keys.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T06:09:57.443Z"
+          },
+          {
+            "id": 2,
+            "title": "Implement POST /api/connections with Edge runtime, CSRF, rate limiting, R2 credential verification, encryption, and audit logging",
+            "description": "Build the create-connection API flow from request validation through R2 verification, encrypted persistence, and audit writes.",
+            "dependencies": [
+              1
+            ],
+            "details": "In app/api/connections/route.ts, export runtime = 'edge' and implement POST. Apply CSRF validation and rate-limit checks before processing writes. Parse the request with the shared POST schema, create or generate the connection id, call the R2 validation step using listBuckets once to confirm credentials, and on failure return the localized error key 'connection.invalid_credentials' without echoing any part of accessKeyId or secretAccessKey. On success, encrypt accessKeyId and secretAccessKey using encryptCredential(value, id), compute accessKeyMasked, insert the row into connections, and write audit_log entries for attempt, success, and failure as appropriate. Return only safe fields in the response.\n<info added on 2026-05-21T06:33:43.816Z>\nWrap the POST handler with withApi and use RateLimitBundles.writeOnlyByUser as the single aggregated 600/min write budget for connection creation. Parse input via parseJson(ConnectionsCreateSchema, strict), and derive endpoint internally from accountId as https://{accountId}.r2.cloudflarestorage.com rather than accepting any client-supplied endpoint to avoid SSRF.\n\nGenerate the connection ULID before any encryption and use it as AAD for encryptCredential so both ciphertext values are bound to the specific connection row. After parsing, create the S3 client with the derived endpoint and probe credentials with exactly one listBuckets call.\n\nOn probe failure, distinguish R2CredentialError from other failures: map R2CredentialError to 400 with error key connection.invalid_credentials rather than 401, because auth/session is valid and only the provided R2 credentials were rejected. For probe-time audit logging, use connection_id = null because the row has not been inserted yet and a non-null FK would fail. Failure responses must not include any access key material or fragments; tests should assert JSON.stringify(responseBody) does not contain the full key, first 4 chars, or last 4 chars of either secret.\n\nOn success, encrypt accessKeyId and secretAccessKey with AAD = connection.id, convert ciphertext for Drizzle blob({ mode: 'buffer' }) columns via Buffer.from(...) under nodejs_compat, insert the connection, write audit success, and return 201 with a Location header pointing to the created resource.\n</info added on 2026-05-21T06:33:43.816Z>",
+            "status": "done",
+            "testStrategy": "Vitest route tests for valid creation, invalid credentials returning connection.invalid_credentials, no secret fragments in response, and enforcement of CSRF/rate limiting on writes.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T06:35:10.233Z"
+          },
+          {
+            "id": 3,
+            "title": "Implement GET /api/connections list endpoint with masked safe response fields only",
+            "description": "Build the list API that returns connection summaries without exposing encrypted credential fields.",
+            "dependencies": [
+              1
+            ],
+            "details": "In app/api/connections/route.ts, add GET alongside POST with runtime = 'edge'. Query the current user's connections, select only id, name, accountId, accessKeyMasked, createdAt, and lastUsedAt, and return them as an array. Do not decrypt anything and do not include ciphertext, IV columns, secret fields, or any internal encryption metadata in the serialized response. Ensure response formatting is stable for the UI hook layer.\n<info added on 2026-05-21T06:33:56.517Z>\nImplement GET in app/api/connections/route.ts with export const runtime = 'edge' and wrap the handler with withApi. Do not apply rate limiting for this read endpoint. Query only rows where user_id equals ctx.userId and use an explicit select() list for exactly these six safe columns: id, name, accountId, accessKeyMasked, createdAt, lastUsedAt. Do not use select(*) so newly added secret or internal columns cannot be exposed by default. Add a rowToSummary mapper that converts createdAt and lastUsedAt Date values to epoch milliseconds to keep JSON stable across runtimes. Do not write audit_log for this endpoint because it is a high-frequency read path and the returned fields are not security-sensitive. Add tests that assert Object.keys() of each response item contains only the six allowed fields so any accidental extra field exposure is caught immediately.\n</info added on 2026-05-21T06:33:56.517Z>",
+            "status": "done",
+            "testStrategy": "Vitest route test verifying returned objects include masked fields and omit ciphertext, iv, and secret credential columns.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T06:35:10.243Z"
+          },
+          {
+            "id": 4,
+            "title": "Implement PATCH /api/connections/[id] to allow name-only updates with Edge runtime, CSRF, rate limiting, and audit logging",
+            "description": "Add the update endpoint that only permits renaming an existing connection owned by the current user.",
+            "dependencies": [
+              1
+            ],
+            "details": "In app/api/connections/[id]/route.ts, export runtime = 'edge' and implement PATCH. Validate the route id and body with shared schemas, reject any unexpected fields so only name can change, and scope the update to the authenticated user's record. Apply CSRF and rate limiting before the write, update the name field only, handle missing records cleanly, and write audit_log entries for rename attempts, successes, and failures. Return the updated safe summary payload rather than any encrypted columns.\n<info added on 2026-05-21T06:34:24.441Z>\nUse ConnectionsPatchSchema.strict() so PATCH only accepts the name field; payloads like { name, accountId } must fail Zod validation with 400 without additional handler-side whitelisting. Because withApi narrows the handler to (req) => Response and drops Next.js 15 params context, parse the resource id from the last path segment via pathIdFrom(req.url) and then validate it as a ULID with Zod. Perform the update as a single UPDATE ... WHERE id = ? AND user_id = ? RETURNING statement scoped to the authenticated user; if no row is returned, respond with 404 and do not distinguish between nonexistent and other-user records, matching the non-enumeration behavior used by the presign route. Use audit op connection.update. Add a test assertion that after a cross-user PATCH attempt, the target row's name remains unchanged as a defense-in-depth check.\n</info added on 2026-05-21T06:34:24.441Z>",
+            "status": "done",
+            "testStrategy": "Vitest route tests for successful rename, rejection of extra mutable fields like accountId/accessKeyId, not-found behavior, and CSRF/rate-limit enforcement.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T06:35:10.253Z"
+          },
+          {
+            "id": 5,
+            "title": "Implement DELETE /api/connections/[id] with share dependency checks, deletion policy, Edge runtime protections, and audit logging",
+            "description": "Add the delete endpoint with safeguards that prevent removing a connection still referenced by active shares.",
+            "dependencies": [
+              1
+            ],
+            "details": "In app/api/connections/[id]/route.ts, implement DELETE with runtime = 'edge'. Validate the id, enforce CSRF and rate limiting, then query shares using SELECT COUNT(*) for the current connection_id and the product rule for unexpired shares. By default, reject deletion when dependent shares exist and return a clear message instructing the user to remove shares first, unless product later chooses cascade behavior. If deletion is allowed, apply the chosen hard-delete or soft-delete strategy consistently with the schema and write audit_log entries for blocked attempts, successful deletion, and errors. Ensure ownership checks prevent deleting another user's connection.\n<info added on 2026-05-21T06:34:54.096Z>\nDELETE flow should be: validate ownership with an initial SELECT, then query active share count via SELECT COUNT(*) FROM shares WHERE connection_id = ? AND expires_at > now, reject with 409 connection.in_use when count > 0, otherwise write the success audit entry before executing DELETE. Do not allow cascade deletion at the API layer; product rule is that users must remove shares first.\n\nImportant FK constraint fix: audit_log.connection_id references connections.id, and ON DELETE SET NULL only applies to existing audit rows when the parent connection is deleted. It does not bypass FK validation for a new audit_log INSERT after the connection row is already gone. The previous delete-then-audit order caused SQLITE_CONSTRAINT_FOREIGNKEY, so success audit logging must happen before DELETE. This is acceptable because the prior SELECT confirms the row exists, DELETE is unlikely to fail, and logAudit is already best-effort/no-fail with console.error only.\n\nUse drizzle gt(shares.expiresAt, now) so expired shares do not block deletion, since expired URLs are effectively dead links. Rely on ON DELETE CASCADE to clean up expired share rows automatically after the connection DELETE; no manual second delete is needed, and tests should assert related shares are removed. When blocked, ApiErrors.connectionInUse should include details: { activeShares: number } so the UI can display how many active shares are preventing deletion.\n</info added on 2026-05-21T06:34:54.096Z>",
+            "status": "done",
+            "testStrategy": "Vitest route tests for delete blocked by active shares, successful delete when no related shares exist, unauthorized ownership protection, and audit side effects.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T06:35:10.262Z"
+          },
+          {
+            "id": 6,
+            "title": "Add comprehensive Vitest coverage for connection CRUD routes, security guards, and audit behavior",
+            "description": "Create a route-level test suite covering happy paths, validation errors, secret handling, and deletion constraints.",
+            "dependencies": [
+              2,
+              3,
+              4,
+              5
+            ],
+            "details": "Add Vitest tests for app/api/connections/route.ts and app/api/connections/[id]/route.ts using mocked auth, DB, R2 validation, encryption, CSRF, rate limiting, and audit services. Cover POST invalid credentials, POST success with encrypted persistence and masked output, GET safe field projection, PATCH name-only updates, DELETE share checks, and ensure all write routes invoke CSRF/rate-limit/audit logic. Include regression assertions that responses never expose raw access keys, secret keys, ciphertext, or IV values.\n<info added on 2026-05-21T06:35:10.214Z>\nAdd tests/unit/api/connections-route.test.ts with 13 tests following the existing r2-presign-route.test.ts “fat test” pattern: use real better-sqlite3, real drizzle schema, and real AES-GCM encryption, while mocking only the boundaries for next-auth/jwt, next-on-pages env, @/lib/r2/control listBuckets, and @/lib/r2/client makeS3Client. Reuse makeD1Facade to adapt the DB for RateLimitDb.\n\nCover this matrix:\nPOST: strict schema rejects extra fields; invalid accountId format; R2CredentialError returns 400 connection.invalid_credentials with assertions that both response and audit payload never contain any key fragments; success path persists ciphertext blobs instead of plaintext in DB, returns masked fields only, and records audit success; CSRF mismatch returns 401.\nGET: enforce cross-user isolation; assert response contains only the 6 safe fields via Object.keys; unauthenticated request returns 401.\nPATCH: successful rename updates only name and records audit; extra fields are rejected by strict schema and the row remains unchanged; cross-user PATCH returns 404 and leaves the row unchanged.\nDELETE: active non-expired share blocks deletion with 409 and connection remains; when only expired shares exist deletion succeeds and cascades share cleanup; cross-user DELETE returns 404.\n\nValidate the suite together with pnpm typecheck, lint, test, and build all passing; final run green with 241 tests passing.\n</info added on 2026-05-21T06:35:10.214Z>",
+            "status": "done",
+            "testStrategy": "Run Vitest route suites with mocks/spies asserting status codes, JSON payloads, DB calls, audit invocations, and absence of sensitive fields in responses.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T06:35:10.271Z"
+          }
+        ],
+        "updatedAt": "2026-05-21T06:35:10.271Z"
       },
       {
         "id": "11",
@@ -1082,9 +1163,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-21T05:26:46.431Z",
+      "lastModified": "2026-05-21T06:35:10.271Z",
       "taskCount": 25,
-      "completedCount": 10,
+      "completedCount": 11,
       "tags": [
         "master"
       ]

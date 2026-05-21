@@ -54,20 +54,59 @@ export const LoginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof LoginSchema>;
 
-/* ─── connections (placeholder for task 7+) ─────────────────── */
+/* ─── connections ────────────────────────────────────────────── */
 //
-// Real shapes land when the credential CRUD task ships. Keeping the
-// declarations here (commented out) so the future PR is a one-line uncomment
-// rather than another design decision.
+// POST /api/connections (create):
+//   - accountId: Cloudflare R2 account ID — exactly 32 lowercase hex chars.
+//     The endpoint host is derived from this (https://<id>.r2.cloudflarestorage.com),
+//     so a bogus value would produce DNS errors several layers deep.
+//   - accessKeyId: 20+ chars (the prefix of an R2 token; 20 is the minimum we
+//     observed). Upper bound caps log noise from accidentally pasted garbage.
+//   - secretAccessKey: 40+ chars. Same upper bound for the same reason.
 //
-// export const ConnectionsCreateSchema = z.object({
-//   name: z.string().min(1).max(64),
-//   accountId: z.string().min(1).max(64),
-//   endpoint: z.string().url(),
-//   accessKey: z.string().min(16).max(128),
-//   secretKey: z.string().min(16).max(128),
-// });
-// export type ConnectionsCreateInput = z.infer<typeof ConnectionsCreateSchema>;
+// PATCH /api/connections/[id] (rename only):
+//   - Strict object: rejects any field other than `name`. We do NOT allow
+//     re-binding accountId / keys via PATCH — a key rotation should be a new
+//     connection so it goes through the create-time R2 probe (and audit).
+
+export const ConnectionsCreateSchema = z
+  .object({
+    name: z.string().min(1).max(64),
+    accountId: z.string().regex(/^[a-f0-9]{32}$/, "must be 32 hex chars"),
+    accessKeyId: z.string().min(20).max(128),
+    secretAccessKey: z.string().min(40).max(256),
+  })
+  .strict();
+export type ConnectionsCreateInput = z.infer<typeof ConnectionsCreateSchema>;
+
+export const ConnectionsPatchSchema = z
+  .object({
+    name: z.string().min(1).max(64),
+  })
+  .strict();
+export type ConnectionsPatchInput = z.infer<typeof ConnectionsPatchSchema>;
+
+export const ConnectionIdParamSchema = z.object({ id: UlidSchema });
+export type ConnectionIdParam = z.infer<typeof ConnectionIdParamSchema>;
+
+/**
+ * Mask an R2 access key for safe display / persistence in `connections.access_key_masked`.
+ *
+ *   "AKIAFAKEACCESSKEY1234" → "AKIA****1234"
+ *
+ * - First 4 + last 4 chars preserved, middle replaced with `****`.
+ * - For keys shorter than 8 chars we collapse to all-mask to avoid exposing
+ *   more than half the secret; the create schema already requires >=20 so this
+ *   branch is purely defensive (e.g. if an admin imports a malformed row).
+ *
+ * Pure function on purpose — re-used by route handlers and tests; no I/O.
+ */
+export function maskAccessKey(accessKeyId: string): string {
+  if (typeof accessKeyId !== "string" || accessKeyId.length < 8) {
+    return "****";
+  }
+  return `${accessKeyId.slice(0, 4)}****${accessKeyId.slice(-4)}`;
+}
 
 /* ─── r2 presign ─────────────────────────────────────────────── */
 

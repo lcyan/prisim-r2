@@ -37,6 +37,7 @@ import { getDb, schema, type Db, type DbEnv } from "@/lib/db/client";
  */
 export type AuditOp =
   | "connection.create"
+  | "connection.update"
   | "connection.delete"
   | "object.delete"
   | "upload.create"

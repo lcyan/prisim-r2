@@ -27,6 +27,14 @@ export const ApiErrorCode = {
   Conflict: "resource.conflict",
   ConfirmationRequired: "confirmation.required",
   RateLimited: "rate_limited",
+  // Domain-specific: the user-supplied R2 keys were rejected upstream during
+  // a connection-create probe (listBuckets). Distinct from auth.unauthorized
+  // (which is OUR session) so the client can surface "wrong R2 keys, retry"
+  // rather than logging the user out.
+  ConnectionInvalidCredentials: "connection.invalid_credentials",
+  // Domain-specific: blocked because deleting the resource would orphan
+  // related rows (e.g. DELETE /connections/[id] with active shares).
+  ConnectionInUse: "connection.in_use",
   InternalUnexpected: "internal.unexpected",
 } as const;
 
@@ -92,6 +100,18 @@ export const ApiErrors = {
       details,
       { "Retry-After": String(retryAfterSeconds) },
     ),
+  /** R2 rejected the user-supplied access/secret pair during the
+   *  create-connection probe. 400 (not 401) — OUR session is fine. */
+  connectionInvalidCredentials: (
+    message = "R2 credentials were rejected by Cloudflare",
+  ) =>
+    new ApiError(ApiErrorCode.ConnectionInvalidCredentials, message, 400),
+  /** Deleting the resource would orphan related rows; 409 matches REST
+   *  convention for "resource conflict prevents action". */
+  connectionInUse: (
+    details?: unknown,
+    message = "Connection has active shares; remove them first",
+  ) => new ApiError(ApiErrorCode.ConnectionInUse, message, 409, details),
   internal: (message = "Unexpected server error") =>
     new ApiError(ApiErrorCode.InternalUnexpected, message, 500),
 };
