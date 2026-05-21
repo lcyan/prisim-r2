@@ -122,6 +122,43 @@ export const R2BucketsQuerySchema = z.object({
 });
 export type R2BucketsQueryInput = z.infer<typeof R2BucketsQuerySchema>;
 
+/* ─── r2 objects (list) ──────────────────────────────────────── */
+//
+// GET /api/r2/list?cid=<ULID>&bucket=<name>&prefix=<str>&cursor=<opaque>
+//
+// Folder-style listing — pass `prefix` to scope into a "directory" and
+// the route sets Delimiter='/' under the hood so deeper keys collapse
+// into CommonPrefixes. `cursor` is the previous response's nextCursor,
+// passed through verbatim (R2 emits opaque tokens).
+//
+// Field rules:
+//   - `prefix` defaults to "" so callers can hit the bucket root without
+//     supplying the param. Max 1024 chars matches the ObjectKey upper
+//     bound — the longest prefix is "the longest key minus one char".
+//     We deliberately do NOT reuse `ObjectKeySchema` (which forbids the
+//     leading "/" and requires min 1) because a prefix legitimately may
+//     be "" and a leading "/" is benign here (R2 ignores it for list).
+//   - `cursor` is opaque; we only bound the length to keep a malformed
+//     value from blowing past the SDK's URL-builder limits. Real R2
+//     ContinuationTokens are well under 1024 chars in observed traffic.
+
+/** Server-side page size for the list call. Centralized so the schema,
+ *  route, and any future docs (curl examples in the README) stay in
+ *  sync. The client cannot override this — keeping it server-side puts
+ *  a hard cap on per-request work regardless of caller behavior. */
+export const R2_LIST_DEFAULT_MAX_KEYS = 200;
+
+export const R2ListQuerySchema = z.object({
+  cid: UlidSchema,
+  bucket: BucketNameSchema,
+  // `.default("")` makes the field optional at the wire level and lands
+  // on the empty string after parse, so the route can pass it straight
+  // into ListObjectsV2 without a `?? ""` dance.
+  prefix: z.string().max(1024).default(""),
+  cursor: z.string().min(1).max(1024).optional(),
+});
+export type R2ListQueryInput = z.infer<typeof R2ListQuerySchema>;
+
 /**
  * Parse a Request's query string against a Zod schema. Symmetric to
  * `parseJson` but for GET routes where the input lives in the URL.

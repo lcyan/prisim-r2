@@ -64,3 +64,51 @@ export interface BucketSummary {
   name: string;
   createdAt: number | null;
 }
+
+/**
+ * Public projection of one R2 object as returned by:
+ *   GET /api/r2/list?cid=…&bucket=…&prefix=…&cursor=…
+ *
+ * Mirrors what `listObjects` (`@aws-sdk/client-s3` → `ListObjectsV2Command`)
+ * gives us, normalized to JSON-friendly values:
+ *   - `key` is always a non-empty string (route filters out items R2
+ *     returns without a Key — defensive, never observed in practice).
+ *   - `size` is bytes when R2 surfaces it, or null if missing. Type stays
+ *     `number | null` rather than `bigint` because Pages workers JSON-
+ *     serialize numbers and R2 object sizes fit comfortably in a JS
+ *     safe integer (5 TB max < 2^53).
+ *   - `etag` includes the surrounding quotes R2 returns (e.g. `"abc..."`).
+ *     The client treats it as opaque — strip-quotes only if you need to
+ *     compare against a multipart-complete return value.
+ *   - `lastModified` is epoch milliseconds, or null if R2 omits it.
+ */
+export interface R2ListObject {
+  key: string;
+  size: number | null;
+  etag: string | null;
+  lastModified: number | null;
+}
+
+/**
+ * Public projection of one page of an R2 list as returned by:
+ *   GET /api/r2/list?cid=…&bucket=…&prefix=…&cursor=…
+ *
+ * Shapes:
+ *   - `objects` — flat keys directly under `prefix` (file-like entries).
+ *     Empty array when the prefix is empty/missing.
+ *   - `prefixes` — common prefixes (folder-like entries) under `prefix`
+ *     when Delimiter='/' is applied server-side. Each entry already
+ *     includes the trailing '/'. Empty when there are no sub-folders.
+ *   - `nextCursor` — opaque token to pass back as `cursor` on the next
+ *     request to continue the listing, or null when this is the final
+ *     page. NEVER concatenate with the prefix — R2 ContinuationTokens
+ *     are opaque blobs unrelated to the prefix path.
+ *
+ * Both arrays are always present (never undefined). The "empty bucket"
+ * response is `{ objects: [], prefixes: [], nextCursor: null }`.
+ */
+export interface R2ListResponse {
+  objects: R2ListObject[];
+  prefixes: string[];
+  nextCursor: string | null;
+}

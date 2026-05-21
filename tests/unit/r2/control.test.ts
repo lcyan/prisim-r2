@@ -108,6 +108,9 @@ describe("listObjects", () => {
     expect(res.isTruncated).toBe(false);
     expect(res.continuationToken).toBeUndefined();
     expect(res.items).toEqual([]);
+    // Stable empty-page shape: prefixes is always an array, even when
+    // delimiter wasn't supplied. Consumers don't need to `?? []`.
+    expect(res.prefixes).toEqual([]);
   });
 
   it("filters out Contents entries with no Key (defensive)", async () => {
@@ -116,6 +119,52 @@ describe("listObjects", () => {
     }));
     const res = await listObjects({ client, bucket: "b" });
     expect(res.items.map((i) => i.key)).toEqual(["good.txt"]);
+  });
+
+  it("forwards Delimiter to the SDK and surfaces CommonPrefixes as prefixes", async () => {
+    const { client, send } = makeClient(() => ({
+      Contents: [{ Key: "a/file.txt", Size: 1 }],
+      CommonPrefixes: [{ Prefix: "a/sub1/" }, { Prefix: "a/sub2/" }],
+      NextContinuationToken: "next-tok",
+    }));
+    const res = await listObjects({
+      client,
+      bucket: "b",
+      prefix: "a/",
+      delimiter: "/",
+    });
+
+    const cmd = send.mock.calls[0]![0] as ListObjectsV2Command;
+    expect(cmd.input).toMatchObject({
+      Bucket: "b",
+      Prefix: "a/",
+      Delimiter: "/",
+    });
+    expect(res.items.map((i) => i.key)).toEqual(["a/file.txt"]);
+    expect(res.prefixes).toEqual(["a/sub1/", "a/sub2/"]);
+    expect(res.continuationToken).toBe("next-tok");
+  });
+
+  it("filters CommonPrefixes entries with missing/empty Prefix (defensive)", async () => {
+    // SDK types each CommonPrefixes entry's Prefix as optional. R2
+    // never returns this in practice, but a "" sentinel would create
+    // an empty folder card in the UI — drop them at the boundary.
+    const { client } = makeClient(() => ({
+      CommonPrefixes: [{ Prefix: "kept/" }, { Prefix: "" }, {}],
+    }));
+    const res = await listObjects({ client, bucket: "b", delimiter: "/" });
+    expect(res.prefixes).toEqual(["kept/"]);
+  });
+
+  it("omits Delimiter from the SDK call when not supplied (flat listing)", async () => {
+    const { client, send } = makeClient(() => ({ Contents: [] }));
+    await listObjects({ client, bucket: "b" });
+    const cmd = send.mock.calls[0]![0] as ListObjectsV2Command;
+    // The route layer relies on omission to keep listings flat for
+    // routes that haven't opted into folder mode. Asserting on the
+    // SDK input field (rather than the typed Delimiter) keeps the
+    // contract aligned with what AWS SDK actually serializes.
+    expect(cmd.input.Delimiter).toBeUndefined();
   });
 
   it("rejects empty bucket with TypeError before send", async () => {
@@ -131,6 +180,14 @@ describe("listObjects", () => {
     await expect(
       listObjects({ client, bucket: "b", maxKeys: 0 }),
     ).rejects.toBeInstanceOf(TypeError);
+  });
+
+  it("rejects empty delimiter with TypeError before send", async () => {
+    const { client, send } = makeClient();
+    await expect(
+      listObjects({ client, bucket: "b", delimiter: "" }),
+    ).rejects.toBeInstanceOf(TypeError);
+    expect(send).not.toHaveBeenCalled();
   });
 });
 

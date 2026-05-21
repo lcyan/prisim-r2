@@ -83,6 +83,10 @@ export interface ListObjectsParams {
   continuationToken?: string;
   /** R2 caps at 1000 per page by default; positive integer if set. */
   maxKeys?: number;
+  /** S3 grouping separator — pass "/" to fold deeper keys into
+   *  CommonPrefixes (folder-style listing). Omit for a flat listing
+   *  (every key returned individually). */
+  delimiter?: string;
 }
 
 export interface ListObjectsItem {
@@ -94,6 +98,11 @@ export interface ListObjectsItem {
 
 export interface ListObjectsResult {
   items: ListObjectsItem[];
+  /** Common-prefix strings returned when `delimiter` is set (folder-like
+   *  groupings). Always an array — empty when `delimiter` was omitted or
+   *  R2 returned no CommonPrefixes. Each entry is the literal `Prefix`
+   *  string R2 returned (already includes the delimiter). */
+  prefixes: string[];
   /** Token for the next page, or undefined if this was the last page. */
   continuationToken?: string;
   isTruncated: boolean;
@@ -106,6 +115,9 @@ export async function listObjects(
   if (params.maxKeys !== undefined) {
     requirePositiveInt(params.maxKeys, "maxKeys");
   }
+  if (params.delimiter !== undefined) {
+    requireNonEmpty(params.delimiter, "delimiter");
+  }
 
   try {
     const res = await params.client.send(
@@ -114,6 +126,7 @@ export async function listObjects(
         Prefix: params.prefix,
         ContinuationToken: params.continuationToken,
         MaxKeys: params.maxKeys,
+        Delimiter: params.delimiter,
       }),
     );
 
@@ -132,8 +145,19 @@ export async function listObjects(
       });
     }
 
+    // CommonPrefixes is only populated when Delimiter is supplied. The
+    // SDK types each entry's Prefix as optional, so we filter (same
+    // defensive pattern as Contents) rather than emit "" sentinels.
+    const prefixes: string[] = [];
+    for (const cp of res.CommonPrefixes ?? []) {
+      if (typeof cp.Prefix === "string" && cp.Prefix.length > 0) {
+        prefixes.push(cp.Prefix);
+      }
+    }
+
     return {
       items,
+      prefixes,
       continuationToken: res.NextContinuationToken,
       isTruncated: res.IsTruncated ?? false,
     };

@@ -1039,7 +1039,7 @@
         "id": "13",
         "title": "对象列表 API（游标分页）",
         "description": "GET /api/r2/list?cid=&bucket=&prefix=&cursor= 服务端 list，返回 { objects: [{key, size, etag, lastModified}], prefixes: [], nextCursor }。基于 R2 ContinuationToken。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "9",
           "12"
@@ -1047,7 +1047,72 @@
         "priority": "high",
         "details": "1) app/api/r2/list/route.ts (GET)；2) input { cid, bucket, prefix?: string='', cursor?: string }；3) S3 ListObjectsV2 with Prefix + Delimiter='/' 模拟文件夹；4) 返回 objects（Contents 转换）+ prefixes（CommonPrefixes）+ nextCursor（NextContinuationToken）；5) 单次 MaxKeys=200；6) 不缓存（TanStack Query 前端缓）；7) 错误映射统一。",
         "testStrategy": "Vitest：mock ListObjectsV2 返回 Contents + CommonPrefixes，校验响应结构；空 bucket 返回 objects=[], prefixes=[], nextCursor=null；分页：第二次请求带 cursor 调用 SDK 时 ContinuationToken 正确传递。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Define GET list API contract and validate query parameters",
+            "description": "Create the route scaffold and implement parsing and validation for cid, bucket, prefix, and cursor query parameters.",
+            "dependencies": [],
+            "details": "Add app/api/r2/list/route.ts with edge runtime, read searchParams from the request URL, require non-empty cid and bucket, default prefix to an empty string, and treat cursor as optional. Reuse the project's existing validation and unified error mapping conventions so invalid input produces consistent API errors.\n<info added on 2026-05-21T12:15:34.222Z>\nImplement GET app/api/r2/list/route.ts and add R2ListQuerySchema in lib/api/schemas.ts with input shape { cid: ULID, bucket: BucketName, prefix: z.string().max(1024).default(\"\"), cursor: z.string().min(1).max(1024).optional() }.\n\nDo not reuse ObjectKeySchema for prefix: ObjectKeySchema enforces min(1) and disallows leading \"/\", but list prefix must allow empty string and leading \"/\" is benign for R2.\n\nTesting note: BucketNameSchema requires at least 3 characters, so test fixtures using \"b\" will always hit the 400 validation branch; update tests to use a valid bucket name such as \"test-bucket\".\n</info added on 2026-05-21T12:15:34.222Z>",
+            "status": "done",
+            "testStrategy": "Vitest request-level tests for missing cid or bucket, valid default prefix behavior, and optional cursor acceptance.",
+            "updatedAt": "2026-05-21T12:16:18.361Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Resolve connection credentials and construct the R2 S3 client",
+            "description": "Load the target connection, decrypt its credentials, and initialize the S3-compatible client used for listing objects.",
+            "dependencies": [
+              1
+            ],
+            "details": "Use the same connection lookup and credential decryption flow established by prior R2 APIs. Ensure the handler fetches the connection by cid, validates access to the specified bucket context, and creates the S3 client via the shared helper. Map connection-not-found and invalid-credentials failures through the common error translator.\n<info added on 2026-05-21T12:15:37.881Z>\nReuse the buckets-route credential flow exactly: decode DB blob fields with the shared asU8 helper, decrypt accessKeyId and secretAccessKey concurrently via Promise.all, then construct the S3 client from the decrypted plaintext credentials. If decryption throws CryptoIntegrityError, translate it to a 500 response and emit the security.decrypt_failed audit event; do not audit successful list requests, consistent with the high-frequency read policy used by buckets/connections. Since asU8 is now appearing for the third time (presign/buckets/list), add a CLAUDE.md note that the next occurrence should be extracted into lib/db/blob.ts.\n</info added on 2026-05-21T12:15:37.881Z>",
+            "status": "done",
+            "testStrategy": "Vitest with mocks for connection lookup and credential decryption, asserting correct error mapping for missing connection and invalid credentials.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T12:16:18.370Z"
+          },
+          {
+            "id": 3,
+            "title": "Call ListObjectsV2 with prefix, delimiter, pagination, and MaxKeys",
+            "description": "Implement the server-side list operation against R2 using the S3 ListObjectsV2 command with cursor pagination.",
+            "dependencies": [
+              2
+            ],
+            "details": "Send a ListObjectsV2 request using Bucket=bucket, Prefix=prefix, Delimiter='/' to simulate folders, MaxKeys=200, and ContinuationToken=cursor when provided. Keep caching disabled at the route level and follow edge-compatible patterns already used in the project. Preserve raw response fields needed for object and prefix transformation.\n<info added on 2026-05-21T12:14:32.314Z>\nUpdate lib/r2/control.ts listObjects to accept delimiter?: string, validate non-empty delimiter with the same TypeError style as existing bucket/key guards, and include Delimiter in the ListObjectsV2Command input only when provided. Make ListObjectsResult.prefixes required and always return an array: map CommonPrefixes to string prefixes, defensively filtering out entries whose Prefix is empty or missing; when delimiter is omitted, prefixes must be []. Keep route-level behavior fixed to delimiter='/' and keep maxKeys sourced from a shared R2_LIST_DEFAULT_MAX_KEYS=200 constant in schemas.ts / route code rather than client input. Add tests covering: delimiter passthrough to SDK, CommonPrefixes mapping with empty Prefix filtered out, Delimiter undefined when delimiter is not passed, and empty delimiter throwing TypeError.\n</info added on 2026-05-21T12:14:32.314Z>",
+            "status": "done",
+            "testStrategy": "Vitest mocking the S3 client to verify Prefix, Delimiter, MaxKeys=200, and conditional ContinuationToken are passed correctly.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T12:16:18.378Z"
+          },
+          {
+            "id": 4,
+            "title": "Transform R2 list response into the public API payload",
+            "description": "Convert S3 response data into the expected objects, prefixes, and nextCursor JSON structure.",
+            "dependencies": [
+              3
+            ],
+            "details": "Map Contents into objects with key, size, etag, and lastModified fields. Extract CommonPrefixes into a prefixes string array, and expose NextContinuationToken as nextCursor, returning null when absent. Ensure empty listings return stable shapes with objects: [], prefixes: [], and nextCursor: null.\n<info added on 2026-05-21T12:14:38.333Z>\nDo not normalize optional R2 fields inside the controller/service layer; keep that layer returning the raw list result and perform wire-shape normalization only in the route handler before JSON response serialization. Route-level normalization rules: size undefined -> null, etag undefined -> null, lastModified Date | undefined -> epoch milliseconds number | null, and continuation token absent/undefined -> nextCursor: null. This keeps the public response schema stable with explicit nulls instead of omitted fields, so consumers can strictly type nextCursor as string | null without optional-field semantics.\n\nIn the R2ListResponse type/docs, explicitly note that each prefixes entry already includes the trailing \"/\", nextCursor is an opaque cursor and must not be concatenated into prefix, and an empty bucket must always return the stable shape { objects: [], prefixes: [], nextCursor: null }.\n</info added on 2026-05-21T12:14:38.333Z>",
+            "status": "done",
+            "testStrategy": "Vitest response-shape tests covering mixed Contents/CommonPrefixes, empty bucket results, and null nextCursor behavior.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T12:16:18.388Z"
+          },
+          {
+            "id": 5,
+            "title": "Finalize route response behavior and add end-to-end handler tests",
+            "description": "Wire the full handler together, return JSON responses, and verify success and failure scenarios comprehensively.",
+            "dependencies": [
+              4
+            ],
+            "details": "Return the transformed payload through the route handler with consistent HTTP status codes and no server-side caching behavior. Add comprehensive tests for successful root and nested prefix listing, pagination across requests using cursor, and unified error responses from upstream failures. Confirm the implementation is ready for Task 14's infinite-query frontend consumer.\n<info added on 2026-05-21T12:14:44.510Z>\nExpanded test coverage completed for the finalized list route contract. Added 4 unit tests in tests/unit/r2/control.test.ts for listObjects delimiter passthrough, CommonPrefixes mapping, rejection of empty delimiter, and ensuring SDK input.Delimiter remains unset when delimiter is omitted. Added 16 route integration tests in tests/unit/api/r2-list-route.test.ts following the buckets-route pattern: 4 happy-path cases covering payload mapping, default prefix behavior, stable empty-bucket response shape, and cursor passthrough; last_used_at update; 4 validation cases for missing cid/bucket, non-ULID cid, and bucket regex violations; 4 scoping/auth cases for nonexistent cid returning 404, cross-user cid returning 404 without enumeration leak, unauthenticated 401, and GET not requiring CSRF; 2 error cases for decrypt failure returning 500 with security.decrypt_failed audit emission and R2CredentialError returning 401; and 1 credential-leakage assertion ensuring error responses never include the raw access-key prefix. Final verification: 303/303 tests passing, typecheck/lint/build clean, and route registration confirmed in build output as /api/r2/list. This gives Task 14 a stable wire contract for useInfiniteQuery consumption.\n</info added on 2026-05-21T12:14:44.510Z>",
+            "status": "done",
+            "testStrategy": "Vitest integration-style handler tests mocking ListObjectsV2 for first and second page requests, plus error-path assertions for standardized API failures.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T12:16:18.397Z"
+          }
+        ],
+        "updatedAt": "2026-05-21T12:16:18.397Z"
       },
       {
         "id": "14",
@@ -1317,9 +1382,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-21T11:35:11.420Z",
+      "lastModified": "2026-05-21T12:16:18.397Z",
       "taskCount": 25,
-      "completedCount": 13,
+      "completedCount": 14,
       "tags": [
         "master"
       ]
