@@ -1118,14 +1118,81 @@
         "id": "14",
         "title": "对象浏览器 UI（表格 + 面包屑 + 游标分页）",
         "description": "/dashboard/[bucket]/[...prefix] 路由：面包屑 + 文件夹/对象表格 + Load More 按钮 + 多选 checkbox。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "13"
         ],
         "priority": "high",
         "details": "1) app/(dashboard)/buckets/[bucket]/page.tsx 用 searchParams 读 prefix 和 cursor，catch-all 也可；2) hooks/use-objects.ts：useInfiniteQuery，queryKey ['objects', bucket, prefix]，getNextPageParam: lastPage.nextCursor；3) Breadcrumb 组件：解析 prefix 'a/b/c/' -> [a, b, c]，每段点击跳到对应 prefix；4) ObjectTable 组件：列 Checkbox / Name (folder icon for prefix, file icon for object) / Size / Modified / Actions (Download/Share/Preview/Delete)；5) 文件夹点击 push 到子 prefix；6) Load More 按钮触发 fetchNextPage；7) Zustand selectedKeys（Set<string>）跨页保留多选状态，但切换 prefix 清空。",
         "testStrategy": "Playwright E2E：进入 bucket 显示根 prefix 列表；点 folder 进入子 prefix，URL 和面包屑更新；浏览器后退面包屑恢复；多选 checkbox 显示批量删除按钮。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement bucket object browser route state parsing",
+            "description": "Create the dashboard bucket route logic to read and normalize bucket, prefix, and cursor state from the URL.",
+            "dependencies": [],
+            "details": "Update app/(dashboard)/buckets/[bucket]/page.tsx to read searchParams for prefix and cursor, and support catch-all prefix segments if used. Normalize prefix formatting with trailing slash rules so child navigation and breadcrumb generation remain consistent.\n<info added on 2026-05-21T12:45:55.083Z>\nRoute implementation is moved to app/(dashboard)/buckets/[bucket]/[[...prefix]]/page.tsx and should read route state via optional catch-all segments instead of ?prefix=. Use useParams() to obtain a single bucket segment plus multi-segment prefix, with a local assertion to { bucket?: string; prefix?: string[] } because useParams<T>() is unreliable under TS 5.5 + Next 15.\n\nExtract prefix normalization into lib/r2/prefix.ts as pure functions with Vitest tests running in the node environment. The helpers should convert segments <-> prefix consistently, with prefix normalized to either \"\" for root or a value ending in \"/\". This guarantees listObjects(Delimiter=\"/\") callers do not need extra ?? \"\" or endsWith(\"/\") defensive logic. segmentsToPrefix must decode each segment with decodeURIComponent so object keys containing spaces or \"+\" navigate correctly.\n\nAdopt catch-all routing as the canonical prefix state because browser back/forward, shared links, and bookmarks can fully restore breadcrumb state, while Next.js also handles per-segment URL decoding for routing. Integrate the actual page sync in this subtask so the route file is only authored once and can be reused by 14.5.\n\nWhen the page resolves the bucket from params, also sync it into the active-connection store so hard refreshes and opened shared links keep the header BucketSwitcher aligned with the current bucket.\n</info added on 2026-05-21T12:45:55.083Z>",
+            "status": "done",
+            "testStrategy": "Add route-level tests or component tests verifying root prefix, nested prefix, and cursor values are parsed correctly from URL inputs.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T12:46:59.824Z"
+          },
+          {
+            "id": 2,
+            "title": "Build useInfiniteQuery hook for paginated object listing",
+            "description": "Implement the data-fetching hook that loads folder and object entries with cursor-based pagination per bucket and prefix.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create or update hooks/use-objects.ts using TanStack Query useInfiniteQuery with queryKey ['objects', bucket, prefix]. Wire getNextPageParam to lastPage.nextCursor, flatten paginated results for rendering, and ensure refetch occurs when bucket or prefix changes.\n<info added on 2026-05-21T12:46:04.512Z>\nUpdate hooks/use-objects.ts to TanStack Query v5 with queryKey ['objects', cid, bucket, prefix], and extract the request logic into a standalone fetchObjects function so vitest can verify request URL shape independently.\n\nImplementation decisions:\n- Use a 4-tuple queryKey instead of 3-tuple so cid participates in caching; switching connections must create isolated caches and prevent same-named buckets across different connections from polluting each other.\n- Define OBJECTS_STALE_TIME_MS = 60_000. This is shorter than the buckets cache (5 minutes) because object listings change more frequently, while still avoiding refetch on every window focus.\n- When inputs are not ready (missing cid or bucket), set enabled: false so the hook stays idle and the UI can render its own “select connection” / missing-input prompt.\n\nTanStack Query v5 / TypeScript pitfalls:\n- v5 requires initialPageParam; pass undefined as string | undefined explicitly, otherwise pageParam is inferred as unknown.\n- getNextPageParam must coerce terminal null to undefined. R2 uses null for the last page, but TanStack treats null as a valid next page param. Use lastPage.nextCursor ?? undefined.\n- Keep the return type explicit as UseInfiniteQueryResult<InfiniteData<R2ListResponse, string | undefined>, ApiClientError | Error>; the pageParam generic must be provided or TS will error.\n\nAlso normalize queryKey inputs in tests so null and undefined are both treated as null for stable cache keys, while still encoding URL params correctly in fetchObjects.\n\nTest coverage should include:\n- queryKey normalization (null/undefined -> null)\n- fetchObjects URL encoding for prefix/cursor values containing spaces and '+'\n- first-page request vs continuation-page request parameter differences\n- ApiClientError passthrough without wrapping/masking\n</info added on 2026-05-21T12:46:04.512Z>",
+            "status": "done",
+            "testStrategy": "Write hook tests with mocked API responses to verify initial load, next page loading, query key changes, and nextCursor handling.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T12:46:59.832Z"
+          },
+          {
+            "id": 3,
+            "title": "Create breadcrumb navigation for hierarchical prefixes",
+            "description": "Build a breadcrumb component that converts object prefixes into clickable navigation segments.",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement a Breadcrumb component that parses prefixes like 'a/b/c/' into ordered segments [a, b, c], includes root navigation, and generates links back to each intermediate prefix. Ensure clicking a segment updates the route to the correct prefix.\n<info added on 2026-05-21T12:46:10.094Z>\nCreate `components/features/files/breadcrumb.tsx` exporting `FileBreadcrumb`, with props `bucket`, `prefix`, and `onNavigate(depth)`. Internally reuse `prefixToSegments` from `lib/r2/prefix.ts` so breadcrumb parsing shares exactly the same prefix slicing rules as `page.tsx` and cannot drift.\n\nAdopt a depth-based callback contract: `onNavigate` receives a 0-based segment index, and `-1` represents the bucket root. The page layer should use `prefixAtDepth(prefix, depth)` to derive the target prefix. This keeps the breadcrumb component stateless and easier to unit test than passing full prefix strings.\n\nRender a root breadcrumb item for the bucket root plus one item per parsed segment. Clicking any item should call `onNavigate` with the correct depth. The last segment should still render as a `button` with `aria-current=\"page\"` instead of switching element types, so keyboard users can still press Enter and rendering logic stays uniform.\n\nAfter this refactor, breadcrumb rendering must live in `page.tsx` via standalone `FileBreadcrumb`; `object-table` should no longer render its old embedded toolbar breadcrumb to avoid duplicate implementations.\n\nWhen assigning React keys for segments, include the segment index in the key because adjacent duplicate names are rare but valid (for example `a/a/`).\n</info added on 2026-05-21T12:46:10.094Z>",
+            "status": "done",
+            "testStrategy": "Add component tests covering empty prefix, multi-level prefix parsing, displayed labels, and generated href targets for each segment.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T12:46:59.840Z"
+          },
+          {
+            "id": 4,
+            "title": "Implement object table with folder navigation and persistent multi-select",
+            "description": "Build the table UI showing folders and objects, with row selection, icons, metadata columns, and row-level actions.",
+            "dependencies": [
+              2
+            ],
+            "details": "Create an ObjectTable component with columns for Checkbox, Name, Size, Modified, and Actions. Render folder icons for prefixes and file icons for objects, make folder rows navigate into child prefixes via router push, and connect checkbox state to a Zustand selectedKeys Set<string> that persists across pages but is cleared when prefix changes.\n<info added on 2026-05-21T12:46:16.707Z>\nImplement components/features/files/object-table.tsx by renaming the orphan file-table.tsx via git mv and refactoring it into a pure table component. Remove any embedded Toolbar and Breadcrumb so the page composes those separately. Drive table behavior entirely through props for hasNextPage, isLoading, isError, onFolderClick, and onAction, while reading selection state directly from a new Zustand store to avoid prop drilling.\n\nAdd stores/selected-keys.ts using Zustand 5 for temporary UI-only selection state with Set<string>. Every mutation must create a new Set instance so Zustand shallow equality and React re-rendering work correctly. Do not use persist middleware. Implement onPrefixChange({ bucket, prefix }) so unchanged scope returns {} and does not notify subscribers, preventing useEffect render loops. When bucket or prefix changes, clear selection; when scope is unchanged, preserve selection.\n\nKeep select-all behavior scoped to the currently visible page only: selecting all merges visible keys into the existing set, and deselecting all removes only visible keys, preserving selections from other pages. Batch delete remains a placeholder action that calls onAction(\"delete\", { key: \"*bulk*\" }) until task 16 adds real bulk delete logic.\n\nUse a discriminated union for rows with kind: \"prefix\" | \"file\" so only file rows carry size and lastModified, avoiding strict TypeScript optional-field workarounds. Preserve the Tailwind selected-row highlight class using arbitrary alpha syntax such as bg-primary/[0.05].\n\nAdd tests covering new Set instance creation on every mutation, toggle/setSelection/clear behavior, preserving selection when scope is unchanged, and clearing selection when bucket or prefix changes. Also note the git mv workflow caveat: after renaming file-table.tsx to object-table.tsx, read the new path before writing if the tool reports the file has not been read yet.\n</info added on 2026-05-21T12:46:16.707Z>",
+            "status": "done",
+            "testStrategy": "Add component and store tests for row rendering, folder click navigation, selection toggling, cross-page retention, and automatic clearing after prefix changes.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T12:46:59.847Z"
+          },
+          {
+            "id": 5,
+            "title": "Integrate page UI with load-more pagination and selection-aware controls",
+            "description": "Compose the route page using breadcrumb, object table, and Load More behavior, including bulk-selection UI feedback.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Assemble the bucket browser page so it renders the breadcrumb above the table, passes flattened infinite-query data into ObjectTable, and shows a Load More button wired to fetchNextPage with loading and disabled states. Also surface selection-aware controls such as a bulk delete action when selectedKeys is non-empty.\n<info added on 2026-05-21T12:46:23.102Z>\nIntegrated /buckets/[bucket]/[[...prefix]]/page.tsx to render FileBreadcrumb above ObjectTable, feed flattened useObjects infinite-query data into the table, handle folder/file navigation via router.push, and call useSelectedKeysStore.onPrefixChange on every bucket/prefix change to clear persisted selection state.\n\nFlattening order is prefixes first, then objects, to match standard cloud storage browser UX. Added a local buildBrowseHref(bucket, prefix) helper for navigation URL construction; each path segment is encoded with encodeURIComponent independently so / separators remain intact instead of encoding the full joined string.\n\nWhen no connection is active, the page still renders the breadcrumb and shows an empty-state card prompting the user to select a connection in the header, avoiding a blank screen.\n\nVerified optional catch-all routing uses [[...prefix]] so both /buckets/foo and nested paths like /buckets/foo/a/b/c resolve correctly; using [...prefix] would break bucket-root access with 404s. The selection reset effect is wired as useEffect([bucket, prefix, onPrefixChange]); the store action reference is stable and does not cause rerender loops.\n\nValidation:\npnpm typecheck passed\npnpm lint passed with 0 warnings\npnpm test passed: 339 passed\npnpm build succeeded; /buckets/[bucket]/[[...prefix]] appears in the manifest, bundle size 6.21 kB / First Load 128 kB, and edge runtime marking matches CLAUDE.md\n\nPlaywright E2E was not run because it is not installed per CLAUDE.md; do not add it here. Real download/preview/share/delete flows will be connected in tasks 15/16.\n</info added on 2026-05-21T12:46:23.102Z>",
+            "status": "done",
+            "testStrategy": "Create Playwright E2E flows for root listing, folder drill-down, breadcrumb and browser back behavior, Load More pagination, and multi-select visibility of bulk actions.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-21T12:46:59.854Z"
+          }
+        ],
+        "updatedAt": "2026-05-21T12:46:59.854Z"
       },
       {
         "id": "15",
@@ -1382,9 +1449,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-21T12:16:18.397Z",
+      "lastModified": "2026-05-21T12:46:59.854Z",
       "taskCount": 25,
-      "completedCount": 14,
+      "completedCount": 15,
       "tags": [
         "master"
       ]
