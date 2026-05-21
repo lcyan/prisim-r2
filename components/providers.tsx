@@ -21,6 +21,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 
 import { Toaster } from "@/components/ui/sonner";
+import { UploadDrawerContainer } from "@/components/features/upload/upload-drawer-container";
+import { UploadQueueProvider } from "@/components/features/upload/upload-queue-provider";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -56,6 +58,11 @@ export function Providers({ children }: { children: ReactNode }) {
     >
       <QueryClientProvider client={queryClient}>
         {children}
+        {/* UploadQueueProvider starts the dispatcher once; the drawer is
+            mounted globally so the queue surface follows the user across
+            routes. Both render no DOM until there's something to show. */}
+        <UploadQueueProvider />
+        <UploadDrawerContainer />
         <Toaster position="top-right" richColors closeButton />
       </QueryClientProvider>
     </ThemeProvider>
