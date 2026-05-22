@@ -11,6 +11,9 @@ pnpm-lock.yaml
 .taskmaster
 next-env.d.ts
 
+# env templates use shell syntax (KEY=value), no prettier parser
+.dev.vars.example
+
 # shadcn primitives — leave alignment with upstream CLI output
 components/ui
 

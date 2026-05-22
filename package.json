@@ -17,6 +17,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install --with-deps chromium",
     "db:gen": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:prod": "wrangler d1 migrations apply DB --remote"
@@ -53,6 +55,7 @@
   "devDependencies": {
     "@cloudflare/next-on-pages": "^1.13.16",
     "@cloudflare/workers-types": "^4.20260520.1",
+    "@playwright/test": "1.60.0",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.10.2",

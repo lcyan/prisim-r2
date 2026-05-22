@@ -1,0 +1,25 @@
+# Copy to `.dev.vars` and fill in real values. `.dev.vars` is gitignored.
+# Cloudflare Pages reads from this file when you run `wrangler pages dev`
+# (see `pnpm preview`).
+#
+# Generate AUTH_SECRET and ENCRYPTION_KEY locally — they are NOT the same
+# value. See docs/deploy-runbook.md for the full setup walkthrough.
+
+# 48+ bytes, base64. Signs the Auth.js JWT.
+#   openssl rand -base64 48
+AUTH_SECRET=
+
+# Origin the dashboard runs on. Must match the actual host/port:
+#   `pnpm preview`  → http://localhost:8788
+#   production      → the Pages domain (e.g. https://prisim.example.com)
+AUTH_URL=http://localhost:8788
+
+# 32-byte AES-256 master key, base64. Envelopes R2 access keys at rest.
+# Rotating this requires re-encrypting every `connections` row — see
+# CLAUDE.md "Rotating ENCRYPTION_KEY" and docs/deploy-runbook.md.
+#   openssl rand -base64 32
+ENCRYPTION_KEY=
+
+# Public-facing URL of the dashboard. Embedded in the bundle at build
+# time. Used by the in-app R2 CORS setup hint.
+NEXT_PUBLIC_APP_URL=http://localhost:8788

@@ -36,6 +36,7 @@ pnpm-debug.log*
 /coverage
 /playwright-report
 /playwright/.cache
+/playwright/.auth
 /test-results
 
 # IDE

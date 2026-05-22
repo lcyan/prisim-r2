@@ -47,7 +47,7 @@ pnpm db:migrate:local # wrangler d1 migrations apply DB --local (writes .wrangle
 pnpm db:migrate:prod  # wrangler d1 migrations apply DB --remote
 ```
 
-**Local-dev gotcha**: `next dev` silently lacks the Cloudflare bindings (`getRequestContext().env.DB` is undefined), so anything touching D1 (login, /api/*) 500s. Use `pnpm preview` for any work that hits the server.
+**Local-dev gotcha**: `next dev` silently lacks the Cloudflare bindings (`getRequestContext().env.DB` is undefined), so anything touching D1 (login, /api/\*) 500s. Use `pnpm preview` for any work that hits the server.
 
 **Seeding the admin user** (no signup UI):
 
@@ -62,7 +62,7 @@ These rules override any other suggestion. If a request conflicts with them, pus
 
 1. **Credentials are AES-GCM encrypted at rest.** R2 access keys / secrets are encrypted with AES-GCM-256 via Web Crypto (`crypto.subtle`) using the server-only `ENCRYPTION_KEY` env. AAD MUST be the `connections.id` ULID so a ciphertext copied between rows fails the GCM tag check. See `lib/crypto/aes-gcm.ts`. Never write plaintext credentials to DB, logs, error messages, or telemetry.
 2. **Credentials never reach the browser.** API responses NEVER include decrypted secrets. List endpoints return `ConnectionSummary` (see `lib/api/types.ts`) with `accessKeyMasked` only (`AKIA****WXYZ` via `maskAccessKey`). Decryption happens in the route handler, in memory, for one R2 call. The `GET /api/connections` select column list is explicit (no `select(*)`) so adding a future secret column cannot leak it.
-3. **All object I/O goes through presigned URLs.** Uploads, downloads, and multipart parts are direct browser ↔ R2 via presigned URL (`PUT` / `GET` / `UploadPart`). The Next.js server NEVER proxies object bytes — `lib/r2/presign.ts` mints URLs, `lib/r2/control.ts` does control-plane calls (list/delete/multipart bookkeeping) only. Presigned URLs are not persisted or logged.
+3. **All object I/O goes through presigned URLs.** Uploads, downloads, and multipart parts are direct browser ↔ R2 via presigned URL (`PUT` / `GET` / `UploadPart`). The Next.js server NEVER proxies object bytes — `lib/r2/presign.ts` mints URLs, `lib/r2/control.ts` does control-plane calls (list/delete/multipart bookkeeping) only. Presigned URLs are not persisted or logged.<br>**Exception:** control-plane R2 calls (list, delete, create/complete/abort multipart upload) MAY be made server-side as they only exchange metadata, not object bytes.
 4. **Destructive ops require explicit confirmation.** Delete bucket, empty prefix, bulk delete, connection delete with active shares, and credential rotation MUST require a typed confirmation on the client AND a confirmation token validated server-side (error code `confirmation.required`).
 5. **CSRF on every mutating route.** Sessions carry a `csrf_token_hash` in D1. `withApi` enforces `X-CSRF-Token` header == sha256-matched to D1 row for all POST/PATCH/PUT/DELETE. Revoking a session (deleting the D1 row) also revokes CSRF authority. Never bypass `requireCsrf` for "convenience".
 
@@ -156,7 +156,7 @@ D1 is wired via the `DB` binding in `wrangler.toml`, not a `DATABASE_URL`.
 
 ## Workflow Rules
 
-1. **Read before write.** Read the target file and its direct collaborators before editing. Don't infer structure from filenames — `app/api/r2/` has *only* `presign/`, not `list/` or `delete/` (yet).
+1. **Read before write.** Read the target file and its direct collaborators before editing. Don't infer structure from filenames — `app/api/r2/` has _only_ `presign/`, not `list/` or `delete/` (yet).
 2. **Taskmaster discipline.** This project uses taskmaster (`.taskmaster/`). After each subtask, call `update_subtask` to record the decision, the alternatives considered, and any pitfall hit. `update_subtask` rejects parent IDs — if a task has no subtasks, call `expand_task` first.
 3. **Conventional Commits.** `type(scope): subject` (`feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`). Scope is the feature area (`auth`, `r2`, `ui`, `api`, `db`, `crypto`, `audit`, `connections`, …). Breaking changes use `!` and a `BREAKING CHANGE:` footer.
 4. **Tests are part of "done".** New feature → Vitest unit test for pure logic and route handlers. Bug fix → regression test that fails before the patch. Playwright is allowed under `tests/e2e/` once configured, but only for behaviors Vitest can't reach (real browser download manager, cross-tab reload, etc.); don't add E2E "for completeness".

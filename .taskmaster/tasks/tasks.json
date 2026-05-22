@@ -1827,7 +1827,7 @@
         "id": "25",
         "title": "Playwright E2E 关键流 + 部署/CORS 文档",
         "description": "Playwright 覆盖：登录、添加 connection、浏览桶、上传（小/大）、下载、删除（typed 确认）、生成分享。CLAUDE.md 补 Security Invariant #3 豁免脚注；README 加 R2 CORS 配置示例 + multipart lifecycle 提示。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "11",
           "14",
@@ -1839,14 +1839,132 @@
         "priority": "high",
         "details": "1) playwright.config.ts：webServer 跑 `pnpm preview`（wrangler 本地 D1）；baseURL=http://localhost:8788；2) tests/e2e/login.spec.ts、connections.spec.ts、browse-upload-download.spec.ts、delete.spec.ts、share.spec.ts；3) fixtures：登录态可复用 storageState；4) 用真实 R2 测试桶（CI 用一个专用 throwaway 桶，凭证存 GH Secrets）或 minio 本地 S3 兼容服务；5) 文档：docs/r2-cors.md 给出标准 CORS JSON（AllowedOrigins=[NEXT_PUBLIC_APP_URL], AllowedMethods=[GET, PUT], AllowedHeaders=[*], MaxAgeSeconds=3600）；6) docs/multipart-cleanup.md 推荐 R2 lifecycle rule 'AbortIncompleteMultipartUpload after 7 days'；7) CLAUDE.md Security Invariant #3 加脚注：'Exception: control-plane R2 calls (list, delete, create/complete/abort multipart upload) MAY be made server-side as they only exchange metadata, not object bytes.'；8) 部署 runbook：env 配置（ENCRYPTION_KEY=`openssl rand -base64 32`）、首次 admin seed 步骤、D1 migration 应用、wrangler pages deploy。",
         "testStrategy": "`pnpm test:e2e` 全部通过；本地 `pnpm preview` 能完整走通 login -> upload 100MB 文件 -> 删除 -> 分享；wrangler pages deploy --dry-run 通过；CLAUDE.md 修改后 grep 验证脚注存在；README 含 CORS 示例。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Install Playwright and create the base E2E configuration",
+            "description": "Add Playwright dependencies, scripts, and a working configuration for local and CI end-to-end runs.",
+            "dependencies": [],
+            "details": "Install @playwright/test and required browsers, add a test:e2e script, and create playwright.config.ts with webServer running `pnpm preview`, baseURL set to `http://localhost:8788`, storageState support, retries/timeouts, and separate setup project wiring for auth reuse.\n<info added on 2026-05-22T11:10:06.811Z>\nCompleted setup with @playwright/test@1.60.0. Browser download is intentionally deferred by installing with PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 so regular pnpm install stays faster/smaller in CI; browsers are installed later via a dedicated one-time step.\n\nplaywright.config.ts decisions:\n- baseURL defaults to http://localhost:8788 and can be overridden by E2E_BASE_URL so CI can point at a different wrangler dev port or staging.\n- webServer runs `pnpm preview` instead of `pnpm dev` because local Next dev lacks D1 bindings and causes /api/* 500s; wrangler/pages preview better mirrors production per CLAUDE.md local-dev guidance.\n- Define three projects: setup (runs auth.setup.ts), chromium (depends on setup and uses storageState), and chromium-unauth (runs login.spec.ts without storageState) so login coverage always starts from a truly unauthenticated state.\n- Set fullyParallel=false and workers=1 in CI because E2E writes to a real shared R2 bucket and must avoid cross-test file collisions.\n- Default trace=retain-on-failure and screenshot/video=only-on-failure to balance debuggability vs artifact size.\n- Support E2E_NO_WEBSERVER as an escape hatch to skip Playwright-managed webServer when preview is already started manually for faster local iteration.\n\npackage.json now includes:\n- test:e2e\n- test:e2e:install -> playwright install --with-deps chromium\n\nRepo hygiene:\n- Add /playwright/.auth to .gitignore.\n- Ignore playwright/.auth/** in ESLint.\n\nRunbook note: pnpm onlyBuiltDependencies does not run @playwright/test postinstall by default, so browsers are not auto-downloaded. This is desirable for cache-friendly CI, but contributors and CI must run `pnpm test:e2e:install` before executing specs.\n</info added on 2026-05-22T11:10:06.811Z>",
+            "status": "done",
+            "testStrategy": "Run `pnpm exec playwright test --list` and `pnpm preview` to verify the config boots successfully and the webServer becomes reachable at localhost:8788.",
+            "updatedAt": "2026-05-22T11:10:20.758Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement reusable authenticated storageState setup fixture",
+            "description": "Create a Playwright auth setup flow that logs in once and persists admin session state for later specs.",
+            "dependencies": [
+              1
+            ],
+            "details": "Add `tests/e2e/auth.setup.ts` to perform a real login using seeded admin credentials, wait for post-login navigation to stabilize, and write storage state to `playwright/.auth/admin.json`. Update config projects or use dependencies so other specs load this storageState automatically.\n<info added on 2026-05-22T11:11:20.048Z>\nImplemented reusable auth setup in tests/e2e/auth.setup.ts and wired storageState reuse for downstream specs. Admin credentials are read strictly from E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD and must match the pair inserted by seed-admin.ts into D1; missing env now throws immediately instead of falling back to placeholder defaults. The login flow uses getByRole/getByLabel selectors rather than brittle CSS selectors. Because LoginForm is wrapped in Suspense for useSearchParams SSR requirements, the setup first waits for the \"Sign in\" heading before filling fields to avoid interacting with the skeleton state. Successful login assertion is based on expect(page).not.toHaveURL(/\\/login(\\?|$)/), which is more robust than waiting for a fixed destination because router.replace may land on / or /buckets. The persisted state written to playwright/.auth/admin.json captures both the Auth.js v5 httpOnly session cookie and the readable CSRF cookie created by GET /api/csrf, so later specs calling mutating endpoints through lib/api/client.ts can construct X-CSRF-Token correctly. The auth file path remains ignored by git and must never be committed.\n</info added on 2026-05-22T11:11:20.048Z>",
+            "status": "done",
+            "testStrategy": "Execute only the auth setup project and confirm `playwright/.auth/admin.json` is generated and can be reused without re-entering credentials.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T11:11:31.756Z"
+          },
+          {
+            "id": 3,
+            "title": "Add login E2E coverage for failed and successful authentication",
+            "description": "Create login tests that validate both rejection behavior and successful redirect behavior.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Implement `tests/e2e/login.spec.ts` to cover invalid credentials showing an error message and valid credentials redirecting into the dashboard. Ensure the spec can run independently from the storageState flow when needed and uses stable selectors and assertions for navigation and flash/toast states.\n<info added on 2026-05-22T11:13:43.696Z>\nCompleted `tests/e2e/login.spec.ts` with two cases: invalid password does not leak account existence and successful login exits `/login`. Added `beforeAll` validation for `E2E_ADMIN_EMAIL` and `E2E_ADMIN_PASSWORD` that throws on missing values instead of skipping, so CI cannot false-pass. The invalid-login case uses a sufficiently long fake password to bypass the client-side disabled submit guard in `login/page.tsx` and ensure the request reaches the server. The success case avoids binding to a specific post-login destination and only asserts `not.toHaveURL(/\\/login/)`, matching `router.replace(callbackUrl ?? \"/\")` behavior. Error assertions target the `ErrorBanner` via `role=alert` and the literal heading `Sign-in failed`, explicitly avoiding direct checks on backend error code strings to prevent silent i18n drift.\n</info added on 2026-05-22T11:13:43.696Z>",
+            "status": "done",
+            "testStrategy": "Run `pnpm exec playwright test tests/e2e/login.spec.ts` and verify one scenario fails login safely while the other lands on the expected authenticated route.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T11:13:49.330Z"
+          },
+          {
+            "id": 4,
+            "title": "Cover connection creation flow and masked credential listing",
+            "description": "Write E2E tests for adding an R2 connection and verifying the resulting list view behavior.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Implement `tests/e2e/connections.spec.ts` to open the settings page, submit the add-connection form with valid test credentials, optionally exercise connection validation behavior, and assert the new row appears with the expected name/account info and masked access key rather than raw secret material.\n<info added on 2026-05-22T11:13:49.314Z>\nSkip the entire describe when any of E2E_R2_ACCOUNT_ID, E2E_R2_ACCESS_KEY_ID, or E2E_R2_SECRET_ACCESS_KEY is missing, because POST /api/connections performs a real ListBuckets probe and placeholder credentials are not useful.\n\nUse a unique connection name like `e2e-${Date.now().toString(36)}` so repeated local/CI runs do not collide.\n\nStrengthen the assertion as an end-to-end guard for Security Invariant #2: the rendered row text must include `****`, but must never contain the raw ACCESS_KEY or SECRET_KEY values anywhere in the browser-visible content.\n\nWait up to 30s for the success toast `Connection added` to account for wrangler cold start and the upstream R2 credential probe.\n\nAdd a `deleteConnectionRow` helper for self-cleanup after the test. The row action button uses a dynamic aria-label `Delete <name>`, the confirmation input label is dynamic (`Type <name> to confirm`) so match it with `/to confirm/i`, and the final destructive button text is `Delete connection` rather than just `Delete`.\n</info added on 2026-05-22T11:13:49.314Z>",
+            "status": "done",
+            "testStrategy": "Run the connections spec against a real throwaway R2 bucket or local S3-compatible target and verify the new connection row is visible with masked credentials.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T11:13:49.341Z"
+          },
+          {
+            "id": 5,
+            "title": "Implement browse, small upload, large upload, and download E2E flow",
+            "description": "Create end-to-end coverage for bucket browsing plus upload and download operations, including multipart-sized files.",
+            "dependencies": [
+              1,
+              2,
+              4
+            ],
+            "details": "Add `tests/e2e/browse-upload-download.spec.ts` to select the configured connection, browse buckets, upload a small file, upload a large file that exercises multipart behavior if supported by the app path, and download an object with content verification. Use deterministic fixture files and cleanup naming to avoid collisions in CI.\n<info added on 2026-05-22T11:24:06.239Z>\nImplemented tests/e2e/browse-upload-download.spec.ts plus shared tests/e2e/fixtures.ts helpers.\n\nfixtures.ts extracts readE2EEnv, ensureTestConnection, setActiveConnection, uploadObjectViaApi, and browseHref. It reads E2E_R2_ACCOUNT_ID, E2E_R2_ACCESS_KEY, E2E_R2_SECRET_KEY, and E2E_R2_BUCKET. ensureTestConnection creates the connection via POST /api/connections instead of reusing the UI flow, since that path is already covered in connections.spec.ts and the API path is more stable here.\n\nShared helper details:\nCSRF cookie name must be csrf, matching lib/auth/csrf-constants.ts, not csrf-token.\nZustand persist storage payload must be shaped as { state, version: 2 } so stores/active-connection.ts migration does not reset activeBucket to null.\nPresign requests use ttl, not ttlSeconds, and do not accept contentType because that belongs on the PUT request header.\nObject deletion uses the prepare -> delete two-step flow, with confirmToken as the field name and /api/r2/delete as the final endpoint, not /confirm.\n\nSpec coverage:\nUpload uses page.waitForEvent(\"filechooser\") with chooser.setFiles through the Dropzone browse button to exercise the real UI path and trigger CORS preflight.\nDownload uses page.waitForEvent(\"download\"), reads download.path(), and compares Buffer content to verify presigned GET round-trip integrity.\nUpload and download cases generate unique keys via stamp() and clean up with deleteObjectViaApi after each run so the throwaway bucket does not accumulate objects.\n\nImportant boundary:\nResolve baseURL from testInfo.project.use.baseURL rather than page.context()._options.baseURL, since the latter is a private API.\n</info added on 2026-05-22T11:24:06.239Z>",
+            "status": "done",
+            "testStrategy": "Run the spec and assert objects appear after upload, downloaded bytes match expected content, and the large file path completes successfully under preview.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T11:24:18.336Z"
+          },
+          {
+            "id": 6,
+            "title": "Add delete flow coverage with typed confirmation and bulk delete behavior",
+            "description": "Test destructive object deletion safeguards and successful deletion outcomes for single and multiple selections.",
+            "dependencies": [
+              1,
+              2,
+              5
+            ],
+            "details": "Implement `tests/e2e/delete.spec.ts` to verify delete actions remain disabled or blocked until the exact typed confirmation is entered, then confirm object removal from the listing. Include a batch deletion scenario for multiple objects to ensure selection state and confirmation UX work correctly.\n<info added on 2026-05-22T11:24:13.293Z>\nImplemented tests/e2e/delete.spec.ts with three cases covering typed confirmation plus single and bulk delete flows. Case 1 verifies accidental-delete protection: typing a bucket name with one character wrong keeps the Delete button disabled, then closes via Cancel and performs API cleanup so the bucket is not polluted. Case 2 verifies single delete success: typing the exact bucket name enables the dialog action, clicking it shows the \"1 object deleted\" toast and removes the row from the listing; no API cleanup is needed because the object should be gone. Case 3 verifies bulk delete: uploads 3 objects under the same prefix, uses the header \"Select all rows on this page\" checkbox, asserts the SelectionBanner shows \"3 selected\", clicks the SelectionBanner Delete action, types the bucket name, clicks the exact \"Delete 3 objects\" dialog button, waits for the \"3 objects deleted\" toast, and confirms all three rows disappear.\n\nAdded locator notes for a UI pitfall: the SelectionBanner Delete button in object-table is a different element from the row hover Delete action. In bulk delete, selecting by aria-label \"Delete\" on a row does not work because the SelectionBanner uses button text while the row action uses aria-label, so use page.getByRole(\"button\", { name: /^delete$/i }).first() to target the banner button. Also matched DeleteDialog action labels precisely because they vary by selection count: \"Delete object\" for a single object and \"Delete N objects\" for bulk delete, using regex for exact assertions.\n</info added on 2026-05-22T11:24:13.293Z>",
+            "status": "done",
+            "testStrategy": "Run the delete spec and verify incorrect confirmation text prevents deletion, correct text enables deletion, and removed objects no longer appear after refresh.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T11:24:18.347Z"
+          },
+          {
+            "id": 7,
+            "title": "Create E2E coverage for share creation, listing, and revocation",
+            "description": "Add tests for generating a share link, validating it appears in the UI, and revoking it afterward.",
+            "dependencies": [
+              1,
+              2,
+              5
+            ],
+            "details": "Implement `tests/e2e/share.spec.ts` to create a share from an uploaded object, assert the share record/link is shown in the list, and revoke it successfully. Use authenticated setup plus pre-created test objects from the browse/upload flow or create an isolated object within the spec for independence.\n<info added on 2026-05-22T11:24:18.319Z>\nCompleted in tests/e2e/share.spec.ts as a single end-to-end case covering mint -> /shares list -> delete record. Start from the row-hover Share button with aria-label \"Share\", choose the 1h TTL option to minimize quota footprint, then click \"Create link\". Use the post-mint heading \"Share link ready\" as the synchronization point for the stage transition. Assert that the URL field with aria-label \"Presigned share URL\" has a value matching https://<accountid>.r2.cloudflarestorage.com/... and that it contains encodeURIComponent(filename); this serves as a catch-all for silent hijack/path mismatch regressions. In /shares, delete via the row action with aria-label \"Delete share record\", confirm the dialog heading is \"Remove share record?\", submit with the button text \"Delete record\", and verify the success toast \"Record deleted\". Do not attempt to fetch/download the generated URL, since downloadability is a CDN contract rather than an app concern and exercising a still-valid 1h URL would only waste quota.\n</info added on 2026-05-22T11:24:18.319Z>",
+            "status": "done",
+            "testStrategy": "Run the share spec and confirm a share entry is created, visible, and removed or marked revoked after the revoke action completes.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T11:24:18.365Z"
+          },
+          {
+            "id": 8,
+            "title": "Update CORS, multipart cleanup, deployment, and security invariant documentation",
+            "description": "Deliver the documentation set covering R2 CORS, multipart lifecycle cleanup, deployment runbook, README links, and the CLAUDE.md security footnote.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "details": "Create `docs/r2-cors.md` with the standard CORS JSON example using `AllowedOrigins=[NEXT_PUBLIC_APP_URL]`, `AllowedMethods=[GET, PUT]`, `AllowedHeaders=[*]`, and `MaxAgeSeconds=3600`. Add `docs/multipart-cleanup.md` recommending the R2 lifecycle rule to abort incomplete multipart uploads after 7 days. Add `docs/deploy-runbook.md` documenting env setup including `ENCRYPTION_KEY=\\`openssl rand -base64 32\\``, first admin seed steps, D1 migration application, and `wrangler pages deploy`. Update `CLAUDE.md` Security Invariant #3 with the exact exception footnote for control-plane R2 calls, and update `README.md` with a quick entry to CORS and deployment guidance.\n<info added on 2026-05-22T11:34:43.405Z>\nCompleted. Documentation set, README links, `.dev.vars.example`, and the CLAUDE.md footnote are now in place.\n\nCLAUDE.md Security Invariant #3 now includes the exact `<br>**Exception:**` footnote for control-plane R2 calls; `grep \"Exception.*control-plane R2 calls\"` matches exactly once.\n\n`docs/r2-cors.md` now includes the recommended CORS JSON with `AllowedOrigins=[NEXT_PUBLIC_APP_URL]`, `AllowedMethods=[GET, PUT]`, `AllowedHeaders=[*]`, `ExposeHeaders=[ETag]`, and `MaxAgeSeconds=3600`, plus Wrangler apply commands, multi-environment examples, and a troubleshooting table. The `ExposeHeaders=ETag` requirement is explicitly emphasized because multipart upload completion requires reading each part ETag before `CompleteMultipartUpload`.\n\n`docs/multipart-cleanup.md` now recommends a 7-day `AbortIncompleteMultipartUpload` lifecycle rule, explains the 7-day tradeoff (`<1d` too noisy, `>30d` wastes money), and includes Wrangler commands plus `audit_log` troubleshooting guidance.\n\n`docs/deploy-runbook.md` now provides an 11-step runbook covering install, `ENCRYPTION_KEY` generation, local `.dev.vars`, D1 creation, migrations, admin seeding, local smoke test, Pages configuration, production migrate/seed, deployment, R2 bucket CORS+lifecycle setup, and optional E2E verification. It also ends with a dedicated 5-step `ENCRYPTION_KEY` rotation procedure that requires re-encrypting `connections` rows before switching keys.\n\n`README.md` now includes a top-level overview, quick start, mandatory per-bucket configuration notes linking to `docs/r2-cors.md` and `docs/multipart-cleanup.md`, and test commands.\n\nAdded `.dev.vars.example` template and excluded it via `.prettierignore` because Prettier cannot infer a parser for shell-style `KEY=value` files. The file uses `#` comments only; `//` comments are not valid for this template format.\n\nPitfall captured: without adding `.dev.vars.example` to `.prettierignore`, `pnpm format:check` fails with `No parser could be inferred`.\n\nVerification completed: `pnpm typecheck && pnpm lint && pnpm build` all pass, 510 unit tests are green, and `playwright test --list` shows 10 E2E cases across the `setup`, `chromium`, and `chromium-unauth` projects.\n</info added on 2026-05-22T11:34:43.405Z>",
+            "status": "done",
+            "testStrategy": "Use `wrangler pages deploy --dry-run` for runbook validation, grep CLAUDE.md for the footnote text, and verify README links plus CORS JSON snippets are present and accurate.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T11:34:43.427Z"
+          }
+        ],
+        "updatedAt": "2026-05-22T11:34:43.427Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-22T03:45:25.982Z",
+      "lastModified": "2026-05-22T11:34:43.428Z",
       "taskCount": 25,
-      "completedCount": 21,
+      "completedCount": 22,
       "tags": [
         "master"
       ]
