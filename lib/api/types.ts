@@ -134,6 +134,45 @@ export interface R2PresignResponse {
 }
 
 /**
+ * Public projection of POST /api/r2/delete/prepare.
+ *
+ *   - `confirmToken` — opaque to the client; pass it back verbatim to
+ *     POST /api/r2/delete alongside the same cid/bucket/keys triple. The
+ *     server re-verifies the HMAC, so a token issued for one key list
+ *     cannot be replayed against another. Treat as a bearer credential
+ *     for the intent — do NOT log it.
+ *   - `expiresAt` — epoch milliseconds at which the token stops verifying
+ *     (currently 5 min from issue). The UI may render a countdown but
+ *     should always be ready for the server to reject a "still-fresh"
+ *     token if the clocks drift apart.
+ */
+export interface R2DeletePrepareResponse {
+  confirmToken: string;
+  expiresAt: number;
+}
+
+/**
+ * Public projection of POST /api/r2/delete.
+ *
+ *   - `deleted` — keys R2 confirmed it removed. Order is not guaranteed.
+ *     A key may appear here even if it didn't exist on the bucket; S3
+ *     DeleteObjects is idempotent and surfaces no-op deletes in the same
+ *     Deleted set as actual removals (consistent with the spec).
+ *   - `errors` — per-key failure entries. Empty array on full success;
+ *     callers must check this before assuming "all deleted". Each entry
+ *     carries the upstream R2 code/message verbatim so the UI can show
+ *     a meaningful per-row failure (e.g. AccessDenied vs NoSuchKey).
+ */
+export interface R2DeleteResponse {
+  deleted: string[];
+  errors: Array<{
+    key?: string;
+    code?: string;
+    message?: string;
+  }>;
+}
+
+/**
  * Public projection of POST /api/r2/multipart/create.
  *
  *   - `uploadId` is the opaque token R2 mints when CreateMultipartUpload

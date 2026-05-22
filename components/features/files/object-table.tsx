@@ -69,6 +69,10 @@ export interface ObjectTableProps {
   onFolderClick: (child: string) => void;
   /** Called when the user fires a row-level action. No-op acceptable. */
   onAction?: (action: RowAction, row: ObjectRow) => void;
+  /** Called when the user clicks "Delete" in the selection banner. The
+   *  selected keys live in the Zustand store; the page reads them there
+   *  rather than threading them through this prop. */
+  onBulkDelete?: () => void;
   /** Cursor pagination state from useInfiniteQuery. */
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
@@ -107,6 +111,7 @@ export function ObjectTable({
   onRetry,
   onFolderClick,
   onAction,
+  onBulkDelete,
   hasNextPage,
   isFetchingNextPage,
   onLoadMore,
@@ -145,17 +150,7 @@ export function ObjectTable({
       <SelectionBanner
         selectedCount={selectedCount}
         onClearSelection={onClearSelection}
-        onBulkDelete={() => {
-          // Placeholder — task 16 (delete) will wire a real handler. The
-          // page leaves onAction undefined for the bulk case today, so
-          // emit a sentinel row to keep the contract consistent.
-          onAction?.("delete", {
-            kind: "file",
-            key: "*bulk*",
-            size: null,
-            lastModified: null,
-          });
-        }}
+        onBulkDelete={() => onBulkDelete?.()}
       />
 
       <div className="flex-1 overflow-auto">

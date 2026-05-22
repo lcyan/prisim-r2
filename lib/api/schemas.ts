@@ -314,6 +314,51 @@ export const R2MultipartAbortSchema = z
   .strict();
 export type R2MultipartAbortInput = z.infer<typeof R2MultipartAbortSchema>;
 
+/* ─── r2 delete ──────────────────────────────────────────────── */
+//
+// POST /api/r2/delete/prepare  → mint a 5-min HMAC confirmToken for the
+//   (userId, bucket, keys[]) intent. Returns { confirmToken, expiresAt }.
+// POST /api/r2/delete           → re-verify the token and run deleteObjects
+//   on the same keys list. Token + keys are bound (sort + sha256), so a
+//   client cannot present a token issued for ["a","b"] and submit ["a","b","c"].
+//
+// Field rules:
+//   - `cid`, `bucket` reuse the shared primitives.
+//   - `keys` is bounded server-side (DELETE_KEYS_MAX) so a malicious caller
+//     can't blow past R2's 1000-per-batch DeleteObjects cap or force the
+//     server to spend an unbounded sha256 over a huge list. Each entry uses
+//     ObjectKeySchema (1..1024, no leading "/"). The route layer further
+//     refuses recursive delete in V1 — UI only sends literal flat keys.
+//   - `confirmToken` shape is `<base64url>.<digits>` minted by
+//     lib/api/delete-token.ts. We bound the length here so a malformed
+//     value short-circuits before the HMAC compare.
+
+/** Max keys per delete request. Aligns with the upstream S3 DeleteObjects
+ *  cap (1000 per command) — the control-plane wrapper batches at that
+ *  limit, so accepting more here only buys server work. Centralized so
+ *  the schema, route, and UI's "show 20, summarize the rest" copy stay
+ *  in sync about the upper bound on user intent. */
+export const DELETE_KEYS_MAX = 1000;
+
+export const R2DeletePrepareSchema = z
+  .object({
+    cid: UlidSchema,
+    bucket: BucketNameSchema,
+    keys: z.array(ObjectKeySchema).min(1).max(DELETE_KEYS_MAX),
+  })
+  .strict();
+export type R2DeletePrepareInput = z.infer<typeof R2DeletePrepareSchema>;
+
+export const R2DeleteConfirmSchema = z
+  .object({
+    cid: UlidSchema,
+    bucket: BucketNameSchema,
+    keys: z.array(ObjectKeySchema).min(1).max(DELETE_KEYS_MAX),
+    confirmToken: z.string().min(16).max(512),
+  })
+  .strict();
+export type R2DeleteConfirmInput = z.infer<typeof R2DeleteConfirmSchema>;
+
 /* ─── helper ─────────────────────────────────────────────────── */
 
 /**

@@ -15,7 +15,7 @@
 // back to `router.push(...)`. Anything more complicated than that should go
 // into a hook or a child component so the page stays readable.
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -25,6 +25,7 @@ import {
   type ObjectRow,
   type RowAction,
 } from "@/components/features/files/object-table";
+import { DeleteDialog } from "@/components/features/files/delete-dialog";
 import { Dropzone } from "@/components/features/upload/dropzone";
 import { useObjects } from "@/hooks/use-objects";
 import { useDownloadObject } from "@/hooks/use-download";
@@ -98,6 +99,13 @@ export default function BucketBrowserPage() {
 
   const selectedCount = useSelectedKeysCount();
   const clearSelection = useSelectedKeysStore((s) => s.clear);
+  const selectedKeys = useSelectedKeysStore((s) => s.selectedKeys);
+
+  // Local UI state for the delete confirmation flow. `pendingDelete` holds
+  // the keys the dialog is currently confirming; null = closed. We don't
+  // route this through the Zustand store because it's strictly per-page
+  // ephemeral and doesn't survive a route change anyway.
+  const [pendingDelete, setPendingDelete] = useState<string[] | null>(null);
 
   const {
     data,
@@ -155,15 +163,23 @@ export default function BucketBrowserPage() {
   const downloadMutation = useDownloadObject();
   const onRowAction = useCallback(
     (action: RowAction, row: ObjectRow) => {
+      if (action === "delete") {
+        // Per-row delete shares the dialog with the bulk-delete button —
+        // both end up in `pendingDelete`. Folder rows can't reach this
+        // branch (RowActions only renders for file rows) but defensive
+        // filter avoids a confused delete on a "prefix/" key.
+        if (row.kind !== "file") return;
+        setPendingDelete([row.key]);
+        return;
+      }
       if (action !== "download") {
-        // Other actions (preview / share / delete) wire up in tasks 17/18/16.
-        // Leave the no-op so the buttons stay keyboard-reachable rather
-        // than appearing disabled.
+        // Other actions (preview / share) wire up in tasks 17/18. Leave
+        // the no-op so the buttons stay keyboard-reachable rather than
+        // appearing disabled.
         return;
       }
       // Folder rows don't expose a Download button (RowActions only renders
-      // for file rows), but if a future bulk handler routes a "*bulk*" row
-      // through here we'd want to ignore it instead of presigning a phantom key.
+      // for file rows), but defensive: don't presign a phantom key.
       if (row.kind !== "file" || !cid) return;
       downloadMutation.mutate(
         { cid, bucket, key: row.key },
@@ -178,6 +194,25 @@ export default function BucketBrowserPage() {
     },
     [downloadMutation, cid, bucket],
   );
+
+  // Bulk delete: feed the dialog only the file-like keys from the current
+  // selection. Folder selections (entries ending in "/") are skipped — V1
+  // delete is non-recursive, so trying to delete "logs/" would be a no-op
+  // anyway. The user can clear the folder selection and re-pick the
+  // contents if they want to drop a whole prefix.
+  const onBulkDelete = useCallback(() => {
+    const fileKeys = Array.from(selectedKeys).filter(
+      (k) => !k.endsWith("/"),
+    );
+    if (fileKeys.length === 0) {
+      toast.info("No files selected", {
+        description:
+          "Bulk delete skips folders. Open a folder and select files inside it.",
+      });
+      return;
+    }
+    setPendingDelete(fileKeys);
+  }, [selectedKeys]);
 
   // While a connection is required to fetch anything useful, render the
   // breadcrumb anyway so the user understands the route + can use the
@@ -216,6 +251,7 @@ export default function BucketBrowserPage() {
           onRetry={() => void refetch()}
           onFolderClick={onFolderClick}
           onAction={onRowAction}
+          onBulkDelete={onBulkDelete}
           hasNextPage={Boolean(hasNextPage)}
           isFetchingNextPage={isFetchingNextPage}
           onLoadMore={() => void fetchNextPage()}
@@ -223,6 +259,27 @@ export default function BucketBrowserPage() {
           onClearSelection={clearSelection}
         />
       </Dropzone>
+      <DeleteDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        cid={cid}
+        bucket={bucket}
+        prefix={prefix}
+        keys={pendingDelete ?? []}
+        onDeleted={(deletedKeys) => {
+          // After R2 confirms, drop the deleted keys from the selection
+          // so the banner count reflects what's actually left. The
+          // listing itself is invalidated by the hook's onSuccess.
+          if (deletedKeys.length === 0) return;
+          const remaining = new Set(selectedKeys);
+          for (const k of deletedKeys) remaining.delete(k);
+          // `setSelection` replaces the Set wholesale — pass the trimmed
+          // list back. Empty arrays are fine; it's equivalent to clear().
+          useSelectedKeysStore.getState().setSelection(Array.from(remaining));
+        }}
+      />
     </div>
   );
 }

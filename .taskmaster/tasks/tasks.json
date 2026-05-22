@@ -2,7 +2,7 @@
   "master": {
     "tasks": [
       {
-        "id": "1",
+        "id": 1,
         "title": "项目初始化：Next.js 15 + TS strict + Tailwind v4 + shadcn/ui",
         "description": "使用 pnpm 创建 Next.js 15 App Router 项目，启用 TypeScript strict，集成 Tailwind CSS v4（@theme in CSS）和 shadcn/ui 基础组件，配置 ESLint/Prettier，搭建基础目录骨架（app/、lib/、components/、stores/、hooks/、tests/）。",
         "status": "done",
@@ -96,7 +96,7 @@
         "updatedAt": "2026-05-20T12:41:40.798Z"
       },
       {
-        "id": "2",
+        "id": 2,
         "title": "Cloudflare Pages + Edge Runtime 配置",
         "description": "配置 wrangler.toml、next.config.ts 以支持 Cloudflare Pages 部署和 edge runtime；准备 D1 binding；所有 route handler 加 `export const runtime = 'edge'` 规范。",
         "status": "done",
@@ -110,7 +110,7 @@
         "updatedAt": "2026-05-20T12:55:00.855Z"
       },
       {
-        "id": "3",
+        "id": 3,
         "title": "D1 数据库 schema 与迁移",
         "description": "实现 5 张表（users / connections / shares / audit_log / sessions），写迁移脚本（drizzle-kit 或纯 SQL），并提供本地与 production 的执行命令。",
         "status": "done",
@@ -202,7 +202,7 @@
         "updatedAt": "2026-05-20T13:29:28.158Z"
       },
       {
-        "id": "4",
+        "id": 4,
         "title": "AES-GCM 凭证加解密模块（Web Crypto）",
         "description": "实现 lib/crypto/aes-gcm.ts：基于 Web Crypto subtle，AES-GCM-256，每行随机 12 字节 IV，AAD 用 connection.id；导出 encryptCredential / decryptCredential，主密钥从 env ENCRYPTION_KEY (base64, 32 字节) 加载。",
         "status": "done",
@@ -281,7 +281,7 @@
         "updatedAt": "2026-05-20T14:12:21.684Z"
       },
       {
-        "id": "5",
+        "id": 5,
         "title": "Auth.js v5 自托管认证（edge + PBKDF2）",
         "description": "实现登录/登出/会话校验。PBKDF2-SHA256 600k 迭代（OWASP 推荐），自写最小 D1 adapter；不做注册页（单用户应用，通过 seed 脚本加 admin）。",
         "status": "done",
@@ -392,7 +392,7 @@
         "updatedAt": "2026-05-20T14:40:42.348Z"
       },
       {
-        "id": "6",
+        "id": 6,
         "title": "CSRF 保护 + 输入验证中间件",
         "description": "为所有 POST/PATCH/DELETE 路由强制 X-CSRF-Token 校验；CSRF token 登录时随 session 下发，存 cookie + meta；统一 Zod 输入验证；统一错误响应格式。",
         "status": "done",
@@ -500,7 +500,7 @@
         "updatedAt": "2026-05-20T15:12:34.979Z"
       },
       {
-        "id": "7",
+        "id": 7,
         "title": "D1 滑动窗口限流器",
         "description": "实现基于 D1 的 sliding window 限流，覆盖 /api/auth/login (10/5min/IP)、/api/r2/presign (60/min/user)、/api/share/create (30/min/user)、写操作总和 (600/min/user)。429 响应必须含 Retry-After。",
         "status": "done",
@@ -594,7 +594,7 @@
         "updatedAt": "2026-05-20T16:09:56.386Z"
       },
       {
-        "id": "8",
+        "id": 8,
         "title": "审计日志写入模块",
         "description": "lib/audit/log.ts 提供 `logAudit({userId, connectionId?, op, bucket?, key?, status, errorMsg?, req})`，从 req 自动提取 IP 和 UA；写失败不阻塞主流程（nofail）。",
         "status": "done",
@@ -674,7 +674,7 @@
         "updatedAt": "2026-05-21T01:35:27.399Z"
       },
       {
-        "id": "9",
+        "id": 9,
         "title": "R2 S3 客户端工厂 + 预签名 helper",
         "description": "lib/r2/client.ts 给定明文凭证返回配置好的 S3Client（region='auto'、endpoint=https://<account>.r2.cloudflarestorage.com）；lib/r2/presign.ts 封装 presignPut / presignGet；lib/r2/control.ts 封装服务端调用（list/delete/multipart create/complete/abort）。",
         "status": "done",
@@ -757,7 +757,7 @@
         "updatedAt": "2026-05-21T04:46:33.865Z"
       },
       {
-        "id": "10",
+        "id": 10,
         "title": "Connection（R2 凭证）CRUD API",
         "description": "实现 GET/POST/PATCH/DELETE /api/connections。POST 加密落库；GET 返回 masked 值；PATCH 仅允许改 name；DELETE 校验无关联 share 后删除。所有写操作走 CSRF + 限流 + 审计。",
         "status": "done",
@@ -854,7 +854,7 @@
         "updatedAt": "2026-05-21T06:35:10.271Z"
       },
       {
-        "id": "11",
+        "id": 11,
         "title": "Connection 管理 UI",
         "description": "app/(dashboard)/settings/connections 页面：列表、添加（含'测试连接'）、改名、删除（typed 确认）。使用 shadcn Table + Dialog + Form。",
         "status": "done",
@@ -959,7 +959,7 @@
         "updatedAt": "2026-05-21T08:00:20.059Z"
       },
       {
-        "id": "12",
+        "id": 12,
         "title": "桶列表 API + UI（只读）",
         "description": "GET /api/r2/buckets?cid= 服务端解密凭证调 listBuckets；UI 在 dashboard 顶部下拉/侧边显示当前 connection 下的桶。",
         "status": "done",
@@ -1036,7 +1036,7 @@
         "updatedAt": "2026-05-21T11:35:11.420Z"
       },
       {
-        "id": "13",
+        "id": 13,
         "title": "对象列表 API（游标分页）",
         "description": "GET /api/r2/list?cid=&bucket=&prefix=&cursor= 服务端 list，返回 { objects: [{key, size, etag, lastModified}], prefixes: [], nextCursor }。基于 R2 ContinuationToken。",
         "status": "done",
@@ -1115,7 +1115,7 @@
         "updatedAt": "2026-05-21T12:16:18.397Z"
       },
       {
-        "id": "14",
+        "id": 14,
         "title": "对象浏览器 UI（表格 + 面包屑 + 游标分页）",
         "description": "/dashboard/[bucket]/[...prefix] 路由：面包屑 + 文件夹/对象表格 + Load More 按钮 + 多选 checkbox。",
         "status": "done",
@@ -1195,7 +1195,7 @@
         "updatedAt": "2026-05-21T12:46:59.854Z"
       },
       {
-        "id": "15",
+        "id": 15,
         "title": "/api/r2/presign 端点",
         "description": "POST /api/r2/presign，输入 { cid, op: 'put'|'get'|'upload-part', bucket, key, ttl?, uploadId?, partNumber? }；服务端解密 -> 生成 presigned URL；ttl 默认 put=15min, get=15min；写一条 audit_log (presign.put/get)。",
         "status": "done",
@@ -1288,7 +1288,7 @@
         "updatedAt": "2026-05-21T05:26:46.431Z"
       },
       {
-        "id": "16",
+        "id": 16,
         "title": "Multipart 控制面端点（create / complete / abort）",
         "description": "POST /api/r2/multipart/create、/complete、/abort。这是 Security Invariant #3 的合法服务端调用（只交换元数据，不传字节）。complete 接 parts 列表；abort 用于取消。",
         "status": "done",
@@ -1371,7 +1371,7 @@
         "updatedAt": "2026-05-21T14:03:20.822Z"
       },
       {
-        "id": "17",
+        "id": 17,
         "title": "Upload Queue store + dispatcher（3×3 并发）",
         "description": "Zustand store 管理上传任务的内存状态机；dispatcher 协程：3 个文件并发，每文件 3 个 part 并发；不持久化（关页面=丢失）；取消即 abort。",
         "status": "done",
@@ -1463,7 +1463,7 @@
         "updatedAt": "2026-05-21T15:29:34.081Z"
       },
       {
-        "id": "18",
+        "id": 18,
         "title": "Upload UI（拖拽 + 进度 + 取消）",
         "description": "Dropzone 组件接收拖拽文件入队；底部 fixed Upload Tray 显示进度条/暂停（V1 不做，灰显）/取消/重试；新任务 toast 提示。",
         "status": "done",
@@ -1544,7 +1544,7 @@
         "updatedAt": "2026-05-21T16:06:38.899Z"
       },
       {
-        "id": "19",
+        "id": 19,
         "title": "单文件下载（presigned GET）",
         "description": "对象表格 Download 按钮：调 /api/r2/presign op='get' ttl=900 -> 浏览器 window.location 或 a[download] 触发原生下载。",
         "status": "done",
@@ -1611,10 +1611,10 @@
         "updatedAt": "2026-05-21T13:21:10.769Z"
       },
       {
-        "id": "20",
+        "id": 20,
         "title": "删除 API（HMAC confirm token）+ 删除 UI（typed 确认）",
         "description": "POST /api/r2/delete/prepare 返 confirmToken (HMAC, 5min)；POST /api/r2/delete 校验 token 后批量 delete；UI 弹窗要求输入 bucket 名才能确认。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "9",
           "6",
@@ -1624,10 +1624,77 @@
         "priority": "high",
         "details": "1) /api/r2/delete/prepare：input { cid, bucket, keys[] }, 计算 keysHash = sha256(sort(keys).join('\\n')), token = base64url(HMAC-SHA256(SERVER_SECRET, `${userId}|${bucket}|${keysHash}|${exp}`)) + '.' + exp(unix s)，返回 { confirmToken, expiresAt }；2) /api/r2/delete：input { cid, bucket, keys[], confirmToken }，重算 hash 比对 + 校验 exp 未过期 + HMAC 相等 -> 调 deleteObjects -> 返回 { deleted, errors }；不递归（V1）；3) UI: DeleteDialog 展示 keys 列表（最多 20，超过显示 \"...及 N 个其他\"）+ input 要求 type exact bucket name + 提交按钮 disabled 直到 type 正确 -> 先 prepare 再 confirm；4) audit op='object.delete' 每个 key 一行（或一行带 count）。",
         "testStrategy": "Vitest：token 过期返 400；token 篡改返 400；keys 顺序不影响 hash（sort）；E2E：选 3 个对象删除，弹窗输入桶名 -> 删除成功 -> 列表刷新；不输或输错桶名按钮 disabled。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement HMAC delete confirm token helper and Vitest coverage",
+            "description": "Create a reusable helper for generating and verifying delete confirmation tokens with 5 minute expiry.",
+            "dependencies": [],
+            "details": "Add lib/api/delete-token.ts with functions to compute keysHash via sha256(sort(keys).join('\\n')), generate base64url(HMAC-SHA256(secret, `${userId}|${bucket}|${keysHash}|${exp}`)) + '.' + exp, and verify token integrity, expiry, bucket, user, and keys hash using constant-time comparison where possible.\n<info added on 2026-05-22T01:29:20.292Z>\nImplementation finalized in lib/api/delete-token.ts using AUTH_SECRET as the HMAC secret source instead of introducing a separate SERVER_SECRET, keeping parity with existing next-auth secret handling and avoiding extra ops surface area.\n\nToken format is strictly <base64url(hmac)>.<unix-seconds-exp>, relying on the fact that base64url never contains \".\" so split logic is unambiguous. The signed payload is `${userId}|${bucket}|${keysHash}|${exp}`.\n\nkeysHash is computed as sha256(sort(keys).join(\"\\n\")), with an internal keys.slice().sort() to avoid mutating caller arrays. This preserves order-insensitivity while remaining membership- and character-sensitive. \"\\n\" is safe as an R2 key join delimiter.\n\nHMAC key import is cached via a module-level Map, following the same pattern as aes-gcm.ts, to reduce repeated crypto.subtle.importKey overhead.\n\nVerification rejects any invalid token via a single DeleteTokenError type for all failure branches, including malformed format, expiry, tampering, bucket/user/key mismatch, and wrong secret, so no failure reason is leaked to attackers. Constant-time comparison uses timingSafeEqual from lib/auth/csrf.ts where applicable.\n\nValidation guards added: token length must be 16-512 chars, exp must be 1-12 decimal digits, and exp <= now is rejected immediately.\n\nVitest coverage completed with 23 passing cases including stable sort behavior, membership sensitivity, single-character sensitivity, round-trip success, expiry, bucket/user/keys/signature/exp tampering, 6 malformed token variants, and wrong-secret handling. Test expectations were aligned to the unified error contract by asserting DeleteTokenError instead of reason-specific messages.\n</info added on 2026-05-22T01:29:20.292Z>",
+            "status": "done",
+            "testStrategy": "Vitest unit tests for valid token, expired token, tampered token, wrong bucket/user mismatch, and stable hash regardless of keys order.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T01:29:36.110Z"
+          },
+          {
+            "id": 2,
+            "title": "Build POST /api/r2/delete/prepare route with request schema and token response",
+            "description": "Implement the prepare API that validates input and returns confirmToken plus expiresAt.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create app/api/r2/delete/prepare/route.ts and its zod schema for input { cid, bucket, keys[] }. Resolve authenticated user and connection context, validate non-empty keys, compute token through the helper, and return { confirmToken, expiresAt }. Align error responses with existing API conventions and keep runtime compatible with current server setup.\n<info added on 2026-05-22T01:37:04.307Z>\nAdd schemas.ts constants and request schema: define DELETE_KEYS_MAX = 1000 to match S3 DeleteObjects limit, reuse ObjectKeySchema (length 1..1024, no leading \"/\"), and make R2DeletePrepareSchema a strict object so unknown fields are rejected.\n\nRoute behavior decisions:\n- POST /api/r2/delete/prepare only validates/authenticates and issues confirmToken + expiresAt; it must not call R2, must not decrypt credentials, and must not write audit_log because prepare can be cancelled and only confirm should be accounted/audited.\n- Still perform user-scoped connection existence check using cid + user_id to avoid cid enumeration across users; query only SELECT id since no credential blob is needed. Treat cross-user/non-owned cid as not found to avoid observable 403 vs 404 differences.\n- Apply RateLimitBundles.writeOnlyByUser(600/min), since prepare is the write-path entrypoint and should share the write aggregate bucket to reduce enumeration/abuse.\n- Keep existing auth/CSRF/API error conventions; unauthenticated and CSRF mismatch should return 401.\n\nAdd test coverage for 8 cases: happy path, does not call R2, does not write audit, cross-user cid returns 404, empty keys rejected, extra fields rejected by strict schema, unauthenticated returns 401, and CSRF mismatch returns 401.\n</info added on 2026-05-22T01:37:04.307Z>",
+            "status": "done",
+            "testStrategy": "Route tests covering valid request, invalid schema, empty keys rejection, and response shape including confirmToken and expiry timestamp.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T01:38:17.704Z"
+          },
+          {
+            "id": 3,
+            "title": "Implement POST /api/r2/delete route with token verification, deleteObjects, and audit logging",
+            "description": "Add the confirm delete API that verifies the token, deletes objects in batch, and writes audit records.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create app/api/r2/delete/route.ts with schema for { cid, bucket, keys[], confirmToken }. Recompute keys hash from sorted keys, parse and verify token expiry and HMAC, then call deleteObjects for the provided keys without recursion. Return { deleted, errors } and write audit entries with op='object.delete' either per key or as one summarized record depending on existing audit utility capabilities.\n<info added on 2026-05-22T01:37:53.399Z>\nImplementation decisions for confirm route:\nValidate confirmToken before any DB lookup or credential decrypt. This is the first gate so forged/replayed tokens are rejected cheaply and do not consume D1 quota. A token issued for a now-deleted connection should still be rejected at token-validation stage as an invalid intent.\nMap every DeleteTokenError case to the same response: confirmationRequired with HTTP 412. Do not leak whether the failure was expiry, tampering, or field mismatch.\nKeep V1 non-recursive only. UI sends a flat keys array, and ObjectKeySchema already rejects empty keys and keys starting with \"/\".\nAlways write exactly one audit row per request with op=\"object.delete\", never one row per key. Put batch counts in errorMsg, for example \"3 key(s) deleted\" or \"1 deleted, 1 failed\".\nPartial delete is still HTTP 200 and returns the provider-style partial result { deleted, errors }. If errors is non-empty, mark the single audit row status=\"failure\" so partial batches are easy to find in audit queries.\nUser isolation remains a second gate after token verification: query connection by both cid and user_id. Even with a valid token, cross-user access must fail if the connection row does not belong to the authenticated user.\n\nTest coverage to add:\nhappy path; accepts forward/original key order; sort-stable hash across different key orders; audit writes exactly one row with count summary; tampered keys -> 412; tampered bucket -> 412; tampered signature -> 412; tampered exp -> 412; cross-user token reuse -> 412; token failure does not hit DB lookup (for example invalid/empty cid still returns 412); decrypt failure -> 500 plus audit; R2CredentialError -> 401 plus audit; partial failure returns 200 and audit status=failure with counts; cross-user cid lookup returns 404.\n\nCross-user cid 404 test setup note:\nDo not try userA cid + userA token + userB session, because prepare itself requires userA auth. Instead, let userB prepare a valid token using userB’s own cid, then during confirm replace cid with userA’s cid. The token still validates because it is bound to userB/bucket/keys/exp, but the connection lookup WHERE (cid=userA AND user_id=userB) returns no row, proving the second defense layer and producing 404.\n</info added on 2026-05-22T01:37:53.399Z>",
+            "status": "done",
+            "testStrategy": "Vitest route tests for success path, expired token => 400, tampered token => 400, keys order independence, deleteObjects partial failure handling, and audit invocation assertions.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T01:38:17.718Z"
+          },
+          {
+            "id": 4,
+            "title": "Create DeleteDialog component and useDeleteObjects hook with typed bucket confirmation",
+            "description": "Build the deletion confirmation UI and client hook to orchestrate prepare then confirm requests.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Implement a DeleteDialog that lists up to 20 selected keys and shows an overflow message like '...及 N 个其他' when more exist. Add an input requiring exact bucket name before enabling submit. Create useDeleteObjects hook to call prepare first, then confirm with returned token, handle loading/error/toast states, and expose callbacks for success and dialog closing.\n<info added on 2026-05-22T01:54:56.964Z>\nuseDeleteObjects should own the full serial flow of prepare → confirm and must not expose confirmToken to callers, since the UI already has the full delete input and keeping the token inside the mutation simplifies component usage and avoids leaking it into component state.\n\nUse exact bucket-name typing as the human confirmation ritual instead of requiring keys or a literal \"DELETE\". Bucket name is the user-recognizable noun and aligns with common GH/AWS/CF conventions, while per-key confirmation is too punishing for large multi-select batches.\n\nDeleteDialog should display the first 20 selected keys and then append an overflow line like \"…及 N 个其他\". The 20-item cap is intentional: enough to catch mistaken multi-selects without making the dialog overly long.\n\nDo not apply optimistic cache patching after delete. Because R2 can return partial failures, optimistic removal would mislead users; instead, rely on query invalidation so the server remains the source of truth.\n\nAdd a dedicated partial-failure toast.warning path that summarizes up to the first 3 failed keys. In error mapping, describeError should switch on ApiErrorCode and map confirmation.required to \"Confirmation expired\".\n\nObjectTable refactor: replace the SelectionBanner \"*bulk*\" sentinel approach with a dedicated onBulkDelete: () => void prop, and stop overloading onAction for bulk delete triggers.\n\nObjectBrowser integration notes:\n- Add local pendingDelete: string[] | null state instead of storing it globally, since this is per-page ephemeral UI state.\n- Both row-level delete (action=\"delete\") and bulk delete (onBulkDelete) should populate pendingDelete.\n- For bulk delete, filter out selected keys ending with \"/\" because V1 is non-recursive; if the filtered result is empty, show toast.info and do not open the dialog.\n- In onDeleted, remove only the successfully deleted keys from selectedKeys and preserve any remaining selection instead of clearing all selected rows.\n</info added on 2026-05-22T01:54:56.964Z>",
+            "status": "done",
+            "testStrategy": "Component tests for disabled submit until exact bucket name is typed, key list truncation display, and hook tests or mocked integration for prepare->confirm request flow.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T01:43:49.331Z"
+          },
+          {
+            "id": 5,
+            "title": "Integrate bulk delete flow into ObjectBrowser selection and refresh behavior",
+            "description": "Wire the new delete dialog into the object browser so users can delete selected objects and see the list refresh.",
+            "dependencies": [
+              4
+            ],
+            "details": "Update ObjectBrowser-related components and selection state usage to open DeleteDialog from batch actions, pass current bucket and selected keys, clear selection after successful deletion, and trigger TanStack Query invalidation or refetch for the current object listing. Ensure single-item and multi-item delete entry points both reuse the same flow if applicable.\n<info added on 2026-05-22T01:55:40.554Z>\nIntegrated DeleteDialog into BucketBrowserPage with per-page ephemeral pendingDelete: string[] | null state instead of store-managed dialog state. Refactored ObjectTable SelectionBanner away from the \"*bulk*\" sentinel approach to an explicit onBulkDelete: () => void prop. Routed both single-row delete actions (onRowAction with action=\"delete\") and bulk delete entry points through setPendingDelete so both reuse the same dialog flow.\n\nFor bulk delete, filter out selected keys ending with \"/\" to exclude folder placeholders in V1 non-recursive delete. If the filtered result is empty because all selected items are folders, show a friendly toast.info message instead of opening the dialog. DeleteDialog onDeleted now removes only the successfully deleted keys from selectedKeys while preserving any remaining selection, and listing refresh is handled by the delete hook onSuccess invalidation.\n\nValidation completed: pnpm typecheck passed; pnpm test passed all 483 tests across 36 files; pnpm build succeeded and included the two new edge routes /api/r2/delete and /api/r2/delete/prepare; pnpm lint passed.\n</info added on 2026-05-22T01:55:40.554Z>",
+            "status": "done",
+            "testStrategy": "E2E or integration test selecting 3 objects, opening the dialog, typing the correct bucket name, confirming deletion, verifying list refresh and selection clear; also verify wrong or empty bucket name keeps submit disabled.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T01:50:25.212Z"
+          }
+        ],
+        "updatedAt": "2026-05-22T01:50:25.212Z"
       },
       {
-        "id": "21",
+        "id": 21,
         "title": "分享链接 API + UI（1h/1d/7d）",
         "description": "POST /api/share/create 生成 presigned GET + 入库 shares 表；GET /api/share 列表分页（按 expires_at 过滤未过期）；DELETE /api/share/:id 仅删记录（协议层不能撤）。",
         "status": "pending",
@@ -1643,7 +1710,7 @@
         "subtasks": []
       },
       {
-        "id": "22",
+        "id": 22,
         "title": "预览：图片 + 文本（前 1MB 流式）",
         "description": "对象行 Preview 按钮 -> Dialog；图片直接 <img src={presignedUrl}>；文本类对象 fetch presigned URL Range: bytes=0-1048575 取首 MB，UTF-8 decode 显示。",
         "status": "pending",
@@ -1657,7 +1724,7 @@
         "subtasks": []
       },
       {
-        "id": "23",
+        "id": 23,
         "title": "审计日志查看器",
         "description": "GET /api/audit ?cursor=&op=&bucket= 列表分页；UI /(dashboard)/audit 页表格展示。",
         "status": "pending",
@@ -1671,7 +1738,7 @@
         "subtasks": []
       },
       {
-        "id": "24",
+        "id": 24,
         "title": "Vitest 单元测试套件",
         "description": "覆盖 crypto/auth/r2/api/audit/rate-limit 核心模块，目标 80%+ 行覆盖；route handler 用 mock D1 + mock S3 测。",
         "status": "pending",
@@ -1694,7 +1761,7 @@
         "subtasks": []
       },
       {
-        "id": "25",
+        "id": 25,
         "title": "Playwright E2E 关键流 + 部署/CORS 文档",
         "description": "Playwright 覆盖：登录、添加 connection、浏览桶、上传（小/大）、下载、删除（typed 确认）、生成分享。CLAUDE.md 补 Security Invariant #3 豁免脚注；README 加 R2 CORS 配置示例 + multipart lifecycle 提示。",
         "status": "pending",
@@ -1714,12 +1781,14 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-21T16:06:38.900Z",
+      "lastModified": "2026-05-22T01:50:25.213Z",
       "taskCount": 25,
-      "completedCount": 19,
+      "completedCount": 20,
       "tags": [
         "master"
-      ]
+      ],
+      "created": "2026-05-22T01:54:48.246Z",
+      "description": "Tasks for master context"
     }
   }
 }

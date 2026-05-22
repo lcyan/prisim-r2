@@ -1,0 +1,218 @@
+// app/api/r2/delete/route.ts
+//
+// POST /api/r2/delete — second leg of the two-step destructive delete
+// flow. The caller must have already obtained a confirmToken from
+// /api/r2/delete/prepare for THE EXACT SAME (cid, bucket, keys[]) triple;
+// any tamper or replay across triples fails HMAC verification.
+//
+//   1. validate input              → R2DeleteConfirmSchema (Zod)
+//   2. verify confirmToken         → verifyDeleteToken (lib/api/delete-token)
+//   3. fetch & user-scope the row  → connections.id = cid AND userId = ctx
+//   4. decrypt access/secret keys  → AES-GCM with AAD = connection.id
+//   5. deleteObjects               → batches at 1000 internally
+//   6. audit + return              → object.delete success/failure
+//
+// Notes worth knowing before touching this file:
+//
+// * Token verification runs BEFORE connection lookup. A forged token is
+//   far cheaper to reject than a DB query, and we don't want token-replay
+//   attempts to consume D1 quota. The order also means a token issued for
+//   a now-deleted connection still rejects on token check first (correct —
+//   the intent is invalid regardless of why).
+// * V1 is non-recursive. The UI only sends literal flat keys gathered
+//   from row selection (CLAUDE.md "R2 list uses ContinuationToken"); the
+//   schema's ObjectKeySchema already rejects empty or leading-slash keys.
+// * Per-key audit vs one summarized row: we write ONE audit row per
+//   delete request (op=object.delete) tagged with the batch's key count
+//   in errorMsg when partial failures occur. Writing N rows for N keys
+//   would multiply audit volume on bulk operations without adding
+//   greppable signal — the failing key list lives in the response and
+//   in R2's own per-bucket audit if the user enables it.
+// * Partial-failure semantics: R2's DeleteObjects is partial — keys
+//   that succeed are reported in Deleted, keys that don't in Errors,
+//   and the HTTP call still returns 200. We surface both arrays
+//   verbatim to the caller. Status of the audit row is "success" iff
+//   errors is empty.
+
+import "server-only";
+
+import { and, eq } from "drizzle-orm";
+import { getRequestContext } from "@cloudflare/next-on-pages";
+
+import { withApi } from "@/lib/api/middleware";
+import { ApiErrors } from "@/lib/api/errors";
+import { RateLimitBundles } from "@/lib/api/rate-limit";
+import { parseJson, R2DeleteConfirmSchema } from "@/lib/api/schemas";
+import type { R2DeleteResponse } from "@/lib/api/types";
+import {
+  DeleteTokenError,
+  verifyDeleteToken,
+  type DeleteTokenEnv,
+} from "@/lib/api/delete-token";
+import { getDb, schema, type DbEnv } from "@/lib/db/client";
+import {
+  CryptoIntegrityError,
+  decryptCredential,
+  type CryptoEnv,
+} from "@/lib/crypto/aes-gcm";
+import { makeS3Client } from "@/lib/r2/client";
+import { deleteObjects } from "@/lib/r2/control";
+import { R2CredentialError } from "@/lib/r2/errors";
+import { logAudit } from "@/lib/audit/log";
+
+export const runtime = "edge";
+
+type DeleteEnv = DbEnv & CryptoEnv & DeleteTokenEnv;
+
+function asU8(value: unknown): Uint8Array {
+  if (value instanceof Uint8Array) return value;
+  if (value instanceof ArrayBuffer) return new Uint8Array(value);
+  throw new TypeError(
+    "delete: stored credential blob is neither Uint8Array nor ArrayBuffer",
+  );
+}
+
+export const POST = withApi(
+  async (req, ctx) => {
+    const input = await parseJson(req, R2DeleteConfirmSchema);
+    const env = getRequestContext().env as unknown as DeleteEnv;
+    const db = getDb(env);
+
+    // Verify the confirm token FIRST — before any DB query or decrypt.
+    // The token binds (user, bucket, sort(keys)+sha256), so a forged or
+    // replayed token never reaches the connection lookup or audit row.
+    // Failures collapse to confirmation.required so the client surfaces
+    // the same "confirm again" UX whether the token expired or was tampered.
+    try {
+      await verifyDeleteToken({
+        token: input.confirmToken,
+        userId: ctx.userId,
+        bucket: input.bucket,
+        keys: input.keys,
+        env,
+      });
+    } catch (err) {
+      if (err instanceof DeleteTokenError) {
+        throw ApiErrors.confirmationRequired(
+          "Confirmation token invalid or expired; re-confirm to delete",
+        );
+      }
+      // Any other throw is a config error (missing AUTH_SECRET, etc.) —
+      // bubble up as 500 rather than masquerade as confirmation failure.
+      throw err;
+    }
+
+    // Scope by user_id — same pattern as buckets/list/presign/multipart.
+    // A token forged with another user's userId would have failed verify
+    // above; the WHERE clause is the second line of defense.
+    const connection = await db
+      .select()
+      .from(schema.connections)
+      .where(
+        and(
+          eq(schema.connections.id, input.cid),
+          eq(schema.connections.userId, ctx.userId),
+        ),
+      )
+      .get();
+    if (!connection) {
+      // 404 (not 403): same "don't disclose cross-user existence" rule
+      // as the other R2 routes.
+      throw ApiErrors.notFound("Connection not found");
+    }
+
+    let accessKeyId: string;
+    let secretAccessKey: string;
+    try {
+      [accessKeyId, secretAccessKey] = await Promise.all([
+        decryptCredential(
+          asU8(connection.accessKeyCiphertext),
+          asU8(connection.accessKeyIv),
+          connection.id,
+          env,
+        ),
+        decryptCredential(
+          asU8(connection.secretKeyCiphertext),
+          asU8(connection.secretKeyIv),
+          connection.id,
+          env,
+        ),
+      ]);
+    } catch (err) {
+      await logAudit({
+        userId: ctx.userId,
+        connectionId: connection.id,
+        op: "security.decrypt_failed",
+        bucket: input.bucket,
+        status: "failure",
+        errorMsg:
+          err instanceof CryptoIntegrityError
+            ? "credential integrity check failed"
+            : "credential decrypt failed",
+        req,
+      });
+      throw ApiErrors.internal("Failed to decrypt connection credentials");
+    }
+
+    const client = makeS3Client({
+      accountId: connection.accountId,
+      accessKeyId,
+      secretAccessKey,
+    });
+
+    let result: Awaited<ReturnType<typeof deleteObjects>>;
+    try {
+      result = await deleteObjects({
+        client,
+        bucket: input.bucket,
+        keys: input.keys,
+      });
+    } catch (err) {
+      await logAudit({
+        userId: ctx.userId,
+        connectionId: connection.id,
+        op: "object.delete",
+        bucket: input.bucket,
+        // No single object_key for a multi-key request — leave null and
+        // record the requested count in errorMsg so audit greps can spot
+        // the batch.
+        status: "failure",
+        errorMsg:
+          err instanceof Error
+            ? `${err.name}: ${input.keys.length} key(s)`
+            : `deleteObjects failed: ${input.keys.length} key(s)`,
+        req,
+      });
+      if (err instanceof R2CredentialError) {
+        throw ApiErrors.unauthorized("R2 credentials rejected");
+      }
+      throw err;
+    }
+
+    // Partial failure: status="failure" so audit grep can find the
+    // operation even when the HTTP response is 200. errorMsg carries the
+    // counts so an operator can size up the blast radius without
+    // pulling the full response from logs.
+    const fullySucceeded = result.errors.length === 0;
+    await logAudit({
+      userId: ctx.userId,
+      connectionId: connection.id,
+      op: "object.delete",
+      bucket: input.bucket,
+      status: fullySucceeded ? "success" : "failure",
+      errorMsg: fullySucceeded
+        ? `${result.deleted.length} key(s) deleted`
+        : `${result.deleted.length} deleted, ${result.errors.length} failed`,
+      req,
+    });
+
+    const body: R2DeleteResponse = {
+      deleted: result.deleted,
+      errors: result.errors,
+    };
+    return body;
+  },
+  {
+    rateLimit: ({ ctx }) => RateLimitBundles.writeOnlyByUser(ctx.userId),
+  },
+);
