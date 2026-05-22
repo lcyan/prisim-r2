@@ -1804,7 +1804,7 @@
         "id": "24",
         "title": "Vitest 单元测试套件",
         "description": "覆盖 crypto/auth/r2/api/audit/rate-limit 核心模块，目标 80%+ 行覆盖；route handler 用 mock D1 + mock S3 测。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "4",
           "5",
@@ -1821,7 +1821,73 @@
         "priority": "high",
         "details": "1) vitest.config.ts：environment='node'（edge runtime 用 miniflare 适配器更佳，可装 @cloudflare/vitest-pool-workers）；2) 用 better-sqlite3 in-memory 跑 drizzle 迁移作为 D1 替身；3) S3Client 用 aws-sdk-client-mock 包；4) tests/unit/crypto/aes-gcm.test.ts、auth/password.test.ts、api/csrf.test.ts、api/rate-limit.test.ts、r2/presign.test.ts、r2/control.test.ts、api/connections.test.ts、api/presign.test.ts、api/delete.test.ts；5) coverage 通过 v8 provider；6) CI 时 typecheck + lint + test 串行。",
         "testStrategy": "`pnpm test` 通过；`pnpm test --coverage` 行覆盖 ≥80%（crypto 和 api 模块 ≥95%）。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Audit current Vitest coverage and confirm Task 24 goals are already satisfied",
+            "description": "Review the existing test suite, coverage reports, and module-level results to verify that the original 80%+ line coverage target and core-module coverage expectations are already met.",
+            "dependencies": [],
+            "details": "Run the existing coverage command, inspect V8 output, and summarize current status for crypto/auth/r2/api/audit/rate-limit. Confirm that the implemented mock D1 approach with better-sqlite3 in-memory and current route-handler tests satisfy the intended test strategy, noting any remaining weak spots if present.\n<info added on 2026-05-22T11:44:34.362Z>\nAudit result as of 2026-05-22: vitest.config.ts is correctly set up with environment='node', V8 coverage, and a `server-only` alias to tests/stubs/server-only.ts. Coverage includes lib/**/*.ts and excludes types.ts plus *.test.ts. The suite currently contains 38 test files under tests/unit/** with 510 passing tests; `pnpm test`, `pnpm typecheck`, and `pnpm lint` all pass cleanly.\n\n`pnpm test --coverage` current totals:\nAll files: Lines 82.26%, Branch 71.24%, Funcs 73.57%, Stmts 80.66%.\nlib/crypto: Lines 100% (aes-gcm.ts 100/97.43/85.71/100)\nlib/api: Lines 95.96% (client 94.73, delete-token 97.95, errors 88.46, middleware 97.72, rate-limit 96.42, schemas 97.36)\nlib/audit: Lines 100% (log.ts 100, branch 95.83)\nlib/r2: Lines 100% (control.ts 100, prefix.ts 100; control.ts L218-219 branch uncovered)\nlib/uploads: Lines 83.38% (dispatcher 78.35 is the weakest area)\nlib/auth: Lines 44.96% (csrf 100, password 95; adapter/config/handlers/index intentionally uncovered because they are thin NextAuth wrappers exercised by route/integration tests)\nlib/db: Lines 50% (client/schema intentionally low; schema.ts is declarative)\nlib/utils.ts: 0% (tiny shim with no meaningful behavior to pin down)\n\nAcceptance against Task 24 testStrategy is satisfied:\n`pnpm test` passes\nglobal line coverage is above 80% (82.26%)\nlib/crypto is above 95% (100%)\nlib/api is above 95% (95.96%)\n\nConclusion: the current Vitest suite already meets Task 24 goals. The mock D1 strategy with better-sqlite3 in-memory and the existing route-handler tests are sufficient for the intended test approach. Remaining work is limited to documenting intentional coverage/mocking deviations and wiring CI.\n</info added on 2026-05-22T11:44:34.362Z>",
+            "status": "done",
+            "testStrategy": "Execute `pnpm test --coverage` and compare reported line coverage against the documented thresholds, including checking that crypto is 100% and api remains at or above the expected level.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T11:44:58.211Z"
+          },
+          {
+            "id": 2,
+            "title": "Document the intentional S3 mocking deviation from aws-sdk-client-mock",
+            "description": "Record the reason the project uses a lighter `vi.fn()` interception on `S3Client.send` instead of the originally suggested `aws-sdk-client-mock` package.",
+            "dependencies": [
+              1
+            ],
+            "details": "Update task notes, test documentation, or inline comments to explicitly state that the current approach preserves real AWS Command class serialization and helps catch field-name typos, as referenced in `r2/control.test.ts`. Make sure this deviation is clearly framed as deliberate rather than incomplete work.\n<info added on 2026-05-22T11:45:04.817Z>\nDeliberate deviation from Task 24 implementation detail #3: R2 unit tests do not use aws-sdk-client-mock. The project standard is to intercept S3Client.send() with vi.fn(), as documented in tests/unit/r2/control.test.ts (header comment) and tests/unit/r2/presign.test.ts.\n\nReason: this keeps the real @aws-sdk/client-s3 Command classes in play so their serialize step still runs during tests. That means field-name mistakes such as Bucket vs bucket or PartNumber vs partNumber fail at test time instead of being masked. This is especially valuable for the R2 S3-compatible surface, where incorrect AWS input keys are a common failure mode. aws-sdk-client-mock matches at the Command layer and would hide that class of bug.\n\nLocked test pattern:\nconst send = vi.fn().mockResolvedValueOnce({ Buckets: [...] });\nconst s3 = { send } as unknown as S3Client;\nawait listBuckets(s3);\nexpect(send.mock.calls[0][0]).toBeInstanceOf(ListBucketsCommand);\nexpect(send.mock.calls[0][0].input).toEqual({});\n\nDo not refactor existing R2 tests to aws-sdk-client-mock unless a follow-up preserves real Command-class construction and assertions.\n</info added on 2026-05-22T11:45:04.817Z>",
+            "status": "done",
+            "testStrategy": "Review the updated documentation/comments and verify the rationale matches the existing test implementation in `r2/control.test.ts` and related R2 test files.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T11:45:27.643Z"
+          },
+          {
+            "id": 3,
+            "title": "Decide and document edge-runtime test runner posture for Vitest",
+            "description": "Evaluate whether adding `@cloudflare/vitest-pool-workers` is necessary now, and document that the current Node environment remains sufficient unless a real edge-runtime gap is identified.",
+            "dependencies": [
+              1
+            ],
+            "details": "Inspect the current `vitest.config.ts`, existing test coverage of route handlers, and any edge-specific APIs in use. Record a concise decision that `environment='node'` is acceptable for the current suite, while noting `@cloudflare/vitest-pool-workers` as a future enhancement rather than an immediate requirement.\n<info added on 2026-05-22T11:45:40.900Z>\nDecision documented: keep vitest `environment='node'` for the current suite and do not add `@cloudflare/vitest-pool-workers` in this task. Existing route-handler tests already import `app/api/**/route.ts` directly and invoke handlers with constructed `Request`/`NextRequest` objects, so they do not rely on workerd-specific runtime behavior. D1 coverage is already represented through `better-sqlite3` plus Drizzle migrations in `tests/unit/db/migration.test.ts` and `tests/unit/api/*.test.ts`, exercising the same SQL surface used by D1. Web Crypto coverage is also sufficient under Node 22, where `crypto.subtle.encrypt/decrypt` and `getRandomValues` are available; the AES-GCM tests already cover AAD, IV, and tag-related paths without requiring a worker pool. Adding `@cloudflare/vitest-pool-workers` now would introduce roughly 50MB of additional dependencies, slow CI installs, and mostly duplicate issues that would already surface in `pnpm preview` or on Pages. Revisit this as a future enhancement only if the test suite gains real workerd-only scenarios such as Durable Objects, R2 bindings, or KV. Action: leave `vitest.config.ts` unchanged; no code change required.\n</info added on 2026-05-22T11:45:40.900Z>",
+            "status": "done",
+            "testStrategy": "Validate that the documented decision aligns with the current config and that all tests continue passing under the Node environment without requiring Cloudflare worker pool integration.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T11:45:56.009Z"
+          },
+          {
+            "id": 4,
+            "title": "Add a GitHub Actions workflow for serial typecheck, lint, and coverage test runs",
+            "description": "Create or update CI automation so GitHub Actions runs type checking, linting, and Vitest coverage serially using pnpm.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Add a workflow file under `.github/workflows/` that checks out the repo, sets up pnpm and Node, installs dependencies, and runs `pnpm typecheck`, `pnpm lint`, and `pnpm test --coverage` in sequence. Keep the steps explicit and serial to match the task requirement and avoid hiding failures behind combined scripts.\n<info added on 2026-05-22T11:48:47.525Z>\nAdded `.github/workflows/ci.yml` with `push` on `main` and `pull_request` targeting `main`, plus concurrency keyed by workflow and ref with `cancel-in-progress: true` to cancel superseded PR runs. The job uses `ubuntu-latest` with `timeout-minutes: 15`, `actions/checkout@v4`, `pnpm/action-setup@v4` with pnpm 10, and `actions/setup-node@v4` with Node 22 and `cache: \"pnpm\"`, keeping pnpm setup before setup-node so the pnpm-store cache is enabled correctly. Dependency installation uses `pnpm install --frozen-lockfile` to fail if the lockfile is out of sync. Execution is kept explicit and serial in separate named steps: `pnpm typecheck`, `pnpm lint`, and `pnpm test:coverage`, using the existing package.json coverage script instead of `pnpm test --coverage` so CI matches local usage. Chose major-version action pinning only, no job matrix or split jobs, and no `.next` or pages artifact caching because this workflow is limited to typecheck/lint/test coverage.\n</info added on 2026-05-22T11:48:47.525Z>",
+            "status": "done",
+            "testStrategy": "Validate the workflow syntax locally if possible, then inspect the workflow file to ensure the commands are ordered exactly as required and use the project package manager correctly.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T11:48:47.545Z"
+          },
+          {
+            "id": 5,
+            "title": "Run final verification and record final coverage numbers",
+            "description": "Perform a final end-to-end verification pass and capture the resulting coverage metrics for completion notes.",
+            "dependencies": [
+              4
+            ],
+            "details": "Re-run `pnpm typecheck && pnpm lint && pnpm test` locally, then run `pnpm test --coverage` if needed to capture the final numbers cleanly. Record the final line coverage totals and notable module coverage figures in the task notes or PR summary so completion is auditable.\n<info added on 2026-05-22T11:51:11.770Z>\nFinal verification pass completed on 2026-05-22.\n\nLocal serial commands matched CI order:\npnpm typecheck: exit 0, clean\npnpm lint: exit 0, clean\npnpm test: 38 files, 510 tests, all passing in 3.67s\npnpm test:coverage: all passing\npnpm build: successful Next build; 22 routes compiled (17 API edge functions and 5 pages); middleware bundle 85.8 kB\n\nFinal coverage using Vitest 4.1.7 with v8 provider against lib/**/*.ts:\nAll files: Stmts 80.66%, Branch 71.24%, Funcs 73.57%, Lines 82.26%\nlib/crypto: Lines 100% (aes-gcm.ts)\nlib/api: Lines 95.96% (client/delete-token/errors/middleware/rate-limit/schemas)\nlib/audit: Lines 100%\nlib/r2: Lines 100%\nlib/uploads: Lines 83.38%\nlib/auth: Lines 44.96% with csrf 100% and password 95%; adapter/config/index/handlers remain intentionally uncovered as thin NextAuth wrappers exercised via route tests\nlib/db: Lines 50% (mostly declarative schema plus tiny client)\nlib/utils.ts: Lines 0% (5-line shim with no behavior)\n\nAcceptance criteria check against Task 24 testStrategy:\npnpm test passes\npnpm test --coverage global line coverage >= 80%: met at 82.26%\ncrypto module >= 95%: met at 100%\napi module >= 95%: met at 95.96%\n\nAll Task 24 subtasks are complete and the parent task is ready to be marked done.\n</info added on 2026-05-22T11:51:11.770Z>",
+            "status": "done",
+            "testStrategy": "Successful completion requires all three commands to pass and the recorded coverage report to confirm the project still exceeds the target thresholds.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T11:51:11.823Z"
+          }
+        ],
+        "updatedAt": "2026-05-22T11:51:11.823Z"
       },
       {
         "id": "25",
@@ -1962,9 +2028,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-22T11:34:43.428Z",
+      "lastModified": "2026-05-22T11:51:11.824Z",
       "taskCount": 25,
-      "completedCount": 22,
+      "completedCount": 23,
       "tags": [
         "master"
       ]
