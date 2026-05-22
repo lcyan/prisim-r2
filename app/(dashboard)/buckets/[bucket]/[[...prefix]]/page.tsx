@@ -26,6 +26,7 @@ import {
   type RowAction,
 } from "@/components/features/files/object-table";
 import { DeleteDialog } from "@/components/features/files/delete-dialog";
+import { PreviewDialog } from "@/components/features/files/preview-dialog";
 import { ShareDialog } from "@/components/features/share/share-dialog";
 import { Dropzone } from "@/components/features/upload/dropzone";
 import { useObjects } from "@/hooks/use-objects";
@@ -111,6 +112,13 @@ export default function BucketBrowserPage() {
   // the dialog is closed. Single-key state — the row Share button drives
   // it (there's no bulk-share flow).
   const [pendingShare, setPendingShare] = useState<string | null>(null);
+  // Pending preview: row metadata (key + size) needed by PreviewDialog
+  // to decide whether to show the large-image skeleton. null = closed.
+  // We keep size alongside key because re-deriving it from `items`
+  // would race the dialog open against a stale listing after a delete.
+  const [pendingPreview, setPendingPreview] = useState<
+    { key: string; size: number | null } | null
+  >(null);
 
   const {
     data,
@@ -186,10 +194,17 @@ export default function BucketBrowserPage() {
         setPendingShare(row.key);
         return;
       }
+      if (action === "preview") {
+        // Same defense as Share — folder rows can't reach this code path
+        // through the UI, but a leading "/" key would break the dialog.
+        if (row.kind !== "file") return;
+        setPendingPreview({ key: row.key, size: row.size });
+        return;
+      }
       if (action !== "download") {
-        // Other actions (preview) wire up in a future task. Leave the
-        // no-op so the buttons stay keyboard-reachable rather than
-        // appearing disabled.
+        // Any remaining row action falls through here. Keep the no-op so
+        // the buttons stay keyboard-reachable rather than appearing
+        // disabled — see RowActions in object-table.tsx.
         return;
       }
       // Folder rows don't expose a Download button (RowActions only renders
@@ -302,6 +317,16 @@ export default function BucketBrowserPage() {
         cid={cid}
         bucket={bucket}
         objectKey={pendingShare ?? ""}
+      />
+      <PreviewDialog
+        open={pendingPreview !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingPreview(null);
+        }}
+        cid={cid}
+        bucket={bucket}
+        objectKey={pendingPreview?.key ?? ""}
+        size={pendingPreview?.size ?? null}
       />
     </div>
   );

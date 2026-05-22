@@ -1776,7 +1776,7 @@
         "id": "22",
         "title": "预览：图片 + 文本（前 1MB 流式）",
         "description": "对象行 Preview 按钮 -> Dialog；图片直接 <img src={presignedUrl}>；文本类对象 fetch presigned URL Range: bytes=0-1048575 取首 MB，UTF-8 decode 显示。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "15",
           "14"
@@ -1784,7 +1784,76 @@
         "priority": "medium",
         "details": "1) 判定 mime：根据 key 后缀（.png/.jpg/.gif/.webp/.svg -> image；.txt/.json/.md/.log/.csv/.xml/.yaml -> text；其他 -> 'Preview not available'）；2) PreviewDialog 内部调 useQuery 拿 presigned GET URL（ttl 5min）；3) image: <img src={url} alt={key} className='max-h-[80vh] object-contain'>；4) text: fetch(url, { headers: { Range: 'bytes=0-1048575' } }) -> response.text() -> <pre> 显示，超过 1MB 顶部 Banner 'Showing first 1 MB of N MB'；5) 不做语法高亮（V2）；6) 大图（>10MB）loading skeleton。",
         "testStrategy": "Vitest：mime 判定函数单测覆盖所有后缀；E2E：上传 1 张 png + 1 个 .txt，分别点 Preview 显示正确；上传 1 个 .zip 显示 'Preview not available'；上传 5MB 文本只显示前 1MB + banner。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create preview kind detection module and shared preview constants",
+            "description": "Implement a pure utility module to classify object keys into image, text, or unavailable preview kinds based on file extension.",
+            "dependencies": [],
+            "details": "Add lib/files/preview.ts with normalized lowercase extension parsing, exported image/text extension sets, detectPreviewKind(key): 'image' | 'text' | 'unavailable', and shared constants for text preview cap = 1048576 bytes and large image skeleton threshold = 10485760 bytes.\n<info added on 2026-05-22T12:16:44.590Z>\nImplemented lib/files/preview.ts with extension-only preview detection and centralized shared constants. Detection intentionally does not use MIME sniffing or response content-type because R2 presigned GET does not reliably reflect a trusted server-set type, and upload metadata is user-controlled; extension matching is sufficient for V1. Dotfiles are excluded from text preview by returning no extension when the only dot is the leading character, preventing inline preview of files like .env; this behavior is pinned in tests. Exported constants now include PREVIEW_TEXT_BYTE_CAP = 1048576, PREVIEW_IMAGE_LARGE_BYTES = 10485760, and PREVIEW_PRESIGN_TTL_SECONDS = 300 so hooks and dialog code import the same values without drift. SVG remains classified as image; although it can execute DOM content, the presigned URL is served from the separate r2.cloudflarestorage.com origin and cannot access app cookies. Extension parsing avoids false matches from dots in folder names by slicing after the last \"/\" before checking the final \".\"; this prevents keys like v1.0/file from being misread as having extension \"0/file\".\n</info added on 2026-05-22T12:16:44.590Z>",
+            "status": "done",
+            "testStrategy": "Vitest unit tests covering supported extensions, uppercase variants, files without extension, and unsupported types.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T12:17:27.857Z"
+          },
+          {
+            "id": 2,
+            "title": "Build preview hook helpers for presigning and ranged text fetching",
+            "description": "Create the hook layer that requests preview presigned URLs and fetches the first 1MB of text content using HTTP Range headers.",
+            "dependencies": [
+              1
+            ],
+            "details": "Add hooks/use-preview.ts with a useMutation-style presignPreviewUrl helper calling /api/r2/presign using op='get' and ttl=300, plus a fetchTextHead(url) helper that sends Range: bytes=0-1048575, decodes UTF-8 text, and returns text plus truncation metadata derived from Content-Range or known object size. Export pure request-building/fetch helpers to simplify unit testing.\n<info added on 2026-05-22T12:16:53.214Z>\nImplemented hooks/use-preview.ts following the use-download.ts pattern. Exported pure helpers requestPreviewPresignedUrl, fetchTextHead, and parseContentRangeTotal so vitest can assert request/response wire behavior without mounting React; the hook uses useMutation so preview dialogs can observe isPending and error consistently with ShareDialog. Presign requests pin ttl=300 seconds and tests cover that value.\n\nfetchTextHead issues Range: bytes=0-1048575 for an exact 1 MiB cap. It defensively slices the received ArrayBuffer to the cap before decoding so oversized bodies are never stored in React state even if an intermediary ignores Range and returns the full object. UTF-8 decoding uses TextDecoder with fatal:false so a multibyte character split at the 1 MiB boundary produces U+FFFD instead of throwing.\n\nTruncation/size metadata behavior:\n- totalBytes is derived from Content-Range on 206 responses, or Content-Length on 200 responses.\n- The UI may still fall back to a caller-provided sizeHint when headers do not provide total size.\n- truncated=true when totalBytes exceeds the cap, or when the raw payload fills the cap and total size is unknown, to stay conservative.\n\nAlso handled the 206 Partial Content success path explicitly rather than treating it as an error.\n</info added on 2026-05-22T12:16:53.214Z>",
+            "status": "done",
+            "testStrategy": "Vitest tests for presign request payload shape, ttl value, Range header presence, and text result parsing with mocked fetch responses.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T12:17:27.869Z"
+          },
+          {
+            "id": 3,
+            "title": "Implement PreviewDialog UI with image, text, and unavailable states",
+            "description": "Build the dialog component that lazily loads preview content and renders different subviews for image, text, and unsupported files.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create components/features/files/preview-dialog.tsx using the existing shadcn Dialog. Accept cid, bucket, key, size, open, and onOpenChange props. On open, detect preview kind, request a presigned URL, render <img src={url} alt={key} className='max-h-[80vh] object-contain'> for images, fetch and display text inside <pre> for text files, show a banner when only the first 1MB is shown, render an unavailable message for unsupported types, and show a loading skeleton for large images over 10MB. Ensure content is lazy-mounted only when the dialog opens.\n<info added on 2026-05-22T12:16:59.373Z>\nImplemented components/features/files/preview-dialog.tsx with lazy mounting gated by open using `{props.open ? <PreviewBody /> : null}`, matching ShareDialog behavior and relying on DialogContent unmount on close so presigned URL state is naturally discarded without a reset effect. Split rendering into ImageView, TextView, UnavailableView, plus PresignLoadingView while the presign request is in flight. Kept the large-image loading skeleton only for files larger than 10 MiB, clearing it on img onLoad/onError to avoid skeleton flash for small images. TextView is keyed by URL so its initial loading state re-seeds on presigned URL changes without triggering the react-hooks/set-state-in-effect lint violation; the ranged text fetch also uses AbortController for cleanup on unmount. The truncation banner is shown when `truncated || (sizeHint > cap)` so object size remains a fallback signal if the proxy strips both Content-Range and Content-Length. Added an inline Download action next to Close using the existing useDownloadObject hook so unsupported previews can still be downloaded directly. Pitfall noted: ESLint blocks setting loading state at the top of useEffect, so re-mounting by URL key was used instead of resetting state inside the effect.\n</info added on 2026-05-22T12:16:59.373Z>",
+            "status": "done",
+            "testStrategy": "Component tests with mocked hooks/fetch verifying each subview, truncation banner behavior, and lazy-mount/loading states.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T12:17:27.881Z"
+          },
+          {
+            "id": 4,
+            "title": "Wire the preview action from the bucket object list into the dialog flow",
+            "description": "Connect the existing object row Preview action so it opens the new dialog with the correct object metadata.",
+            "dependencies": [
+              3
+            ],
+            "details": "Update the bucket page or object table action handler for onAction='preview' to store selected object state and toggle PreviewDialog open. Pass cid, bucket, key, and size from the clicked row into the dialog, preserve existing actions such as download/delete, and ensure closing the dialog resets transient preview state if needed.\n<info added on 2026-05-22T12:17:02.973Z>\nIn app/(dashboard)/buckets/[bucket]/[[...prefix]]/page.tsx, the preview row action is now connected to dialog state. Added pendingPreview: { key, size } | null so the selected object size is captured at click time and does not need to be re-derived from items after delete/refetch. onRowAction now handles action === \"preview\" by rejecting folder rows defensively and calling setPendingPreview({ key: row.key, size: row.size }). PreviewDialog is mounted alongside ShareDialog using the same open/onOpenChange control pattern, and the remaining fallback comment/no-op branch was updated to reflect that preview is now wired.\n</info added on 2026-05-22T12:17:02.973Z>",
+            "status": "done",
+            "testStrategy": "UI interaction test or integration test confirming clicking Preview opens the dialog for the selected row and passes the expected props.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T12:17:27.893Z"
+          },
+          {
+            "id": 5,
+            "title": "Add automated tests for preview detection, presign integration, and ranged text preview",
+            "description": "Cover the new preview feature with focused unit and integration tests matching the required scenarios.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Add Vitest tests for detectPreviewKind extension coverage, use-preview presign payload generation, and fetchTextHead Range behavior. Include mocked component/integration coverage for image preview rendering, unsupported preview fallback, and truncated text banner handling. Align assertions with the first-1MB requirement and 5-minute presign TTL.\n<info added on 2026-05-22T12:17:10.130Z>\nAdded focused Vitest coverage in tests/unit/files/preview.test.ts and tests/unit/hooks/use-preview.test.ts.\n\nCovered cases:\n- previewExtension: extension parsing rules including lowercase normalization, no-extension, dotfile handling (.env -> \"\"), and trailing-dot edge cases.\n- detectPreviewKind: full image set, full text set, binary formats (zip/pdf/mp4/woff2) -> unavailable, and .env -> unavailable.\n- constants: assertions for PREVIEW_TEXT_BYTE_CAP = 1 MiB, PREVIEW_IMAGE_LARGE_BYTES = 10 MiB, and PREVIEW_PRESIGN_TTL_SECONDS = 300, plus a loop verifying detectPreviewKind stays aligned with the declared extension sets.\n- requestPreviewPresignedUrl: POST payload shape with op=\"get\" and ttl=300, CSRF header forwarding, and ApiClientError propagation.\n- parseContentRangeTotal: parsing slash-suffix totals with whitespace tolerance, \"*\" -> null, and garbage input -> null.\n- fetchTextHead: Range header emission, truncation logic from total/cap, 200 oversized responses sliced to cap and marked truncated, UTF-8 multibyte handling, formatted error status messages, and \"no headers but cap-filled\" treated as truncated.\n\n29 new tests added; full suite is 539/539 green. typecheck, lint, and build all pass.\n\nVitest runs in node without jsdom, so PreviewDialog itself is not rendered in tests, matching the existing ShareDialog test approach. Dialog behavior is covered by pinning the pure preview helpers and the dialog wiring that depends on those helpers.\n</info added on 2026-05-22T12:17:10.130Z>",
+            "status": "done",
+            "testStrategy": "Run Vitest suites with mocked network responses and component rendering; verify image/text/unavailable paths and Range-based truncation logic.",
+            "parentId": "undefined",
+            "updatedAt": "2026-05-22T12:17:27.902Z"
+          }
+        ],
+        "updatedAt": "2026-05-22T12:17:27.902Z"
       },
       {
         "id": "23",
@@ -2028,9 +2097,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-22T11:51:11.824Z",
+      "lastModified": "2026-05-22T12:17:27.903Z",
       "taskCount": 25,
-      "completedCount": 23,
+      "completedCount": 24,
       "tags": [
         "master"
       ]
