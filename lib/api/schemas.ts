@@ -415,6 +415,60 @@ export type ShareListQueryInput = z.infer<typeof ShareListQuerySchema>;
 export const ShareIdParamSchema = z.object({ id: UlidSchema });
 export type ShareIdParam = z.infer<typeof ShareIdParamSchema>;
 
+/* ─── audit log ──────────────────────────────────────────────── */
+//
+// GET /api/audit ?cursor=&op=&bucket=
+//
+// The op filter is constrained to the same closed string-literal union
+// the writer side uses (lib/audit/log.ts → AuditOp). We duplicate the
+// list here as Zod literals rather than importing AuditOp because
+// schemas.ts must stay client-safe (no `import "server-only"`). A
+// compile-time check at the bottom (AUDIT_OP_VALUES satisfies …) keeps
+// the two lists in lockstep — adding a new AuditOp without touching
+// this schema is a typecheck error.
+
+/** Closed set of audit operations the filter dropdown accepts. Must
+ *  match `AuditOp` in lib/audit/log.ts; see the `satisfies` check below. */
+export const AUDIT_OP_VALUES = [
+  "connection.create",
+  "connection.update",
+  "connection.delete",
+  "object.delete",
+  "upload.create",
+  "upload.complete",
+  "upload.abort",
+  "presign.put",
+  "presign.get",
+  "share.create",
+  "share.delete",
+  "security.decrypt_failed",
+  "auth.login",
+  "auth.logout",
+] as const;
+export type AuditOpValue = (typeof AUDIT_OP_VALUES)[number];
+
+export const AuditOpSchema = z.enum(AUDIT_OP_VALUES);
+
+/** Page size for GET /api/audit. Server-side cap — the client cannot
+ *  override. Matches the task brief (LIMIT 100). */
+export const AUDIT_LIST_PAGE_SIZE = 100;
+
+export const AuditListQuerySchema = z.object({
+  // Opaque cursor — produced by the previous response's nextCursor.
+  // Length bounded so a malformed value can't blow past the URL parser
+  // before the route's own cursor decoder rejects it.
+  cursor: z.string().min(1).max(256).optional(),
+  // Single-op filter. The full enum is allowed so any operation a writer
+  // could have emitted is filter-addressable; the UI dropdown is sourced
+  // from AUDIT_OP_VALUES so a typo at either end is a compile error.
+  op: AuditOpSchema.optional(),
+  // Bucket filter. We reuse BucketNameSchema rather than free-form text
+  // so a malformed value rejects at the validation boundary instead of
+  // silently matching no rows.
+  bucket: BucketNameSchema.optional(),
+});
+export type AuditListQueryInput = z.infer<typeof AuditListQuerySchema>;
+
 /* ─── helper ─────────────────────────────────────────────────── */
 
 /**

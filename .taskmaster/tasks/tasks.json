@@ -1859,7 +1859,7 @@
         "id": "23",
         "title": "审计日志查看器",
         "description": "GET /api/audit ?cursor=&op=&bucket= 列表分页；UI /(dashboard)/audit 页表格展示。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "8",
           "6"
@@ -1867,7 +1867,72 @@
         "priority": "medium",
         "details": "1) /api/audit/route.ts (GET)：WHERE user_id=? AND (op=? optional) AND (bucket=? optional) ORDER BY created_at DESC LIMIT 100 + cursor (用 created_at + id 复合 cursor)；2) UI: AuditTable 列 Time / Op (badge) / Bucket / Key / Status / IP；3) Op 下拉筛选（含所有枚举）；Bucket 输入框筛选；4) 不做导出（V1）。",
         "testStrategy": "Vitest：分页 cursor 正确；筛选 op='object.delete' 只返回对应行；E2E：执行一次删除后审计页能看到该记录。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Define audit schemas, enums, and shared TypeScript types",
+            "description": "Create the request/response schemas and reusable audit log types used by the API and UI layers.",
+            "dependencies": [],
+            "details": "Add audit-specific schema definitions for query params `cursor`, `op`, and `bucket`, plus response payload types for audit rows and paginated results. Include the full operation enum list for the filter dropdown, a composite cursor shape based on `created_at` + `id`, and exported TS types that can be consumed by the route, hook, and table components.\n<info added on 2026-05-22T12:39:41.619Z>\nCompleted implementation:\nIn lib/api/schemas.ts, added AUDIT_OP_VALUES as the shared readonly tuple plus Zod enum source, AUDIT_LIST_PAGE_SIZE = 100, and AuditListQuerySchema with optional cursor/op/bucket filters.\nIn lib/api/types.ts, added shared wire types AuditEntry and AuditListResponse.\nRefactored lib/audit/log.ts so the write-side AuditOp union is now derived as AuditOpValue from AUDIT_OP_VALUES, with a satisfies readonly AuditOp[] compile-time assertion to prevent drift between write-side operations and the client-safe read-side enum.\nBucket filtering now reuses BucketNameSchema, so only valid S3/R2 bucket names are accepted; invalid bucket typos fail validation with 400 instead of silently returning an empty result set.\nImportant boundary note: schemas.ts must remain client-safe because it is consumed by hooks/UI, so AuditOp could not be imported from server-only audit logging code; the type dependency was inverted to flow from schemas.ts into log.ts instead.\n</info added on 2026-05-22T12:39:41.619Z>",
+            "status": "pending",
+            "testStrategy": "Vitest schema tests for valid/invalid query parsing, enum coverage, and cursor serialization/deserialization.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement GET /api/audit route with filtered cursor pagination",
+            "description": "Build the audit listing endpoint with user scoping, optional filters, and descending composite-cursor pagination.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create `/api/audit/route.ts` GET handler using the existing share-list endpoint pagination pattern as the template. Validate query params with the new schema, apply `WHERE user_id = ?` plus optional `op = ?` and `bucket = ?`, order by `created_at DESC, id DESC`, fetch `LIMIT 101` or equivalent to determine `nextCursor`, and encode/decode the cursor using both timestamp and id for stable pagination. Return only the fields needed by the UI and handle auth/validation errors consistently with existing API conventions.\n<info added on 2026-05-22T12:39:46.822Z>\nImplemented app/api/audit/route.ts with edge runtime and withApi using requireSession, parsing query params via parseQuery(AuditListQuerySchema). No rate limiting is applied for this GET endpoint because reading the user's own audit table does not expose security-sensitive enumeration risk.\n\nThe WHERE clause uses drizzle and(...) with optional filters passed as undefined when absent so drizzle automatically omits them, avoiding imperative condition array building.\n\nPagination follows the share-list pattern: ORDER BY created_at DESC, id DESC, fetch page size + 1 to detect next page, and use a composite cursor formatted as `${ms}_${ulid}`. Cursor parsing can split on the first underscore unambiguously because ULIDs never contain underscores.\n\nWhen projecting DB rows to AuditEntry, the status field is runtime-narrowed from the DB string column to the \"success\" | \"failure\" union rather than force-cast, since the database column has no CHECK constraint.\n\nNo audit-read event is written for this endpoint, consistent with GET /api/share and GET /api/connections: reading a user's own bookkeeping data adds no meaningful security signal and would only increase audit_log volume.\n</info added on 2026-05-22T12:39:46.822Z>",
+            "status": "pending",
+            "testStrategy": "Vitest route tests covering first page, nextCursor generation, cursor continuation, op filter, bucket filter, and user isolation.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Add use-audit hook with infinite query and filter-aware state",
+            "description": "Expose a client hook that fetches paginated audit data and reacts cleanly to filter changes.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Implement `hooks/use-audit.ts` using TanStack Query `useInfiniteQuery`. Use a query key like `['audit', op, bucket]`, call `/api/audit` with optional search params, map `nextCursor` into `getNextPageParam`, and reset pagination naturally when filters change. Export helper types and possibly a small utility for flattening pages into rows for table consumption.\n<info added on 2026-05-22T12:39:50.004Z>\nCompleted `hooks/use-audit.ts` with `useInfiniteQuery` and a shared `AUDIT_QUERY_KEY = [\"audit\"]`. Added `auditQueryKey(filters)` to serialize filter state into the query key so TanStack Query automatically resets pagination when filters change, with no manual reset logic needed. Normalized empty `bucket` strings to `undefined` to avoid separate cache entries for `{}` vs `{ bucket: \"\" }`. No mutation hooks were added because audit data is append-only on the server and the UI is read-only.\n</info added on 2026-05-22T12:39:50.004Z>",
+            "status": "pending",
+            "testStrategy": "Vitest hook tests with mocked fetch verifying query key behavior, next-page loading, and filter changes causing a fresh query.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Build the audit dashboard page, table UI, filters, and navigation link",
+            "description": "Create the dashboard audit page with a table, filter controls, and a nav entry so users can browse audit logs.",
+            "dependencies": [
+              1,
+              3
+            ],
+            "details": "Add `app/(dashboard)/audit/page.tsx` and render an `AuditTable` showing columns Time, Op, Bucket, Key, Status, and IP. Implement an Op select populated from the shared enum list and a Bucket text input filter, wire them to the `use-audit` hook, and support paginated loading via Load More or equivalent existing pattern. Render Op as a badge, format timestamps consistently, show empty/loading states, and add a sidebar or dashboard navigation link to `/audit` matching the existing nav structure.\n<info added on 2026-05-22T12:39:54.756Z>\nImplemented `app/(dashboard)/audit/page.tsx` with table columns Time, Op, Bucket, Key, Status, and IP. Op is rendered as an outline badge; Status uses badge variants `secondary` for success and `destructive` for failure. The filter bar uses a native `<select>` for Op because the project does not have a shadcn select primitive added; options are generated from `AUDIT_OP_VALUES`. Bucket filtering uses the existing `<Input>` text field. The page follows the shares page interaction pattern with sticky `thead` and `Load more` pagination for consistent multi-page loading UX. Added an `Audit` navigation link in `app/(dashboard)/layout.tsx` top navigation between `Shares` and `Connections`. TypeScript note: native select `onChange` requires explicit handling as `\"\" | AuditOpValue`; TS does not allow treating that union directly as the enum value type, so the corresponding state setter must model both cases explicitly.\n</info added on 2026-05-22T12:39:54.756Z>",
+            "status": "pending",
+            "testStrategy": "Component tests for table rendering, filter interactions, empty state, and navigation link presence; optional visual/manual verification in the dashboard.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Add Vitest coverage for audit schemas, API pagination, and UI integration points",
+            "description": "Write focused automated tests to lock down pagination correctness, filtering behavior, and the main viewer workflow.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Create Vitest test files for the new schema/types, the GET `/api/audit` route, and the `use-audit`/UI integration points. Specifically cover composite cursor ordering and continuation, `op='object.delete'` returning only matching rows, optional bucket filtering, and table rendering from paginated data. Reuse existing test helpers and mocking patterns from similar endpoints where possible.\n<info added on 2026-05-22T12:39:59.494Z>\nImplemented tests/unit/api/audit-route.test.ts with 11 fat tests using real better-sqlite3 + drizzle plus applied drizzle migrations, and mocks for next-auth/jwt, @cloudflare/next-on-pages, @/lib/db/client, and @/lib/auth/adapter. Coverage includes 401 for missing session, default newest-first ordering, per-user isolation, op filtering, bucket filtering, op+bucket AND composition, unknown op returning 400, invalid bucket returning 400, full pagination cursor loop across page 1 and page 2 with each row returned exactly once, invalid cursor returning 400, and same-millisecond ULID tie-break convergence via id DESC with page+1 same-timestamp assertions. Full validation is green: pnpm test passed for 41 files / 550 tests, and pnpm typecheck, pnpm lint, and pnpm build all passed. /api/audit is also registered in the Cloudflare Pages route list.\n</info added on 2026-05-22T12:39:59.494Z>",
+            "status": "pending",
+            "testStrategy": "Run Vitest suites with seeded/mocked audit rows verifying cursor correctness, filter correctness, and rendered UI state from returned pages.",
+            "parentId": "undefined"
+          }
+        ],
+        "updatedAt": "2026-05-22T12:39:59.508Z"
       },
       {
         "id": "24",
@@ -2097,9 +2162,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-22T12:17:27.903Z",
+      "lastModified": "2026-05-22T12:39:59.508Z",
       "taskCount": 25,
-      "completedCount": 24,
+      "completedCount": 25,
       "tags": [
         "master"
       ]

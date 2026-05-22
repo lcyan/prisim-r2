@@ -46,6 +46,12 @@ export default async function DashboardLayout({
             Shares
           </Link>
           <Link
+            href="/audit"
+            className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Audit
+          </Link>
+          <Link
             href="/settings/connections"
             className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground"
           >

@@ -27,6 +27,7 @@ import "server-only";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { ulid } from "ulid";
 
+import { AUDIT_OP_VALUES, type AuditOpValue } from "@/lib/api/schemas";
 import { getDb, schema, type Db, type DbEnv } from "@/lib/db/client";
 
 /**
@@ -34,22 +35,18 @@ import { getDb, schema, type Db, type DbEnv } from "@/lib/db/client";
  * forcing-function for new endpoints — TypeScript will refuse any string
  * literal not in this union, so a typo at the callsite is caught at
  * compile time rather than producing an un-greppable audit row.
+ *
+ * Mirrored as a Zod enum (AUDIT_OP_VALUES) in lib/api/schemas.ts so the
+ * GET /api/audit filter dropdown stays in lockstep. The two `satisfies`
+ * checks below assert that the writer's union and the reader's enum
+ * cover the exact same set — adding to one without the other is a
+ * typecheck error.
  */
-export type AuditOp =
-  | "connection.create"
-  | "connection.update"
-  | "connection.delete"
-  | "object.delete"
-  | "upload.create"
-  | "upload.complete"
-  | "upload.abort"
-  | "presign.put"
-  | "presign.get"
-  | "share.create"
-  | "share.delete"
-  | "security.decrypt_failed"
-  | "auth.login"
-  | "auth.logout";
+export type AuditOp = AuditOpValue;
+
+// Force the two lists to agree at compile time.
+const _opUnionCoversEnum = AUDIT_OP_VALUES satisfies readonly AuditOp[];
+void _opUnionCoversEnum;
 
 /** Outcome of the audited operation. Stored verbatim in `audit_log.status`. */
 export type AuditStatus = "success" | "failure";

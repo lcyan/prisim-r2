@@ -259,3 +259,40 @@ export interface ShareDeleteResponse {
   ok: true;
   id: string;
 }
+
+/**
+ * Public projection of one row in GET /api/audit.
+ *
+ *   - `op` is the writer-side AuditOp string literal verbatim (e.g.
+ *     `"object.delete"`, `"presign.get"`); clients treat it as opaque and
+ *     match against AUDIT_OP_VALUES from schemas.ts for badge styling.
+ *   - `bucket` / `key` / `connectionId` / `errorMsg` / `ip` / `ua` are
+ *     all nullable — many ops legitimately have no bucket (e.g. auth.*),
+ *     and pre-session events carry no UA/IP.
+ *   - `createdAt` is epoch milliseconds — `Date.getTime()` from the
+ *     server-side timestamp column.
+ */
+export interface AuditEntry {
+  id: string;
+  op: string;
+  status: "success" | "failure";
+  bucket: string | null;
+  key: string | null;
+  connectionId: string | null;
+  errorMsg: string | null;
+  ip: string | null;
+  ua: string | null;
+  createdAt: number;
+}
+
+/**
+ * Public projection of GET /api/audit.
+ *
+ *   - `items` — up to AUDIT_LIST_PAGE_SIZE entries, newest first.
+ *   - `nextCursor` — opaque continuation token; pass back as `?cursor=` on
+ *     the next request. `null` means this is the final page.
+ */
+export interface AuditListResponse {
+  items: AuditEntry[];
+  nextCursor: string | null;
+}
