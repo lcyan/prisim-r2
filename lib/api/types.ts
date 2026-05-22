@@ -200,3 +200,62 @@ export interface R2MultipartCompleteResponse {
   etag: string | null;
   location: string | null;
 }
+
+/**
+ * Public projection of POST /api/share/create.
+ *
+ *   - `id` — ULID of the persisted `shares` row. Pass to DELETE /api/share/:id
+ *     to drop the bookkeeping record.
+ *   - `url` — the minted presigned GET URL. **Bearer credential** for the
+ *     object until `expiresAt`; treat with the same care as a session token
+ *     (don't log, don't leave on screen indefinitely, only return it on
+ *     create — list endpoints never include it).
+ *   - `expiresAt` — epoch ms when the upstream signature stops verifying.
+ *     `Date.now() + ttlSeconds*1000` from the server's clock.
+ */
+export interface ShareCreateResponse {
+  id: string;
+  url: string;
+  expiresAt: number;
+}
+
+/**
+ * Public projection of one row in GET /api/share.
+ *
+ *   - Deliberately omits `url` — the URL is only minted at create time and
+ *     the row's `url_hash` column stores only a sha256 of it. Re-rendering
+ *     the URL in the list would either require persisting plaintext (no) or
+ *     re-signing (changes the URL each call). The user keeps the original
+ *     URL from the create response; this list is the bookkeeping view.
+ *   - `ttlSeconds` is one of `SHARE_TTL_SECONDS` (3600 | 86400 | 604800).
+ *   - All timestamps are epoch ms.
+ */
+export interface ShareSummary {
+  id: string;
+  bucket: string;
+  key: string;
+  ttlSeconds: number;
+  createdAt: number;
+  expiresAt: number;
+}
+
+/**
+ * Public projection of GET /api/share.
+ *
+ *   - `items` — up to SHARE_LIST_PAGE_SIZE entries, newest first.
+ *   - `nextCursor` — opaque continuation token; pass back as `?cursor=` on
+ *     the next request. `null` means this is the final page.
+ */
+export interface ShareListResponse {
+  items: ShareSummary[];
+  nextCursor: string | null;
+}
+
+/**
+ * Public projection of DELETE /api/share/:id. Mirrors the connection-delete
+ * shape so consumers can switch on `ok` uniformly.
+ */
+export interface ShareDeleteResponse {
+  ok: true;
+  id: string;
+}

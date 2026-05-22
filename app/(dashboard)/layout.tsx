@@ -40,6 +40,12 @@ export default async function DashboardLayout({
         </div>
         <nav className="flex items-center gap-6">
           <Link
+            href="/shares"
+            className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Shares
+          </Link>
+          <Link
             href="/settings/connections"
             className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground"
           >

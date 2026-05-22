@@ -2,7 +2,7 @@
   "master": {
     "tasks": [
       {
-        "id": 1,
+        "id": "1",
         "title": "项目初始化：Next.js 15 + TS strict + Tailwind v4 + shadcn/ui",
         "description": "使用 pnpm 创建 Next.js 15 App Router 项目，启用 TypeScript strict，集成 Tailwind CSS v4（@theme in CSS）和 shadcn/ui 基础组件，配置 ESLint/Prettier，搭建基础目录骨架（app/、lib/、components/、stores/、hooks/、tests/）。",
         "status": "done",
@@ -96,7 +96,7 @@
         "updatedAt": "2026-05-20T12:41:40.798Z"
       },
       {
-        "id": 2,
+        "id": "2",
         "title": "Cloudflare Pages + Edge Runtime 配置",
         "description": "配置 wrangler.toml、next.config.ts 以支持 Cloudflare Pages 部署和 edge runtime；准备 D1 binding；所有 route handler 加 `export const runtime = 'edge'` 规范。",
         "status": "done",
@@ -110,7 +110,7 @@
         "updatedAt": "2026-05-20T12:55:00.855Z"
       },
       {
-        "id": 3,
+        "id": "3",
         "title": "D1 数据库 schema 与迁移",
         "description": "实现 5 张表（users / connections / shares / audit_log / sessions），写迁移脚本（drizzle-kit 或纯 SQL），并提供本地与 production 的执行命令。",
         "status": "done",
@@ -202,7 +202,7 @@
         "updatedAt": "2026-05-20T13:29:28.158Z"
       },
       {
-        "id": 4,
+        "id": "4",
         "title": "AES-GCM 凭证加解密模块（Web Crypto）",
         "description": "实现 lib/crypto/aes-gcm.ts：基于 Web Crypto subtle，AES-GCM-256，每行随机 12 字节 IV，AAD 用 connection.id；导出 encryptCredential / decryptCredential，主密钥从 env ENCRYPTION_KEY (base64, 32 字节) 加载。",
         "status": "done",
@@ -281,7 +281,7 @@
         "updatedAt": "2026-05-20T14:12:21.684Z"
       },
       {
-        "id": 5,
+        "id": "5",
         "title": "Auth.js v5 自托管认证（edge + PBKDF2）",
         "description": "实现登录/登出/会话校验。PBKDF2-SHA256 600k 迭代（OWASP 推荐），自写最小 D1 adapter；不做注册页（单用户应用，通过 seed 脚本加 admin）。",
         "status": "done",
@@ -392,7 +392,7 @@
         "updatedAt": "2026-05-20T14:40:42.348Z"
       },
       {
-        "id": 6,
+        "id": "6",
         "title": "CSRF 保护 + 输入验证中间件",
         "description": "为所有 POST/PATCH/DELETE 路由强制 X-CSRF-Token 校验；CSRF token 登录时随 session 下发，存 cookie + meta；统一 Zod 输入验证；统一错误响应格式。",
         "status": "done",
@@ -500,7 +500,7 @@
         "updatedAt": "2026-05-20T15:12:34.979Z"
       },
       {
-        "id": 7,
+        "id": "7",
         "title": "D1 滑动窗口限流器",
         "description": "实现基于 D1 的 sliding window 限流，覆盖 /api/auth/login (10/5min/IP)、/api/r2/presign (60/min/user)、/api/share/create (30/min/user)、写操作总和 (600/min/user)。429 响应必须含 Retry-After。",
         "status": "done",
@@ -594,7 +594,7 @@
         "updatedAt": "2026-05-20T16:09:56.386Z"
       },
       {
-        "id": 8,
+        "id": "8",
         "title": "审计日志写入模块",
         "description": "lib/audit/log.ts 提供 `logAudit({userId, connectionId?, op, bucket?, key?, status, errorMsg?, req})`，从 req 自动提取 IP 和 UA；写失败不阻塞主流程（nofail）。",
         "status": "done",
@@ -674,7 +674,7 @@
         "updatedAt": "2026-05-21T01:35:27.399Z"
       },
       {
-        "id": 9,
+        "id": "9",
         "title": "R2 S3 客户端工厂 + 预签名 helper",
         "description": "lib/r2/client.ts 给定明文凭证返回配置好的 S3Client（region='auto'、endpoint=https://<account>.r2.cloudflarestorage.com）；lib/r2/presign.ts 封装 presignPut / presignGet；lib/r2/control.ts 封装服务端调用（list/delete/multipart create/complete/abort）。",
         "status": "done",
@@ -757,7 +757,7 @@
         "updatedAt": "2026-05-21T04:46:33.865Z"
       },
       {
-        "id": 10,
+        "id": "10",
         "title": "Connection（R2 凭证）CRUD API",
         "description": "实现 GET/POST/PATCH/DELETE /api/connections。POST 加密落库；GET 返回 masked 值；PATCH 仅允许改 name；DELETE 校验无关联 share 后删除。所有写操作走 CSRF + 限流 + 审计。",
         "status": "done",
@@ -854,7 +854,7 @@
         "updatedAt": "2026-05-21T06:35:10.271Z"
       },
       {
-        "id": 11,
+        "id": "11",
         "title": "Connection 管理 UI",
         "description": "app/(dashboard)/settings/connections 页面：列表、添加（含'测试连接'）、改名、删除（typed 确认）。使用 shadcn Table + Dialog + Form。",
         "status": "done",
@@ -959,7 +959,7 @@
         "updatedAt": "2026-05-21T08:00:20.059Z"
       },
       {
-        "id": 12,
+        "id": "12",
         "title": "桶列表 API + UI（只读）",
         "description": "GET /api/r2/buckets?cid= 服务端解密凭证调 listBuckets；UI 在 dashboard 顶部下拉/侧边显示当前 connection 下的桶。",
         "status": "done",
@@ -1036,7 +1036,7 @@
         "updatedAt": "2026-05-21T11:35:11.420Z"
       },
       {
-        "id": 13,
+        "id": "13",
         "title": "对象列表 API（游标分页）",
         "description": "GET /api/r2/list?cid=&bucket=&prefix=&cursor= 服务端 list，返回 { objects: [{key, size, etag, lastModified}], prefixes: [], nextCursor }。基于 R2 ContinuationToken。",
         "status": "done",
@@ -1115,7 +1115,7 @@
         "updatedAt": "2026-05-21T12:16:18.397Z"
       },
       {
-        "id": 14,
+        "id": "14",
         "title": "对象浏览器 UI（表格 + 面包屑 + 游标分页）",
         "description": "/dashboard/[bucket]/[...prefix] 路由：面包屑 + 文件夹/对象表格 + Load More 按钮 + 多选 checkbox。",
         "status": "done",
@@ -1195,7 +1195,7 @@
         "updatedAt": "2026-05-21T12:46:59.854Z"
       },
       {
-        "id": 15,
+        "id": "15",
         "title": "/api/r2/presign 端点",
         "description": "POST /api/r2/presign，输入 { cid, op: 'put'|'get'|'upload-part', bucket, key, ttl?, uploadId?, partNumber? }；服务端解密 -> 生成 presigned URL；ttl 默认 put=15min, get=15min；写一条 audit_log (presign.put/get)。",
         "status": "done",
@@ -1288,7 +1288,7 @@
         "updatedAt": "2026-05-21T05:26:46.431Z"
       },
       {
-        "id": 16,
+        "id": "16",
         "title": "Multipart 控制面端点（create / complete / abort）",
         "description": "POST /api/r2/multipart/create、/complete、/abort。这是 Security Invariant #3 的合法服务端调用（只交换元数据，不传字节）。complete 接 parts 列表；abort 用于取消。",
         "status": "done",
@@ -1371,7 +1371,7 @@
         "updatedAt": "2026-05-21T14:03:20.822Z"
       },
       {
-        "id": 17,
+        "id": "17",
         "title": "Upload Queue store + dispatcher（3×3 并发）",
         "description": "Zustand store 管理上传任务的内存状态机；dispatcher 协程：3 个文件并发，每文件 3 个 part 并发；不持久化（关页面=丢失）；取消即 abort。",
         "status": "done",
@@ -1463,7 +1463,7 @@
         "updatedAt": "2026-05-21T15:29:34.081Z"
       },
       {
-        "id": 18,
+        "id": "18",
         "title": "Upload UI（拖拽 + 进度 + 取消）",
         "description": "Dropzone 组件接收拖拽文件入队；底部 fixed Upload Tray 显示进度条/暂停（V1 不做，灰显）/取消/重试；新任务 toast 提示。",
         "status": "done",
@@ -1544,7 +1544,7 @@
         "updatedAt": "2026-05-21T16:06:38.899Z"
       },
       {
-        "id": 19,
+        "id": "19",
         "title": "单文件下载（presigned GET）",
         "description": "对象表格 Download 按钮：调 /api/r2/presign op='get' ttl=900 -> 浏览器 window.location 或 a[download] 触发原生下载。",
         "status": "done",
@@ -1611,7 +1611,7 @@
         "updatedAt": "2026-05-21T13:21:10.769Z"
       },
       {
-        "id": 20,
+        "id": "20",
         "title": "删除 API（HMAC confirm token）+ 删除 UI（typed 确认）",
         "description": "POST /api/r2/delete/prepare 返 confirmToken (HMAC, 5min)；POST /api/r2/delete 校验 token 后批量 delete；UI 弹窗要求输入 bucket 名才能确认。",
         "status": "done",
@@ -1694,10 +1694,10 @@
         "updatedAt": "2026-05-22T01:50:25.212Z"
       },
       {
-        "id": 21,
+        "id": "21",
         "title": "分享链接 API + UI（1h/1d/7d）",
         "description": "POST /api/share/create 生成 presigned GET + 入库 shares 表；GET /api/share 列表分页（按 expires_at 过滤未过期）；DELETE /api/share/:id 仅删记录（协议层不能撤）。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "9",
           "15",
@@ -1707,10 +1707,73 @@
         "priority": "high",
         "details": "1) create：input { cid, bucket, key, ttlSeconds: z.union([z.literal(3600), z.literal(86400), z.literal(604800)]) }，调 presignGet(ttl)，url_hash = sha256(url)，INSERT shares -> 返回 { id, url, expiresAt }；audit op='share.create'；限流 30/min/user；2) list：GET ?cursor=，WHERE user_id=? AND expires_at > now() ORDER BY created_at DESC LIMIT 50 + cursor 分页；返回 { items: [{id, bucket, key, expiresAt, ttlSeconds, createdAt}], nextCursor }（不返回 url）；3) delete：DELETE 行（URL 实际仍可用直到 expires_at，UI 明示）；audit op='share.delete'；4) UI：对象行 Share 按钮 -> Dialog 选 1h/1d/7d -> 生成 -> 显示 URL + Copy 按钮 + 过期倒计时；5) /(dashboard)/shares 页面列表已生成的分享，可删除记录但 UI 警示 'URL 实际仍可用直到过期时间'。",
         "testStrategy": "Vitest：ttlSeconds 不在 3 个值内返 400；create 后 GET list 看到记录；过期记录不再返回；E2E：生成分享，复制 URL，匿名浏览器访问 URL 能下载文件；超过 ttl 后访问 R2 返 403。",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement POST /api/share/create with Zod validation, presign generation, audit, and rate limiting",
+            "description": "Create the share creation API endpoint that validates ttl values, generates a presigned GET URL, stores the share record, and returns the created share payload.",
+            "dependencies": [],
+            "details": "Add an edge route handler for POST /api/share/create. Define a Zod schema for { cid, bucket, key, ttlSeconds } where ttlSeconds only accepts 3600, 86400, or 604800. Resolve the authenticated user, enforce per-user rate limiting at 30 requests per minute, call presignGet(ttlSeconds), compute url_hash via sha256(url), insert into the shares table, and return { id, url, expiresAt }. Record audit log entry with op='share.create'. Reuse existing DB/auth utilities and keep response/error format consistent with the project.\n<info added on 2026-05-22T03:35:23.502Z>\nImplemented POST /api/share/create at app/api/share/create/route.ts with edge-safe flow and failure auditing. Added ShareCreateSchema to lib/api/schemas.ts using z.union([z.literal(3600), z.literal(86400), z.literal(604800)]) instead of refine so clients receive standard union validation errors; also exported SHARE_TTL_SECONDS as const and ShareTtlSeconds type for UI/hooks reuse. Added sha256Hex() based on crypto.subtle.digest(\"SHA-256\") so only url_hash is persisted in shares (64-char hex), never the raw presigned URL.\n\nRoute behavior/order is: validate input strictly, require session + CSRF, apply RateLimitBundles.shareCreateByUser so the specific 30/min share-create limit is evaluated before broader write limits, then perform connection lookup scoped to the authenticated user and return 404 for cross-user cid to avoid enumeration. Before presigning, decrypt connection credentials; on decrypt failure return 500 and write security.decrypt_failed audit. Call presignGet with ttlSeconds, and if presign fails still write a share.create failure audit row. After presign success, insert the share row with url_hash and expiresAt; if insert fails, also write a distinct share.create failure audit row. Success response returns { id, url, expiresAt }. Audit op remains existing \"share.create\"; no AuditOp changes required.\n\nVerified by unit coverage in tests/unit/api/share-routes.test.ts (22 passing cases), including happy path with persisted url_hash hex not equal to url and ttlSeconds forwarded to presignGet; validation failures for ttl=1800, strict rejection of extra fields, leading-slash key rejection, unauthenticated 401, missing CSRF 401; and security cases for cross-user cid -> 404, R2CredentialError -> 401 with audit failure and no insert, and decrypt failure -> 500 with security.decrypt_failed audit.\n\nConfirmed 7d share TTL is valid here: although R2_PRESIGN_MAX_TTL_SECONDS = 7200 applies to the separate R2 presign schema/route, lib/r2/presign.ts passes expiresIn directly to AWS SigV4 and supports up to 604800, so ShareCreateSchema allowing 604800 is correct. No ENCRYPTION_KEY rotation migration needed for shares because only url_hash is stored.\n</info added on 2026-05-22T03:35:23.502Z>",
+            "status": "pending",
+            "testStrategy": "Vitest unit tests for schema validation, rejecting invalid ttlSeconds with 400, rate-limit behavior, successful insert result shape, and audit log invocation.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement GET /api/share cursor-paginated listing that excludes expired shares",
+            "description": "Build the share listing API to return only active share records for the current user using cursor-based pagination.",
+            "dependencies": [
+              1
+            ],
+            "details": "Add GET /api/share route support for optional ?cursor=. Query shares with WHERE user_id = currentUser AND expires_at > now(), ordered by created_at DESC, limited to 50 plus cursor pagination logic. Return { items, nextCursor } where each item contains only { id, bucket, key, expiresAt, ttlSeconds, createdAt } and explicitly never includes the URL. Define and document the cursor format, likely based on created_at and id for stable ordering, and ensure expired rows are filtered out before pagination is applied.\n<info added on 2026-05-22T03:37:35.233Z>\nImplement GET /api/share in app/api/share/route.ts with optional cursor query parsing and explicit projection-only response. Use plaintext cursor format `<createdAt_ms>_<id>` and cap schemas.ts cursor length at 256. Parse by splitting on `_`; since ULID uses Crockford base32 and never contains `_`, decoding is unambiguous and log/debug friendly. If cursor decode fails, throw `new z.ZodError([{ code: \"custom\", message: \"malformed cursor\", path: [\"cursor\"] }])` so withApi returns the standard 400 validation.invalid flattened payload.\n\nQuery active shares for the current user only, excluding expired rows before pagination, ordered newest-first by `created_at DESC, id DESC`. Implement cursor pagination with drizzle WHERE logic: `or(lt(createdAt, cursor.ts), and(eq(createdAt, cursor.ts), lt(id, cursor.id)))` to fetch rows strictly after the cursor in descending order. Do not rely on ULID monotonicity alone; use timestamp + id lexical tie-break for deterministic paging.\n\nUse peek+1 pagination: select `LIMIT 51`, return the first 50 as `items`, and derive `hasMore` / `nextCursor` from the 51st row instead of issuing a separate COUNT(*). `nextCursor` should be built from the last returned item’s createdAt/id when more rows exist; otherwise return null.\n\nGET should have no rate limit and no audit logging, consistent with other read-heavy list endpoints. Ensure the response item type/ShareSummary excludes any URL-bearing fields: only `{ id, bucket, key, expiresAt, ttlSeconds, createdAt }`, and explicitly do not select `url` or `url_hash`, keeping the SQL projection as a strict whitelist to prevent accidental leakage.\n\nTest coverage:\n- newest-first ordering by createdAt DESC then id DESC;\n- rows with `expires_at <= now` are filtered out;\n- rows from other users are filtered out;\n- 52-row pagination: page1 returns 50 + nextCursor, page2 returns 2 + nextCursor=null, combined unique ids == 52;\n- malformed cursor returns 400;\n- unauthenticated request returns 401.\n</info added on 2026-05-22T03:37:35.233Z>",
+            "status": "pending",
+            "testStrategy": "Vitest tests covering empty results, active share visibility after creation, exclusion of expired records, max 50 items, stable ordering, and nextCursor generation/consumption.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Implement DELETE /api/share/:id to remove share records and write audit logs",
+            "description": "Create the delete endpoint that removes only the database record for a share owned by the current user and records the deletion event.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Add an edge route handler for DELETE /api/share/:id. Validate the route param, confirm the record belongs to the authenticated user, delete only the shares table row, and return a success response suitable for the UI. Do not attempt to revoke the already issued presigned URL at the protocol layer. Write an audit log entry with op='share.delete'. Ensure not-found and unauthorized ownership cases are handled safely and consistently.\n<info added on 2026-05-22T03:39:36.627Z>\nIn app/api/share/[id]/route.ts, implement DELETE using the same pathIdFrom() pattern as connections/[id]: because withApi narrows the handler to a single Request, derive the id from req.url instead of relying on Next 15 params context. Validate the extracted path id with a Zod ShareIdParamSchema that enforces ULID format.\n\nUse a single atomic DELETE ... RETURNING query against shares with both id and user_id in the WHERE clause, and return { id, connectionId, bucket, objectKey } from RETURNING for audit logging. On D1 via Drizzle, returning().all() should yield one row for a matched PK delete; zero rows should be treated as not found. This replaces a SELECT-then-DELETE flow and avoids an extra round trip.\n\nDo not distinguish cross-user ownership from true absence: any non-matching id/user combination must return 404, and write a failure audit entry with error_msg=\"not_found\" for enumeration defense rather than exposing whether the share exists under another user. Invalid non-ULID ids should return 400. Unauthenticated requests should return 401.\n\nOn success, delete only the shares table row, return a UI-friendly success response, and write an audit log with op='share.delete' including bucket, objectKey, and connectionId from the deleted row. Preserve the explicit security note in code comments/API contract/UI copy that DELETE cannot revoke an already issued presigned URL at the protocol layer; it only removes the bookkeeping record.\n\nTest coverage to add:\nsuccessful delete removes the row and writes a success audit containing bucket, key, and connectionId;\ncross-user delete attempt by userB against userA share returns 404, leaves userA row intact, and writes a failure audit for userB with not_found;\ninvalid non-ULID id returns 400;\nunauthenticated delete returns 401.\n</info added on 2026-05-22T03:39:36.627Z>",
+            "status": "pending",
+            "testStrategy": "Vitest tests for successful deletion, deleting only owned records, 404 for missing ids, record disappearance from subsequent list calls, and audit log creation.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Build object-row Share dialog UI with TTL selection, URL copy, and expiry countdown",
+            "description": "Add the share creation interaction to object rows so users can open a dialog, choose 1h/1d/7d, generate a link, copy it, and see time remaining.",
+            "dependencies": [
+              1
+            ],
+            "details": "Add a Share button to the object row UI. Implement a dialog using existing shadcn components with TTL options for 1h, 1d, and 7d mapped to 3600, 86400, and 604800. On submit, call POST /api/share/create, show loading/error states, then render the returned URL, a Copy button using the clipboard API, and a live or periodically updated expiry countdown. Include clear messaging that the link remains usable until expiration. Keep state management isolated so multiple rows do not conflict.\n<info added on 2026-05-22T03:41:47.874Z>\nImplement share-specific data hooks in hooks/use-shares.ts following the use-connections.ts pattern: export bare async functions fetchSharePage, createShare, and deleteShare for direct vitest import, then wrap them with useShares (infinite query), useCreateShare, and useDeleteShare. Keep create-share success behavior invalidate-only and do not setQueryData with the minted URL, because share list wire data intentionally excludes url and the UI must not recover the URL from cache after initial display.\n\nAdd components/features/share/share-dialog.tsx as a single Dialog with three internal stages: pre-mint TTL selection, pending spinner, and post-mint result. Default selected TTL to 86400 (1 day); 1h/1d/7d options map to 3600/86400/604800. On submit, call useCreateShare and transition to pending, then render the returned URL only in the post-mint stage as a readonly field with onFocus select(), copy control, and expiry messaging/countdown. Keep the minted URL only in local React state inside the dialog, and rely on Radix dialog close/unmount to clear that state so reopening starts fresh with no persisted URL.\n\nExtract countdown formatting into components/features/share/format-remaining.ts as a pure helper so vitest can import it without touching TSX files under tsconfig jsx=preserve. The dialog should run a 1 Hz countdown via useEffect + setInterval(1000) while the post-mint stage is mounted, with proper cleanup in the effect return; closing the dialog stops ticking automatically because the content unmounts.\n\nImplement copy behavior with navigator.clipboard.writeText and show a temporary success indicator (✓) for 2 seconds after a successful copy. If clipboard write fails, surface toast.error instructing the user to copy manually; the readonly input remains selectable as fallback.\n\nWire the dialog at page level in app/(dashboard)/buckets/[bucket]/[[...prefix]]/page.tsx by adding pendingShare state and opening ShareDialog from onRowAction(\"share\"). Do not modify object-table row UI, since the Share button already exists and is currently a no-op; only connect the page-level action branch and dialog mount.\n\nAdd unit coverage in tests/unit/share/share-dialog.test.ts for formatRemaining helper cases including 0, negative values, under a minute, under an hour, under a day, and multi-day durations. Leave dialog interaction behavior for manual verification because @testing-library is not part of the current test setup.\n</info added on 2026-05-22T03:41:47.874Z>",
+            "status": "pending",
+            "testStrategy": "Vitest component tests for dialog open/close, TTL option selection, API call payload, success rendering of URL, copy button behavior with mocked clipboard, and countdown display.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Create /(dashboard)/shares page with active share list, deletion controls, and persistence warning",
+            "description": "Build the dashboard page that lists generated shares, supports pagination and deletion, and warns users that deleting a record does not immediately invalidate the URL.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Implement the /(dashboard)/shares page that fetches GET /api/share, renders a table/list of active shares with bucket, key, createdAt, expiresAt, and ttlSeconds, and includes delete actions per row wired to DELETE /api/share/:id. Show the warning text 'URL 实际仍可用直到过期时间' prominently near delete controls or page header. Handle loading, empty, error, and pagination states via nextCursor. Refresh or optimistically update the list after deletion while keeping messaging accurate.\n<info added on 2026-05-22T03:43:45.778Z>\nImplemented app/(dashboard)/shares/page.tsx as a \"use client\" page using useShares() with flat useInfiniteQuery pages rendered into a table, plus cursor pagination via a Load more button consistent with buckets/[bucket]. Added a permanent top-of-page bilingual warning banner: \"Deleting a record does NOT invalidate the URL. URL 实际仍可用直到过期时间\". Wired app/(dashboard)/layout.tsx header navigation to include a Shares link.\n\nDelete UX uses a simple confirm dialog per row plus sonner toast feedback, intentionally without typed confirmation or server-side delete token/HMAC because deleting a share record does not destroy data and the URL remains usable until expiry. Empty state directs users back to the buckets page to create links from the Share button rather than minting new links inside /shares.\n\nPer-row expiry countdown reuses components/features/share/format-remaining.ts and runs from a properly cleaned up useEffect interval; avoid the earlier useState(() => setInterval(...)) pattern because it leaks under Strict Mode remounts. Countdown styling thresholds are: expired = red, less than 1 hour remaining = yellow, otherwise muted.\n\nValidation/build status: pnpm typecheck && pnpm lint && pnpm test all pass (510 tests), and pnpm build succeeds with the new /shares route present in build output.\n</info added on 2026-05-22T03:43:45.778Z>",
+            "status": "pending",
+            "testStrategy": "Vitest component/page tests for list rendering from API data, empty-state display, warning visibility, delete interaction removing a row after mocked success, and pagination flow using nextCursor.",
+            "parentId": "undefined"
+          }
+        ],
+        "updatedAt": "2026-05-22T03:45:25.982Z"
       },
       {
-        "id": 22,
+        "id": "22",
         "title": "预览：图片 + 文本（前 1MB 流式）",
         "description": "对象行 Preview 按钮 -> Dialog；图片直接 <img src={presignedUrl}>；文本类对象 fetch presigned URL Range: bytes=0-1048575 取首 MB，UTF-8 decode 显示。",
         "status": "pending",
@@ -1724,7 +1787,7 @@
         "subtasks": []
       },
       {
-        "id": 23,
+        "id": "23",
         "title": "审计日志查看器",
         "description": "GET /api/audit ?cursor=&op=&bucket= 列表分页；UI /(dashboard)/audit 页表格展示。",
         "status": "pending",
@@ -1738,7 +1801,7 @@
         "subtasks": []
       },
       {
-        "id": 24,
+        "id": "24",
         "title": "Vitest 单元测试套件",
         "description": "覆盖 crypto/auth/r2/api/audit/rate-limit 核心模块，目标 80%+ 行覆盖；route handler 用 mock D1 + mock S3 测。",
         "status": "pending",
@@ -1761,7 +1824,7 @@
         "subtasks": []
       },
       {
-        "id": 25,
+        "id": "25",
         "title": "Playwright E2E 关键流 + 部署/CORS 文档",
         "description": "Playwright 覆盖：登录、添加 connection、浏览桶、上传（小/大）、下载、删除（typed 确认）、生成分享。CLAUDE.md 补 Security Invariant #3 豁免脚注；README 加 R2 CORS 配置示例 + multipart lifecycle 提示。",
         "status": "pending",
@@ -1781,14 +1844,12 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-22T01:50:25.213Z",
+      "lastModified": "2026-05-22T03:45:25.982Z",
       "taskCount": 25,
-      "completedCount": 20,
+      "completedCount": 21,
       "tags": [
         "master"
-      ],
-      "created": "2026-05-22T01:54:48.246Z",
-      "description": "Tasks for master context"
+      ]
     }
   }
 }

@@ -359,6 +359,62 @@ export const R2DeleteConfirmSchema = z
   .strict();
 export type R2DeleteConfirmInput = z.infer<typeof R2DeleteConfirmSchema>;
 
+/* ─── shares ─────────────────────────────────────────────────── */
+//
+// POST /api/share/create — mint a presigned GET against an R2 object and
+// persist a `shares` row so the user can review/revoke generated links.
+// TTL is a closed enum (1h / 1d / 7d) so a stray client cannot mint
+// arbitrarily-long bearer URLs (CLAUDE.md security invariant #3 still
+// applies — the URL is short-lived against the *object*; the row is a
+// bookkeeping record).
+//
+// GET /api/share — paginated listing of *active* (unexpired) shares for
+// the current user. Cursor is opaque; produced/consumed by the route.
+//
+// DELETE /api/share/:id — drop the bookkeeping row. Does NOT (and CAN
+// NOT) revoke the presigned URL at the protocol layer — once minted,
+// the URL stays usable until the upstream signature expiry. The UI
+// surfaces this warning explicitly.
+
+/** Closed set of allowed TTLs: 1 hour, 1 day, 7 days. Anything else
+ *  rejects at the Zod boundary with a clean 400 — keeps the dropdown UI
+ *  and the server in lockstep without a "custom value" loophole. */
+export const SHARE_TTL_SECONDS = [3600, 86400, 604800] as const;
+export type ShareTtlSeconds = (typeof SHARE_TTL_SECONDS)[number];
+
+export const ShareCreateSchema = z
+  .object({
+    cid: UlidSchema,
+    bucket: BucketNameSchema,
+    key: ObjectKeySchema,
+    // z.union<literal,literal,literal> — Zod 4 disallows narrow union of
+    // numeric literals here without a tuple cast on .literal args, so we
+    // express it as three z.literal()s. Matches the task brief verbatim.
+    ttlSeconds: z.union([
+      z.literal(3600),
+      z.literal(86400),
+      z.literal(604800),
+    ]),
+  })
+  .strict();
+export type ShareCreateInput = z.infer<typeof ShareCreateSchema>;
+
+/** Page size for GET /api/share. Server-side cap — the client cannot
+ *  override. Mirrors the same fixed-cap convention as R2_LIST_DEFAULT_MAX_KEYS. */
+export const SHARE_LIST_PAGE_SIZE = 50;
+
+export const ShareListQuerySchema = z.object({
+  // Opaque cursor — produced by the previous response's nextCursor.
+  // Length bounded so a malformed value can't blow past the URL parser
+  // before the route's own cursor decoder rejects it.
+  cursor: z.string().min(1).max(256).optional(),
+});
+export type ShareListQueryInput = z.infer<typeof ShareListQuerySchema>;
+
+/** Path param for DELETE /api/share/:id. */
+export const ShareIdParamSchema = z.object({ id: UlidSchema });
+export type ShareIdParam = z.infer<typeof ShareIdParamSchema>;
+
 /* ─── helper ─────────────────────────────────────────────────── */
 
 /**

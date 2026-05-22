@@ -26,6 +26,7 @@ import {
   type RowAction,
 } from "@/components/features/files/object-table";
 import { DeleteDialog } from "@/components/features/files/delete-dialog";
+import { ShareDialog } from "@/components/features/share/share-dialog";
 import { Dropzone } from "@/components/features/upload/dropzone";
 import { useObjects } from "@/hooks/use-objects";
 import { useDownloadObject } from "@/hooks/use-download";
@@ -106,6 +107,10 @@ export default function BucketBrowserPage() {
   // route this through the Zustand store because it's strictly per-page
   // ephemeral and doesn't survive a route change anyway.
   const [pendingDelete, setPendingDelete] = useState<string[] | null>(null);
+  // Pending share: the object key to mint a presigned URL for; null when
+  // the dialog is closed. Single-key state — the row Share button drives
+  // it (there's no bulk-share flow).
+  const [pendingShare, setPendingShare] = useState<string | null>(null);
 
   const {
     data,
@@ -172,9 +177,18 @@ export default function BucketBrowserPage() {
         setPendingDelete([row.key]);
         return;
       }
+      if (action === "share") {
+        // Open the Share dialog scoped to this object. Folder rows can't
+        // hit this branch (RowActions only renders for file rows) and the
+        // server's ObjectKey schema would reject a leading-slash anyway —
+        // the explicit guard keeps the defense in depth.
+        if (row.kind !== "file") return;
+        setPendingShare(row.key);
+        return;
+      }
       if (action !== "download") {
-        // Other actions (preview / share) wire up in tasks 17/18. Leave
-        // the no-op so the buttons stay keyboard-reachable rather than
+        // Other actions (preview) wire up in a future task. Leave the
+        // no-op so the buttons stay keyboard-reachable rather than
         // appearing disabled.
         return;
       }
@@ -279,6 +293,15 @@ export default function BucketBrowserPage() {
           // list back. Empty arrays are fine; it's equivalent to clear().
           useSelectedKeysStore.getState().setSelection(Array.from(remaining));
         }}
+      />
+      <ShareDialog
+        open={pendingShare !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingShare(null);
+        }}
+        cid={cid}
+        bucket={bucket}
+        objectKey={pendingShare ?? ""}
       />
     </div>
   );
