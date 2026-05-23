@@ -10,12 +10,10 @@
 // drizzle on the Cloudflare Pages runtime.
 
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
-import { BucketSwitcher } from "@/components/features/dashboard/bucket-switcher";
-import { Logo } from "@/components/features/dashboard/logo";
-import { SignOutButton } from "@/components/features/dashboard/sign-out-button";
+import { AppShell } from "@/components/layout/app-shell";
 
 export const runtime = "edge";
 
@@ -25,49 +23,8 @@ export default async function DashboardLayout({
   children: ReactNode;
 }) {
   const session = await auth();
-
-  return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <div className="h-[2px] w-full bg-primary" aria-hidden />
-      <header className="flex items-center justify-between border-b border-border bg-card px-6 py-3">
-        <div className="flex items-center gap-4">
-          <Logo />
-          {/* BucketSwitcher reads activeConnectionId from the Zustand store
-              and shows a disabled placeholder until the user picks one — so
-              it's safe to render on every dashboard page (settings included)
-              without coupling to a route-specific layout. */}
-          <BucketSwitcher />
-        </div>
-        <nav className="flex items-center gap-6">
-          <Link
-            href="/shares"
-            className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Shares
-          </Link>
-          <Link
-            href="/audit"
-            className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Audit
-          </Link>
-          <Link
-            href="/settings/connections"
-            className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Connections
-          </Link>
-          {session?.user?.email ? (
-            <div className="flex items-center gap-3">
-              <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                {session.user.email}
-              </span>
-              <SignOutButton />
-            </div>
-          ) : null}
-        </nav>
-      </header>
-      <main className="flex-1">{children}</main>
-    </div>
-  );
+  if (!session?.user?.email) {
+    redirect("/login");
+  }
+  return <AppShell user={{ email: session.user.email }}>{children}</AppShell>;
 }
