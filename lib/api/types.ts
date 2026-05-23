@@ -261,6 +261,24 @@ export interface ShareDeleteResponse {
 }
 
 /**
+ * Public projection of POST /api/share/:id/reveal.
+ *
+ * Re-mints a presigned GET against the share row's bucket/key for the row's
+ * REMAINING TTL — so the new URL stops working at the same wall-clock time
+ * as the original. The shape mirrors ShareCreateResponse so the UI can reuse
+ * the same "URL ready" view between create and reveal.
+ *
+ *   - `url` — fresh presigned URL (a different signature than the original;
+ *     the old URL keeps working until its own expiry, the new one matches).
+ *   - `expiresAt` — unchanged from the share row; epoch ms.
+ */
+export interface ShareRevealResponse {
+  id: string;
+  url: string;
+  expiresAt: number;
+}
+
+/**
  * Public projection of one row in GET /api/audit.
  *
  *   - `op` is the writer-side AuditOp string literal verbatim (e.g.

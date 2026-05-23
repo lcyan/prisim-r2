@@ -204,7 +204,12 @@ function ShareForm({
   );
 }
 
-function PostMintView({
+/**
+ * Renders the "URL ready, copy it now" payload. Extracted + exported so
+ * the /shares page can reuse it for the re-mint flow without duplicating
+ * the copy affordance, expiry countdown, and the "shown only here" warning.
+ */
+export function PostMintView({
   url,
   expiresAt,
   objectKey,

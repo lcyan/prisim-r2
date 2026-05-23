@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   Clock,
+  Eye,
   Loader2,
   ShieldAlert,
   Trash2,
@@ -32,11 +33,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useDeleteShare, useShares } from "@/hooks/use-shares";
+import { useDeleteShare, useRevealShare, useShares } from "@/hooks/use-shares";
 import { ApiClientError } from "@/lib/api/client";
 import { ApiErrorCode } from "@/lib/api/errors";
 import { formatRelative } from "@/lib/utils";
 import { formatRemaining } from "@/components/features/share/format-remaining";
+import { PostMintView } from "@/components/features/share/share-dialog";
 import type { ShareSummary } from "@/lib/api/types";
 
 export default function SharesPage() {
@@ -61,6 +63,39 @@ export default function SharesPage() {
   // so this is a string | null rather than a Set.
   const [pendingDelete, setPendingDelete] = useState<ShareSummary | null>(null);
 
+  // Re-mint flow state. `revealed` holds the URL + expiry returned by the
+  // server after a successful POST /api/share/:id/reveal; rendering it
+  // opens the URL-ready dialog. `revealing` is the row id currently
+  // in-flight so we can show a spinner on just one row instead of locking
+  // the whole table during the round-trip.
+  const revealMutation = useRevealShare();
+  const [revealed, setRevealed] = useState<
+    { url: string; expiresAt: number; objectKey: string } | null
+  >(null);
+  const [revealingId, setRevealingId] = useState<string | null>(null);
+
+  async function handleReveal(row: ShareSummary) {
+    if (revealingId) return;
+    setRevealingId(row.id);
+    try {
+      const res = await revealMutation.mutateAsync(row.id);
+      setRevealed({
+        url: res.url,
+        expiresAt: res.expiresAt,
+        objectKey: row.key,
+      });
+    } catch (err) {
+      toast.error("Couldn’t reveal link", { description: describeError(err) });
+      // If the row 404'd, the listing is stale (expired or deleted out of
+      // band) — refresh so the user can re-orient.
+      if (err instanceof ApiClientError && err.code === ApiErrorCode.NotFound) {
+        void refetch();
+      }
+    } finally {
+      setRevealingId(null);
+    }
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 p-6">
       <Header />
@@ -73,7 +108,7 @@ export default function SharesPage() {
               <Th className="pl-4">Object</Th>
               <Th className="w-32">Created</Th>
               <Th className="w-40">Expires in</Th>
-              <Th className="w-24 pr-4 text-right">Actions</Th>
+              <Th className="w-44 pr-4 text-right">Actions</Th>
             </tr>
           </thead>
           <tbody>
@@ -82,7 +117,9 @@ export default function SharesPage() {
               isError={isError}
               errorMessage={error?.message ?? null}
               rows={rows}
+              revealingId={revealingId}
               onRetry={() => void refetch()}
+              onReveal={(row) => void handleReveal(row)}
               onDelete={(row) => setPendingDelete(row)}
             />
           </tbody>
@@ -108,6 +145,13 @@ export default function SharesPage() {
           </div>
         ) : null}
       </div>
+
+      <RevealedShareDialog
+        revealed={revealed}
+        onOpenChange={(open) => {
+          if (!open) setRevealed(null);
+        }}
+      />
 
       <DeleteShareDialog
         share={pendingDelete}
@@ -163,14 +207,18 @@ function Body({
   isError,
   errorMessage,
   rows,
+  revealingId,
   onRetry,
+  onReveal,
   onDelete,
 }: {
   isPending: boolean;
   isError: boolean;
   errorMessage: string | null;
   rows: ShareSummary[];
+  revealingId: string | null;
   onRetry: () => void;
+  onReveal: (row: ShareSummary) => void;
   onDelete: (row: ShareSummary) => void;
 }) {
   if (isError) {
@@ -230,7 +278,13 @@ function Body({
   return (
     <>
       {rows.map((row) => (
-        <Row key={row.id} row={row} onDelete={onDelete} />
+        <Row
+          key={row.id}
+          row={row}
+          isRevealing={revealingId === row.id}
+          onReveal={onReveal}
+          onDelete={onDelete}
+        />
       ))}
     </>
   );
@@ -238,9 +292,13 @@ function Body({
 
 function Row({
   row,
+  isRevealing,
+  onReveal,
   onDelete,
 }: {
   row: ShareSummary;
+  isRevealing: boolean;
+  onReveal: (row: ShareSummary) => void;
   onDelete: (row: ShareSummary) => void;
 }) {
   return (
@@ -262,16 +320,33 @@ function Row({
         <ExpiryCell expiresAt={row.expiresAt} />
       </td>
       <td className="pr-4 text-right">
-        <button
-          type="button"
-          onClick={() => onDelete(row)}
-          aria-label="Delete share record"
-          title="Delete record (URL remains valid until expiry)"
-          className="inline-flex h-7 items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          Delete
-        </button>
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => onReveal(row)}
+            disabled={isRevealing}
+            aria-label="Show link"
+            title="Re-mint a presigned URL valid until this share's expiry"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isRevealing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Eye className="h-3.5 w-3.5" />
+            )}
+            Show link
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(row)}
+            aria-label="Delete share record"
+            title="Delete record (URL remains valid until expiry)"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -323,6 +398,39 @@ function Th({
     >
       {children}
     </th>
+  );
+}
+
+/**
+ * Dialog that surfaces the URL returned by POST /api/share/:id/reveal.
+ * Reuses PostMintView so the affordances (copy button, expiry countdown,
+ * "only shown here" warning) are identical to the create flow.
+ */
+function RevealedShareDialog({
+  revealed,
+  onOpenChange,
+}: {
+  revealed: { url: string; expiresAt: number; objectKey: string } | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Dialog
+      open={revealed !== null}
+      onOpenChange={(open) => {
+        if (!open) onOpenChange(false);
+      }}
+    >
+      <DialogContent className="sm:max-w-[520px]">
+        {revealed ? (
+          <PostMintView
+            url={revealed.url}
+            expiresAt={revealed.expiresAt}
+            objectKey={revealed.objectKey}
+            onClose={() => onOpenChange(false)}
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 }
 

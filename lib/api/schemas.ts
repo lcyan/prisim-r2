@@ -441,6 +441,7 @@ export const AUDIT_OP_VALUES = [
   "presign.get",
   "share.create",
   "share.delete",
+  "share.reveal",
   "security.decrypt_failed",
   "auth.login",
   "auth.logout",

@@ -3,6 +3,7 @@
 // TanStack Query hooks for the shares resource:
 //   - useShares()         → GET  /api/share         (infinite query)
 //   - useCreateShare()    → POST /api/share/create
+//   - useRevealShare()    → POST /api/share/:id/reveal
 //   - useDeleteShare()    → DELETE /api/share/:id
 //
 // Same conventions as use-connections.ts:
@@ -41,6 +42,7 @@ import type {
   ShareCreateResponse,
   ShareDeleteResponse,
   ShareListResponse,
+  ShareRevealResponse,
 } from "@/lib/api/types";
 
 /** Stable query key for the active-shares listing. */
@@ -74,6 +76,15 @@ export function createShare(
 export function deleteShare(id: string): Promise<ShareDeleteResponse> {
   return apiFetch<ShareDeleteResponse>(`/api/share/${id}`, {
     method: "DELETE",
+  });
+}
+
+/** POST /api/share/:id/reveal — re-mint a presigned URL for an existing
+ *  share row. Returns a NEW signature with the row's REMAINING TTL so the
+ *  new URL stops working at the same wall-clock time as the original. */
+export function revealShare(id: string): Promise<ShareRevealResponse> {
+  return apiFetch<ShareRevealResponse>(`/api/share/${id}/reveal`, {
+    method: "POST",
   });
 }
 
@@ -138,5 +149,31 @@ export function useDeleteShare(): UseMutationResult<
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: SHARES_QUERY_KEY });
     },
+  });
+}
+
+/**
+ * POST /api/share/:id/reveal — re-mint a presigned URL for a share row.
+ *
+ * The new URL has a different signature than the original but expires at
+ * the exact same wall-clock time (we pass remaining TTL). Caller renders
+ * the returned `url` in the reveal dialog; we do NOT cache it.
+ *
+ * Failure modes worth handling at the call site:
+ *   * `resource.not_found` — row doesn't belong to the user OR it's
+ *     already expired (intentionally indistinguishable for privacy).
+ *   * `auth.unauthorized` — R2 rejected the saved creds; user must re-add.
+ *   * `rate_limited`      — 60/min presign cap.
+ */
+export function useRevealShare(): UseMutationResult<
+  ShareRevealResponse,
+  ApiClientError | Error,
+  string
+> {
+  return useMutation({
+    mutationFn: revealShare,
+    // Intentionally no invalidation: the listing wire shape excludes the
+    // url field, so there's nothing to refresh after a reveal — the only
+    // surface that consumes the URL is the mutation result itself.
   });
 }
