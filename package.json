@@ -67,6 +67,7 @@
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "5.2.0",
     "@vitest/coverage-v8": "^4.1.7",
     "better-sqlite3": "^12.10.0",
     "drizzle-kit": "^0.31.10",
