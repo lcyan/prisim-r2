@@ -1,211 +1,149 @@
 @import "tailwindcss";
 
 /*
-  Prisim R2 — Design Tokens (Tailwind v4 + shadcn-compatible)
-  Aesthetic: "Quietly Technical" — bone-warm surfaces, graphite text, burnt-amber signal.
-  Fonts: Fraunces (display), Geist (UI), JetBrains Mono (data/ids).
-  Note: switch the @import below to `next/font/google` in app/layout.tsx for production.
+  Prisim R2 — 三套亮色主题
+  靠 <html data-theme="blue|orange|green"> 切换。next-themes 在 ThemeProvider 中
+  设置 attribute="data-theme"，attribute 写到 <html> 上。
 */
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 
-@custom-variant dark (&:where(.dark, .dark *));
+:root,
+:root[data-theme="blue"] {
+  --primary: #1677FF;
+  --primary-hover: #4391FF;
+  --primary-active: #0E5FD8;
+  --primary-soft: #F0F5FF;
+  --primary-soft-strong: #E6EFFF;
+  --primary-fg: #FFFFFF;
 
-:root {
-  /* ─── Surfaces ──────────────────────────────────────────── */
-  --background: oklch(0.97 0.008 80); /* warm bone */
-  --foreground: oklch(0.16 0.012 270); /* near-black graphite */
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.16 0.012 270);
-  --popover: oklch(0.98 0.006 80);
-  --popover-foreground: oklch(0.16 0.012 270);
+  --content-bg: #F5F7FA;
+  --row-hover: #F7F9FC;
+  --hover: rgba(22, 119, 255, 0.06);
+  --info: #1677FF;
+  --info-soft: #F0F5FF;
 
-  /* ─── Brand: signal amber ──────────────────────────────── */
-  --primary: oklch(0.62 0.16 45); /* burnt amber — used sparingly */
-  --primary-foreground: oklch(0.98 0.006 80);
+  /* 通用 token —— 在所有主题下相同 */
+  --fg: #1F2329;
+  --fg-2: #4E5969;
+  --muted: #86909C;
+  --muted-2: #C9CDD4;
+  --border: #E5E6EB;
+  --border-strong: #D1D5DB;
+  --surface: #FFFFFF;
+  --sidebar-bg: #FFFFFF;
+  --topbar-bg: #FFFFFF;
+  --code-bg: #F2F3F5;
 
-  /* ─── Neutrals ──────────────────────────────────────────── */
-  --secondary: oklch(0.93 0.008 80);
-  --secondary-foreground: oklch(0.2 0.012 270);
-  --muted: oklch(0.94 0.008 80);
-  --muted-foreground: oklch(0.45 0.008 270);
-  --accent: oklch(0.92 0.008 80);
-  --accent-foreground: oklch(0.2 0.012 270);
+  --success: #00B42A;
+  --success-soft: #E8FFEA;
+  --warning: #FF7D00;
+  --warning-soft: #FFF7E8;
+  --danger: #F53F3F;
+  --danger-soft: #FFECE8;
 
-  /* ─── States ────────────────────────────────────────────── */
-  --destructive: oklch(0.45 0.18 18); /* burgundy, not bright red */
-  --destructive-foreground: oklch(0.98 0.006 80);
-  --success: oklch(0.46 0.1 145); /* moss green */
-  --success-foreground: oklch(0.98 0.006 80);
-  --warning: oklch(0.72 0.14 75);
-  --warning-foreground: oklch(0.2 0.012 270);
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.03);
+  --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.18);
 
-  /* ─── Borders & focus rings ─────────────────────────────── */
-  --border: oklch(0.88 0.008 80);
-  --input: oklch(0.88 0.008 80);
-  --ring: oklch(0.62 0.16 45 / 0.5);
+  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", Monaco, Menlo, Consolas,
+    "Source Han Mono", monospace;
 
-  /* ─── Radius scale ──────────────────────────────────────── */
-  --radius: 0.5rem;
-  --radius-xs: 0.125rem; /* 2px — chips */
-  --radius-sm: 0.25rem; /* 4px — small inputs */
-  --radius-md: 0.375rem; /* 6px — buttons, inputs */
-  --radius-lg: 0.5rem; /* 8px — cards, drawers */
-  --radius-xl: 0.75rem; /* 12px — modals */
-  --radius-2xl: 1rem;
-
-  /* ─── Shadows (warm-tinted, restrained) ─────────────────── */
-  --shadow-xs: 0 1px 0 0 oklch(0.16 0.012 270 / 0.04);
-  --shadow-sm:
-    0 1px 2px 0 oklch(0.16 0.012 270 / 0.06),
-    0 1px 1px 0 oklch(0.16 0.012 270 / 0.04);
-  --shadow-md:
-    0 4px 8px -2px oklch(0.16 0.012 270 / 0.08),
-    0 2px 4px -2px oklch(0.16 0.012 270 / 0.04);
-  --shadow-lg:
-    0 12px 24px -6px oklch(0.16 0.012 270 / 0.12),
-    0 4px 8px -2px oklch(0.16 0.012 270 / 0.06);
-  --shadow-xl:
-    0 24px 48px -12px oklch(0.16 0.012 270 / 0.18),
-    0 8px 16px -4px oklch(0.16 0.012 270 / 0.08);
-
-  /* ─── Layout primitives ─────────────────────────────────── */
-  --topbar-h: 3rem; /* 48px */
-  --sidebar-w: 13.75rem; /* 220px */
-  --row-h-tight: 2.25rem; /* 36px — sidebar nav */
-  --row-h: 2.5rem; /* 40px — file table */
+  /* 布局原语 */
+  --topbar-h: 3.5rem;        /* 56px */
+  --sidebar-w: 14.5rem;       /* 232px */
+  --row-h-tight: 2.25rem;     /* 36px */
+  --row-h: 2.5rem;            /* 40px */
 }
 
-.dark {
-  --background: oklch(0.15 0.012 270);
-  --foreground: oklch(0.95 0.008 80);
-  --card: oklch(0.18 0.012 270);
-  --card-foreground: oklch(0.95 0.008 80);
-  --popover: oklch(0.18 0.012 270);
-  --popover-foreground: oklch(0.95 0.008 80);
-  --primary: oklch(0.72 0.16 50);
-  --primary-foreground: oklch(0.15 0.012 270);
-  --secondary: oklch(0.22 0.012 270);
-  --secondary-foreground: oklch(0.95 0.008 80);
-  --muted: oklch(0.22 0.012 270);
-  --muted-foreground: oklch(0.65 0.008 80);
-  --accent: oklch(0.25 0.012 270);
-  --accent-foreground: oklch(0.95 0.008 80);
-  --destructive: oklch(0.55 0.18 18);
-  --destructive-foreground: oklch(0.98 0.006 80);
-  --success: oklch(0.58 0.1 145);
-  --success-foreground: oklch(0.98 0.006 80);
-  --warning: oklch(0.75 0.14 75);
-  --warning-foreground: oklch(0.15 0.012 270);
-  --border: oklch(0.28 0.012 270);
-  --input: oklch(0.28 0.012 270);
-  --ring: oklch(0.72 0.16 50 / 0.5);
+:root[data-theme="orange"] {
+  --primary: #FF6A00;
+  --primary-hover: #FF8A33;
+  --primary-active: #DB5A00;
+  --primary-soft: #FFF7ED;
+  --primary-soft-strong: #FFEAD1;
+  --content-bg: #FFFBF5;
+  --row-hover: #FFF7ED;
+  --hover: rgba(255, 106, 0, 0.06);
+  --info: #FF6A00;
+  --info-soft: #FFF7ED;
 }
 
+:root[data-theme="green"] {
+  --primary: #00B96B;
+  --primary-hover: #2FCD8A;
+  --primary-active: #009957;
+  --primary-soft: #ECFDF5;
+  --primary-soft-strong: #D2F7E5;
+  --content-bg: #F6FEFA;
+  --row-hover: #ECFDF5;
+  --hover: rgba(0, 185, 107, 0.06);
+  --info: #00B96B;
+  --info-soft: #ECFDF5;
+}
+
+/* shadcn ↔ 设计稿 token 桥接（Tailwind v4） */
 @theme inline {
-  /* Map CSS variables → Tailwind utility classes */
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
+  --color-background: var(--content-bg);
+  --color-foreground: var(--fg);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--fg);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--fg);
   --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
+  --color-primary-foreground: var(--primary-fg);
+  --color-secondary: var(--primary-soft);
+  --color-secondary-foreground: var(--primary);
+  --color-muted: var(--row-hover);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--primary-soft);
+  --color-accent-foreground: var(--primary);
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: var(--primary-fg);
   --color-success: var(--success);
-  --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
-  --color-warning-foreground: var(--warning-foreground);
   --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+  --color-input: var(--border);
+  --color-ring: var(--primary);
 
-  --radius-xs: 0.125rem;
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
-  --radius-2xl: 1rem;
+  --radius: var(--radius);
 
-  --shadow-xs: var(--shadow-xs);
-  --shadow-sm: var(--shadow-sm);
-  --shadow-md: var(--shadow-md);
-  --shadow-lg: var(--shadow-lg);
-  --shadow-xl: var(--shadow-xl);
-
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
-  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-display: var(--font-sans);
 }
 
-@layer base {
-  * {
-    border-color: var(--border);
-  }
-  html,
-  body {
-    height: 100%;
-  }
-  body {
-    background-color: var(--background);
-    color: var(--foreground);
-    font-family: var(--font-sans);
-    font-feature-settings: "cv11", "ss01", "ss03";
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-  }
-
-  h1,
-  h2,
-  h3,
-  .display {
-    font-family: var(--font-display);
-    font-feature-settings: "ss01", "ss02";
-    letter-spacing: -0.02em;
-    font-variation-settings: "opsz" 80;
-  }
-
-  code,
-  kbd,
-  .mono {
-    font-family: var(--font-mono);
-    font-feature-settings: "ss02", "ss03";
-  }
-
-  /* Thin, warm-toned scrollbars */
-  *::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  *::-webkit-scrollbar-thumb {
-    background: color-mix(in oklch, var(--muted-foreground) 35%, transparent);
-    border-radius: 4px;
-  }
-  *::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in oklch, var(--muted-foreground) 65%, transparent);
-  }
-  *::-webkit-scrollbar-corner {
-    background: transparent;
-  }
-
-  /* Selection echoes the signal amber */
-  ::selection {
-    background: color-mix(in oklch, var(--primary) 25%, transparent);
-    color: var(--foreground);
-  }
+* {
+  box-sizing: border-box;
 }
 
-/* ─── Signature: 2px amber accent bar for active/selected states ─── */
-/* Implemented as an inset box-shadow so it works on <tr> (where a ::before
- * pseudo gets coerced into an anonymous table-cell by browsers and shifts
- * every real <td> one column to the right). */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--fg);
+  background: var(--content-bg);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code, .mono {
+  font-family: var(--font-mono);
+}
+
+/* 侧栏活跃指示条（2px primary 色） */
 .signal-bar {
   box-shadow: inset 2px 0 0 0 var(--primary);
 }
