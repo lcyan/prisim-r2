@@ -23,6 +23,11 @@ import { ChevronRight } from "lucide-react";
 import { prefixToSegments } from "@/lib/r2/prefix";
 import { cn } from "@/lib/utils";
 
+const T = {
+  breadcrumbLabel: "面包屑导航",
+  noBucket: "（未选择 bucket）",
+} as const;
+
 export interface FileBreadcrumbProps {
   /** R2 bucket name — shown as the leftmost (root) crumb. */
   bucket: string;
@@ -53,7 +58,7 @@ export function FileBreadcrumb({
 
   return (
     <nav
-      aria-label="Breadcrumb"
+      aria-label={T.breadcrumbLabel}
       className={cn(
         "flex min-w-0 items-baseline gap-1 overflow-hidden",
         className,
@@ -72,7 +77,7 @@ export function FileBreadcrumb({
             : "text-foreground hover:text-primary",
         )}
       >
-        {bucket || "(no bucket)"}
+        {bucket || T.noBucket}
       </button>
 
       {segments.map((seg, i) => {

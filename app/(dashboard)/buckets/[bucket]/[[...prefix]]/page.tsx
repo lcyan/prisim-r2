@@ -44,6 +44,16 @@ import {
   segmentsToPrefix,
 } from "@/lib/r2/prefix";
 
+const T = {
+  pickConnection: "在顶部选择一个连接后即可浏览此 bucket。",
+  downloadFailed: "无法开始下载",
+  noFilesSelected: "未选择文件",
+  bulkSkipsFolders: "批量删除会跳过文件夹。请进入文件夹后再选择其中的文件。",
+  tooManyDownloads: "下载请求过多。请稍候再试。",
+  connectionMissing: "找不到连接。请到「设置 → 连接」重新添加。",
+  errUnknown: "未知错误",
+} as const;
+
 /**
  * Build the path-only URL for `/buckets/<bucket>/<segments...>`. Used by every
  * navigation entry point on this page so the encoding rule (each segment
@@ -214,7 +224,7 @@ export default function BucketBrowserPage() {
         { cid, bucket, key: row.key },
         {
           onError: (err) => {
-            toast.error("Couldn’t start download", {
+            toast.error(T.downloadFailed, {
               description: describeDownloadError(err),
             });
           },
@@ -234,9 +244,8 @@ export default function BucketBrowserPage() {
       (k) => !k.endsWith("/"),
     );
     if (fileKeys.length === 0) {
-      toast.info("No files selected", {
-        description:
-          "Bulk delete skips folders. Open a folder and select files inside it.",
+      toast.info(T.noFilesSelected, {
+        description: T.bulkSkipsFolders,
       });
       return;
     }
@@ -255,7 +264,7 @@ export default function BucketBrowserPage() {
           onNavigate={onBreadcrumbClick}
         />
         <div className="rounded-md border border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
-          Pick a connection in the header to browse this bucket.
+          {T.pickConnection}
         </div>
       </div>
     );
@@ -344,13 +353,13 @@ function describeDownloadError(err: unknown): string {
         // credentials rejected") disambiguates — include it verbatim.
         return `${err.message} (request ${err.requestId})`;
       case ApiErrorCode.RateLimited:
-        return "Too many downloads. Wait a moment and try again.";
+        return T.tooManyDownloads;
       case ApiErrorCode.NotFound:
-        return "Connection not found. Re-add it from Settings → Connections.";
+        return T.connectionMissing;
       default:
         return `${err.code} — ${err.message} (request ${err.requestId})`;
     }
   }
   if (err instanceof Error) return err.message;
-  return "Unknown error";
+  return T.errUnknown;
 }

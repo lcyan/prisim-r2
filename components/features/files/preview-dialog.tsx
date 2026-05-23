@@ -56,6 +56,22 @@ import { ApiClientError } from "@/lib/api/client";
 import { ApiErrorCode } from "@/lib/api/errors";
 import { cn, formatBytes } from "@/lib/utils";
 
+const T = {
+  loadFailedTitle: "无法加载预览",
+  unavailableTitle: "暂不支持的预览",
+  unavailableHint: "此文件类型无法在浏览器中预览。请使用「下载」按钮保存到本地。",
+  imageLoadFailed: "无法加载图片。请检查 bucket 的 CORS 设置。",
+  loadTextFailedTitle: "无法加载文本",
+  truncatedShowing: (cap: string) => `仅显示前 ${cap}`,
+  truncatedOf: (total: string) => `，共 ${total}`,
+  truncatedDownloadHint: "。请下载查看完整文件。",
+  download: "下载",
+  close: "关闭",
+  errTooMany: "预览请求过多。请稍候再试。",
+  errNotFound: "对象未找到。",
+  errUnknown: "未知错误",
+} as const;
+
 export interface PreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -177,10 +193,10 @@ function PreviewBody({
           ) : (
             <Download className="h-3.5 w-3.5" />
           )}
-          Download
+          {T.download}
         </Button>
         <Button type="button" size="sm" onClick={onClose}>
-          Close
+          {T.close}
         </Button>
       </DialogFooter>
     </>
@@ -192,7 +208,7 @@ function PresignLoadingView({ error }: { error: Error | null }) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
         <AlertTriangle className="h-6 w-6 text-destructive" />
-        <p className="text-sm text-foreground">Couldn’t load preview</p>
+        <p className="text-sm text-foreground">{T.loadFailedTitle}</p>
         <p className="max-w-md text-xs text-muted-foreground">
           {describePresignError(error)}
         </p>
@@ -210,10 +226,9 @@ function UnavailableView() {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
       <FileQuestion className="h-7 w-7 text-muted-foreground" />
-      <p className="text-sm text-foreground">Preview not available</p>
+      <p className="text-sm text-foreground">{T.unavailableTitle}</p>
       <p className="max-w-md text-xs text-muted-foreground">
-        This file type can’t be previewed in the browser. Use the
-        Download button to fetch it locally.
+        {T.unavailableHint}
       </p>
     </div>
   );
@@ -247,7 +262,7 @@ function ImageView({
         <div className="flex flex-col items-center gap-2 py-12 text-center">
           <AlertTriangle className="h-5 w-5 text-destructive" />
           <p className="text-xs text-muted-foreground">
-            Couldn’t load the image. Check the bucket’s CORS configuration.
+            {T.imageLoadFailed}
           </p>
         </div>
       ) : (
@@ -305,7 +320,7 @@ function TextView({
         if (cancelled) return;
         setState({
           phase: "error",
-          message: err instanceof Error ? err.message : "Unknown error",
+          message: err instanceof Error ? err.message : T.errUnknown,
         });
       });
     return () => {
@@ -325,7 +340,7 @@ function TextView({
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
         <AlertTriangle className="h-5 w-5 text-destructive" />
-        <p className="text-sm text-foreground">Couldn’t load text</p>
+        <p className="text-sm text-foreground">{T.loadTextFailedTitle}</p>
         <p className="max-w-md text-xs text-muted-foreground">
           {state.message}
         </p>
@@ -340,9 +355,9 @@ function TextView({
           role="status"
           className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300"
         >
-          Showing first {formatBytes(PREVIEW_TEXT_BYTE_CAP)}
-          {state.total !== null ? <> of {formatBytes(state.total)}</> : null}
-          . Download for the full file.
+          {T.truncatedShowing(formatBytes(PREVIEW_TEXT_BYTE_CAP))}
+          {state.total !== null ? T.truncatedOf(formatBytes(state.total)) : null}
+          {T.truncatedDownloadHint}
         </div>
       ) : null}
       <pre className="max-h-[60vh] overflow-auto rounded-md border border-border bg-muted/30 p-3 font-mono text-[11px] leading-relaxed text-foreground whitespace-pre-wrap break-all">
@@ -362,9 +377,9 @@ function describePresignError(err: Error): string {
       case ApiErrorCode.AuthUnauthorized:
         return `${err.message} (request ${err.requestId})`;
       case ApiErrorCode.RateLimited:
-        return "Too many preview requests. Wait a moment and try again.";
+        return T.errTooMany;
       case ApiErrorCode.NotFound:
-        return "Object not found.";
+        return T.errNotFound;
       default:
         return `${err.code} — ${err.message} (request ${err.requestId})`;
     }

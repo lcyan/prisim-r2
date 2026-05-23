@@ -53,6 +53,21 @@ import {
 } from "@/lib/uploads/dropzone-utils";
 import { useUploadQueueStore } from "@/stores/upload-queue";
 
+const T = {
+  noConnection: "未选择连接",
+  noConnectionHint: "请先在顶部选择一个连接和 bucket。",
+  skippedToast: (n: number) => `已跳过 ${n} 个文件`,
+  noFilesQueued: "未加入上传队列",
+  hintLine1: "将文件拖到本页任意位置，或",
+  hintBrowse: "浏览",
+  hintLine3: "选择文件。",
+  maxFileSize: "每个文件最大 5 GB",
+  enqueueInto: (bucket: string, prefix: string) =>
+    prefix.length > 0 ? `上传到 ${bucket}/${prefix}` : `上传到 ${bucket}/（根目录）`,
+  dropTitle: "释放鼠标即可上传到",
+  noBucket: "（未选择 bucket）",
+} as const;
+
 export interface DropzoneProps {
   /** Active connection ULID. When null the dropzone renders but refuses
    *  to enqueue — the user gets a toast pointing them at the bucket
@@ -93,8 +108,8 @@ export function Dropzone({
     (files: File[]) => {
       if (files.length === 0) return;
       if (!ready || !cid) {
-        toast.error("No active connection", {
-          description: "Pick a connection and bucket in the header first.",
+        toast.error(T.noConnection, {
+          description: T.noConnectionHint,
         });
         return;
       }
@@ -104,8 +119,8 @@ export function Dropzone({
         const desc = describeSkipped(skipped);
         toast.error(
           accepted.length > 0
-            ? `Skipped ${skipped.length} file${skipped.length === 1 ? "" : "s"}`
-            : "No files queued",
+            ? T.skippedToast(skipped.length)
+            : T.noFilesQueued,
           desc ? { description: desc } : undefined,
         );
       }
@@ -116,10 +131,7 @@ export function Dropzone({
       const title = describeQueued(accepted);
       if (title) {
         toast.success(title, {
-          description:
-            prefix.length > 0
-              ? `into ${bucket}/${prefix}`
-              : `into ${bucket}/ (root)`,
+          description: T.enqueueInto(bucket, prefix),
         });
       }
     },
@@ -202,7 +214,7 @@ export function Dropzone({
         <span className="flex items-center gap-2 text-muted-foreground">
           <UploadCloud className="h-4 w-4" aria-hidden />
           <span>
-            Drop files anywhere on this page, or{" "}
+            {T.hintLine1}{" "}
             <button
               type="button"
               onClick={handleBrowseClick}
@@ -210,13 +222,13 @@ export function Dropzone({
               className="font-medium text-foreground underline-offset-2 transition-colors hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
               aria-controls={inputId}
             >
-              browse
+              {T.hintBrowse}
             </button>
-            .
+            {T.hintLine3}
           </span>
         </span>
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Max 5 GB · per file
+          {T.maxFileSize}
         </span>
 
         {/* Hidden multi-file input drives the Browse button. `multiple`
@@ -247,9 +259,9 @@ export function Dropzone({
           aria-hidden
         >
           <div className="rounded-md bg-card px-4 py-3 text-sm font-medium text-foreground shadow-md">
-            Drop to upload to{" "}
+            {T.dropTitle}{" "}
             <span className="font-mono">
-              {bucket || "(no bucket)"}/{prefix}
+              {bucket || T.noBucket}/{prefix}
             </span>
           </div>
         </div>
