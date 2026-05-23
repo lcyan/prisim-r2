@@ -10,11 +10,22 @@
 // instance, avoiding the "leaked query results across users" hazard the
 // TanStack docs warn about.
 //
-// next-themes is mounted with attribute="class" + suppressHydrationWarning
-// so the shadcn `dark:` variants light up correctly. We pin defaultTheme
-// to "light" until a theme toggle exists in the UI, but the provider is
-// here so the sonner Toaster (which reads useTheme()) doesn't fall back
-// to undefined and crash in production builds.
+// next-themes is mounted with attribute="data-theme" so we can drive three
+// independent brand themes (blue / orange / green) defined as token sets in
+// app/globals.css under `[data-theme="..."]` blocks — none of which is a
+// dark variant, so the shadcn `dark:` variant pathway is intentionally
+// unused here. defaultTheme="blue" matches the seeded brand; users opt
+// into orange/green via the future theme switcher, and their choice is
+// persisted under storageKey="prisim-r2-theme" so reloads and cross-tab
+// reads stay in sync. enableSystem={false} keeps next-themes from probing
+// `prefers-color-scheme` (we're not light/dark gated), and
+// enableColorScheme={false} stops next-themes from writing the `color-scheme`
+// CSS property on <html> — our themes manage that themselves via tokens, and
+// letting next-themes force `color-scheme: light` here would break browser
+// form-control rendering when a token set wants a different scheme.
+// suppressHydrationWarning lives on <html> (in app/layout.tsx) so the
+// data-theme attribute next-themes injects before React hydrates doesn't
+// trigger a hydration mismatch warning.
 
 import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -51,9 +62,12 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <ThemeProvider
-      attribute="class"
-      defaultTheme="light"
+      attribute="data-theme"
+      defaultTheme="blue"
+      themes={["blue", "orange", "green"]}
+      storageKey="prisim-r2-theme"
       enableSystem={false}
+      enableColorScheme={false}
       disableTransitionOnChange
     >
       <QueryClientProvider client={queryClient}>
