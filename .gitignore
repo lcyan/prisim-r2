@@ -49,3 +49,6 @@ pnpm-debug.log*
 
 # taskmaster local
 .taskmaster/reports/
+
+# design assets (local reference only — see docs/superpowers/specs for source-of-truth)
+/doc/

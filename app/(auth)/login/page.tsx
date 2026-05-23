@@ -27,7 +27,12 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/settings/connections";
+  // Default to "/" so the post-login bounce runs through HomeRedirector,
+  // which respects the persisted activeBucket and routes the user back
+  // to the bucket they were last browsing. An explicit callbackUrl from
+  // an interrupted navigation (Auth.js sets one when middleware blocks a
+  // gated path) still wins so deep links keep working.
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
