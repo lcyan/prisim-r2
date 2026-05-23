@@ -31,6 +31,22 @@ import { ApiClientError } from "@/lib/api/client";
 import { ApiErrorCode } from "@/lib/api/errors";
 import type { ConnectionSummary } from "@/lib/api/types";
 
+const T = {
+  title: "重命名连接",
+  desc: "仅修改显示名，不会重新校验凭据。",
+  nameLabel: "名称",
+  namePlaceholder: "给这个连接起个名字",
+  cancel: "取消",
+  save: "保存",
+  saving: "正在保存…",
+  successToast: "已重命名",
+  successDesc: (oldName: string, newName: string) =>
+    `「${oldName}」→「${newName}」`,
+  failureToast: "重命名失败",
+  errNotFound: "该连接已不存在，请刷新页面。",
+  errUnknown: "未知错误",
+} as const;
+
 interface RenameConnectionDialogProps {
   /** The connection being renamed. `null` collapses the dialog (this is
    *  how the parent page closes it without keeping a separate boolean —
@@ -77,12 +93,12 @@ function RenameConnectionForm({
     if (!valid || mutation.isPending) return;
     try {
       await mutation.mutateAsync({ id: connection.id, name: trimmed });
-      toast.success("Connection renamed", {
-        description: `"${connection.name}" → "${trimmed}"`,
+      toast.success(T.successToast, {
+        description: T.successDesc(connection.name, trimmed),
       });
       onClose();
     } catch (err) {
-      toast.error("Couldn’t rename connection", {
+      toast.error(T.failureToast, {
         description: describeError(err),
       });
     }
@@ -91,17 +107,15 @@ function RenameConnectionForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Rename connection</DialogTitle>
+        <DialogTitle>{T.title}</DialogTitle>
         <DialogDescription>
-          Renaming only changes the display name. To rotate the access key,
-          add a new connection instead — that way Cloudflare re-verifies the
-          credentials.
+          {T.desc}
         </DialogDescription>
       </DialogHeader>
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <div className="space-y-1.5">
-          <Label htmlFor={nameId}>Name</Label>
+          <Label htmlFor={nameId}>{T.nameLabel}</Label>
           <Input
             id={nameId}
             value={name}
@@ -110,6 +124,7 @@ function RenameConnectionForm({
             autoFocus
             disabled={mutation.isPending}
             maxLength={64}
+            placeholder={T.namePlaceholder}
           />
         </div>
 
@@ -120,16 +135,16 @@ function RenameConnectionForm({
             onClick={onClose}
             disabled={mutation.isPending}
           >
-            Cancel
+            {T.cancel}
           </Button>
           <Button type="submit" disabled={!valid || mutation.isPending}>
             {mutation.isPending ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Saving…
+                {T.saving}
               </>
             ) : (
-              "Save"
+              T.save
             )}
           </Button>
         </DialogFooter>
@@ -141,10 +156,10 @@ function RenameConnectionForm({
 function describeError(err: unknown): string {
   if (err instanceof ApiClientError) {
     if (err.code === ApiErrorCode.NotFound) {
-      return "This connection no longer exists. Reload the page to refresh.";
+      return T.errNotFound;
     }
     return `${err.code} — ${err.message} (request ${err.requestId})`;
   }
   if (err instanceof Error) return err.message;
-  return "Unknown error";
+  return T.errUnknown;
 }

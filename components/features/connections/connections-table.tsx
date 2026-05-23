@@ -30,6 +30,29 @@ import { cn, formatRelative } from "@/lib/utils";
 import { maskAccountId } from "@/lib/format/connections";
 import type { ConnectionSummary } from "@/lib/api/types";
 
+const T = {
+  thName: "名称",
+  thAccountId: "Account ID",
+  thAccessKey: "Access Key",
+  thLastUsed: "最近使用",
+  thActions: "操作",
+  refresh: "刷新",
+  add: "新建连接",
+  empty: "暂无连接",
+  emptyHint: "点击右上「新建连接」添加第一个 R2 连接。",
+  rename: "重命名",
+  delete: "删除",
+  copyKeyId: "复制 Key ID",
+  testConnection: "测试连接",
+  testing: "测试中…",
+  status: { ok: "正常", warn: "未使用", error: "异常" },
+  loading: "加载中…",
+  loadError: "无法加载连接列表",
+  retry: "重试",
+  copied: "已复制",
+  never: "从未使用",
+} as const;
+
 interface ConnectionsTableProps {
   connections: ConnectionSummary[];
   /** Currently-selected connection ID; the matching row gets the amber
@@ -60,12 +83,12 @@ export function ConnectionsTable({
       <Table>
         <TableHeader>
           <TableRow className="bg-secondary/30 hover:bg-secondary/30">
-            <ConnectionsTableHead>Name</ConnectionsTableHead>
-            <ConnectionsTableHead>Account ID</ConnectionsTableHead>
-            <ConnectionsTableHead>Access Key</ConnectionsTableHead>
-            <ConnectionsTableHead>Last Used</ConnectionsTableHead>
+            <ConnectionsTableHead>{T.thName}</ConnectionsTableHead>
+            <ConnectionsTableHead>{T.thAccountId}</ConnectionsTableHead>
+            <ConnectionsTableHead>{T.thAccessKey}</ConnectionsTableHead>
+            <ConnectionsTableHead>{T.thLastUsed}</ConnectionsTableHead>
             <ConnectionsTableHead className="w-[1%] text-right">
-              <span className="sr-only">Actions</span>
+              <span className="sr-only">{T.thActions}</span>
             </ConnectionsTableHead>
           </TableRow>
         </TableHeader>
@@ -105,7 +128,7 @@ export function ConnectionsTable({
                 <TableCell className="font-mono text-xs text-muted-foreground">
                   {connection.lastUsedAt
                     ? formatRelative(new Date(connection.lastUsedAt))
-                    : "never"}
+                    : T.never}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
@@ -113,7 +136,7 @@ export function ConnectionsTable({
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      aria-label={`Rename ${connection.name}`}
+                      aria-label={`${T.rename} ${connection.name}`}
                       onClick={() => onRename(connection)}
                     >
                       <Pencil className="h-3.5 w-3.5" />
@@ -122,7 +145,7 @@ export function ConnectionsTable({
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      aria-label={`Delete ${connection.name}`}
+                      aria-label={`${T.delete} ${connection.name}`}
                       onClick={() => onDelete(connection)}
                       className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                     >
@@ -162,11 +185,10 @@ function ConnectionsEmpty() {
   return (
     <div className="rounded-lg border border-dashed border-border bg-card/40 px-6 py-12 text-center">
       <p className="font-display text-base font-medium text-foreground">
-        No connections yet
+        {T.empty}
       </p>
       <p className="mt-1 max-w-md text-balance text-sm text-muted-foreground">
-        Add a Cloudflare R2 access token to start browsing buckets. Keys are
-        encrypted at rest with AES-GCM and never leave the server in plaintext.
+        {T.emptyHint}
       </p>
     </div>
   );

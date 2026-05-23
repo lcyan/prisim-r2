@@ -44,6 +44,29 @@ import { ApiClientError } from "@/lib/api/client";
 import { ApiErrorCode } from "@/lib/api/errors";
 import type { ConnectionsCreateInput } from "@/lib/api/schemas";
 
+const T = {
+  title: "新建连接",
+  desc: "添加一个 Cloudflare R2 账号到本系统。Secret 提交后即 AES-GCM 加密，不再明文显示。",
+  nameLabel: "名称",
+  namePlaceholder: "给这个连接起个名字",
+  accountIdLabel: "Account ID",
+  accountIdPlaceholder: "从 Cloudflare URL 复制 32 位 hex",
+  accessKeyIdLabel: "Access Key ID",
+  accessKeyIdPlaceholder: "Cloudflare → R2 → 管理 API 令牌",
+  secretLabel: "Secret Access Key",
+  secretPlaceholder: "加密保存，提交后不再可见",
+  cancel: "取消",
+  submit: "添加",
+  submitting: "正在添加…",
+  successToast: "连接已添加",
+  successDesc: (name: string) => `R2 连通性校验成功：「${name}」`,
+  failureToast: "添加失败",
+  errInvalidCreds: "Cloudflare 拒绝了该 Access Key，请检查 Token 是否具备 R2 读取权限，以及 Account ID 是否匹配。",
+  errValidation: "有字段不符合预期格式。",
+  errRateLimited: "尝试过于频繁，请稍后再试。",
+  errUnknown: "未知错误",
+} as const;
+
 interface AddConnectionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -118,13 +141,13 @@ function AddConnectionForm({
         accessKeyId: form.accessKeyId.trim(),
         secretAccessKey: form.secretAccessKey.trim(),
       });
-      toast.success("Connection added", {
-        description: `R2 probe succeeded for "${created.name}"`,
+      toast.success(T.successToast, {
+        description: T.successDesc(created.name),
       });
       onCreated?.(created.id);
       onClose();
     } catch (err) {
-      toast.error("Couldn’t add connection", {
+      toast.error(T.failureToast, {
         description: describeError(err),
       });
     }
@@ -133,22 +156,20 @@ function AddConnectionForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Add R2 connection</DialogTitle>
+        <DialogTitle>{T.title}</DialogTitle>
         <DialogDescription>
-          Credentials are encrypted with AES-GCM before storage. We probe
-          Cloudflare once to verify them — invalid keys are rejected before
-          anything is saved.
+          {T.desc}
         </DialogDescription>
       </DialogHeader>
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <div className="space-y-1.5">
-          <Label htmlFor={nameId}>Name</Label>
+          <Label htmlFor={nameId}>{T.nameLabel}</Label>
           <Input
             id={nameId}
             value={form.name}
             onChange={(e) => update("name", e.target.value)}
-            placeholder="personal"
+            placeholder={T.namePlaceholder}
             required
             autoFocus
             disabled={mutation.isPending}
@@ -157,12 +178,12 @@ function AddConnectionForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor={accountId}>Account ID</Label>
+          <Label htmlFor={accountId}>{T.accountIdLabel}</Label>
           <Input
             id={accountId}
             value={form.accountId}
             onChange={(e) => update("accountId", e.target.value.toLowerCase())}
-            placeholder="32-char hex from the Cloudflare dashboard URL"
+            placeholder={T.accountIdPlaceholder}
             required
             disabled={mutation.isPending}
             maxLength={32}
@@ -173,12 +194,12 @@ function AddConnectionForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor={accessKeyIdId}>Access Key ID</Label>
+          <Label htmlFor={accessKeyIdId}>{T.accessKeyIdLabel}</Label>
           <Input
             id={accessKeyIdId}
             value={form.accessKeyId}
             onChange={(e) => update("accessKeyId", e.target.value)}
-            placeholder="from Cloudflare → R2 → Manage API tokens"
+            placeholder={T.accessKeyIdPlaceholder}
             required
             disabled={mutation.isPending}
             maxLength={128}
@@ -189,13 +210,13 @@ function AddConnectionForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor={secretId}>Secret Access Key</Label>
+          <Label htmlFor={secretId}>{T.secretLabel}</Label>
           <Input
             id={secretId}
             type="password"
             value={form.secretAccessKey}
             onChange={(e) => update("secretAccessKey", e.target.value)}
-            placeholder="stored encrypted; never shown after save"
+            placeholder={T.secretPlaceholder}
             required
             disabled={mutation.isPending}
             maxLength={256}
@@ -212,16 +233,16 @@ function AddConnectionForm({
             onClick={onClose}
             disabled={mutation.isPending}
           >
-            Cancel
+            {T.cancel}
           </Button>
           <Button type="submit" disabled={!valid || mutation.isPending}>
             {mutation.isPending ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Testing…
+                {T.submitting}
               </>
             ) : (
-              "Test & save"
+              T.submit
             )}
           </Button>
         </DialogFooter>
@@ -233,16 +254,16 @@ function AddConnectionForm({
 function describeError(err: unknown): string {
   if (err instanceof ApiClientError) {
     if (err.code === ApiErrorCode.ConnectionInvalidCredentials) {
-      return "Cloudflare rejected this access key. Double-check the token has R2 read access and the account ID matches.";
+      return T.errInvalidCreds;
     }
     if (err.code === ApiErrorCode.ValidationInvalid) {
-      return "One of the fields didn’t match the expected format.";
+      return T.errValidation;
     }
     if (err.code === ApiErrorCode.RateLimited) {
-      return "Too many attempts. Wait a moment before retrying.";
+      return T.errRateLimited;
     }
     return `${err.code} — ${err.message} (request ${err.requestId})`;
   }
   if (err instanceof Error) return err.message;
-  return "Unknown error";
+  return T.errUnknown;
 }

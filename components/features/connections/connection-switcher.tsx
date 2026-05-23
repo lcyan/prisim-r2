@@ -19,6 +19,44 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const T = {
+  title: "选择连接",
+  manage: "管理连接",
+  add: "新建连接",
+  empty: "暂无连接",
+  emptyHint: "添加一个 R2 连接以开始",
+  refresh: "刷新",
+  nameLabel: "名称",
+  namePlaceholder: "给这个连接起个名字",
+  accountIdLabel: "Account ID",
+  accountIdPlaceholder: "8b21a3f4c705e6d09b8214f6c7a9b3d2",
+  accessKeyIdLabel: "Access Key ID",
+  accessKeyIdPlaceholder: "AKIA…",
+  secretLabel: "Secret Access Key",
+  secretPlaceholder: "••••••••••••••••••••••••••••••••",
+  cancel: "取消",
+  submit: "添加",
+  submitting: "正在添加…",
+  status: { ok: "正常", warn: "未使用", error: "异常" },
+  copyKeyId: "复制 Key ID",
+  copied: "已复制",
+  used: (rel: string) => ` · 最近使用 ${rel}`,
+  neverUsed: " · 从未使用",
+  dialogTitle: "新建 R2 连接",
+  dialogSubtitle: "提交后凭据将以 AES-GCM 加密存储",
+  closeDialog: "关闭对话框",
+  close: "关闭",
+  errorTitle: "添加连接失败",
+  helpLink: "如何创建 R2 Token",
+  nameHint: "用于在切换器中显示的别名。",
+  accountIdHint: "Cloudflare 控制台 URL 中的 32 位 hex。",
+  secretHint: "加密保存，提交后不再可见。",
+  relNow: "刚刚",
+  relMin: (m: number) => `${m} 分钟前`,
+  relHour: (h: number) => `${h} 小时前`,
+  relDay: (d: number) => `${d} 天前`,
+} as const;
+
 /**
  * Connection switcher + add form (skeleton).
  *
@@ -176,7 +214,7 @@ export function ConnectionSwitcherMenu({
     >
       <div className="border-b border-border px-3 py-2">
         <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          Connections
+          {T.title}
         </p>
       </div>
 
@@ -184,7 +222,7 @@ export function ConnectionSwitcherMenu({
         {connections.length === 0 ? (
           <li className="px-3 py-6 text-center">
             <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-              No connections yet
+              {T.empty}
             </p>
           </li>
         ) : (
@@ -215,8 +253,8 @@ export function ConnectionSwitcherMenu({
                     <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
                       {c.accessKeyMasked}
                       {c.lastUsedAt
-                        ? ` · used ${relativeShort(c.lastUsedAt)}`
-                        : " · never used"}
+                        ? T.used(relativeShort(c.lastUsedAt))
+                        : T.neverUsed}
                     </p>
                   </div>
                   {isActive ? (
@@ -239,7 +277,7 @@ export function ConnectionSwitcherMenu({
           className="inline-flex h-7 items-center gap-1.5 rounded px-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
         >
           <Plus className="h-3 w-3" />
-          Add connection
+          {T.add}
         </button>
         {onManage ? (
           <button
@@ -248,7 +286,7 @@ export function ConnectionSwitcherMenu({
             className="inline-flex h-7 items-center gap-1.5 rounded px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <SettingsIcon className="h-3 w-3" />
-            Manage
+            {T.manage}
           </button>
         ) : null}
       </div>
@@ -346,7 +384,7 @@ export function AddConnectionDialog({ onClose, onAdd }: DialogProps) {
     >
       <button
         type="button"
-        aria-label="Close dialog"
+        aria-label={T.closeDialog}
         onClick={onClose}
         className="absolute inset-0 bg-foreground/20 backdrop-blur-[2px]"
       />
@@ -361,16 +399,16 @@ export function AddConnectionDialog({ onClose, onAdd }: DialogProps) {
               id={headingId}
               className="font-display text-lg font-semibold tracking-tight"
             >
-              Add R2 connection
+              {T.dialogTitle}
             </h2>
             <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-              Credentials encrypted with AES-GCM before storage
+              {T.dialogSubtitle}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={T.close}
             className="grid h-6 w-6 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" />
@@ -383,8 +421,8 @@ export function AddConnectionDialog({ onClose, onAdd }: DialogProps) {
           noValidate
         >
           <DialogField
-            label="Name"
-            hint="Any alias — shown in switcher."
+            label={T.nameLabel}
+            hint={T.nameHint}
             input={
               <input
                 type="text"
@@ -394,14 +432,14 @@ export function AddConnectionDialog({ onClose, onAdd }: DialogProps) {
                 onChange={(e) => update("name", e.target.value)}
                 disabled={pending}
                 className={baseInput}
-                placeholder="personal"
+                placeholder={T.namePlaceholder}
               />
             }
           />
 
           <DialogField
-            label="Account ID"
-            hint="32-char hex from Cloudflare dashboard URL."
+            label={T.accountIdLabel}
+            hint={T.accountIdHint}
             input={
               <input
                 type="text"
@@ -414,14 +452,14 @@ export function AddConnectionDialog({ onClose, onAdd }: DialogProps) {
                 }
                 disabled={pending}
                 className={cn(baseInput, "font-mono text-xs tracking-wider")}
-                placeholder="8b21a3f4c705e6d09b8214f6c7a9b3d2"
+                placeholder={T.accountIdPlaceholder}
                 maxLength={32}
               />
             }
           />
 
           <DialogField
-            label="Access Key ID"
+            label={T.accessKeyIdLabel}
             input={
               <input
                 type="text"
@@ -432,14 +470,14 @@ export function AddConnectionDialog({ onClose, onAdd }: DialogProps) {
                 onChange={(e) => update("accessKeyId", e.target.value)}
                 disabled={pending}
                 className={cn(baseInput, "font-mono text-xs")}
-                placeholder="AKIA…"
+                placeholder={T.accessKeyIdPlaceholder}
               />
             }
           />
 
           <DialogField
-            label="Secret Access Key"
-            hint="Stored encrypted. Never visible after submit."
+            label={T.secretLabel}
+            hint={T.secretHint}
             input={
               <input
                 type="password"
@@ -450,7 +488,7 @@ export function AddConnectionDialog({ onClose, onAdd }: DialogProps) {
                 onChange={(e) => update("secretAccessKey", e.target.value)}
                 disabled={pending}
                 className={cn(baseInput, "font-mono text-xs")}
-                placeholder="••••••••••••••••••••••••••••••••"
+                placeholder={T.secretPlaceholder}
               />
             }
           />
@@ -463,7 +501,7 @@ export function AddConnectionDialog({ onClose, onAdd }: DialogProps) {
               />
               <div className="min-w-0">
                 <p className="text-xs font-medium text-destructive">
-                  Couldn’t add connection
+                  {T.errorTitle}
                 </p>
                 <p className="mt-0.5 font-mono text-[10px] text-destructive/80">
                   {error}
@@ -480,7 +518,7 @@ export function AddConnectionDialog({ onClose, onAdd }: DialogProps) {
               className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
             >
               <CircleHelp className="h-3 w-3" />
-              How to create an R2 token
+              {T.helpLink}
             </a>
             <div className="flex items-center gap-2">
               <button
@@ -489,7 +527,7 @@ export function AddConnectionDialog({ onClose, onAdd }: DialogProps) {
                 disabled={pending}
                 className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
               >
-                Cancel
+                {T.cancel}
               </button>
               <button
                 type="submit"
@@ -502,10 +540,10 @@ export function AddConnectionDialog({ onClose, onAdd }: DialogProps) {
                 {pending ? (
                   <>
                     <Loader2 className="h-3 w-3 animate-spin" />
-                    Verifying…
+                    {T.submitting}
                   </>
                 ) : (
-                  "Test & save"
+                  T.submit
                 )}
               </button>
             </div>
@@ -555,11 +593,11 @@ function DialogField({
 function relativeShort(date: Date): string {
   const diff = Date.now() - date.getTime();
   const m = Math.floor(diff / 60_000);
-  if (m < 1) return "now";
-  if (m < 60) return `${m}m ago`;
+  if (m < 1) return T.relNow;
+  if (m < 60) return T.relMin(m);
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return T.relHour(h);
   const d = Math.floor(h / 24);
-  if (d < 30) return `${d}d ago`;
+  if (d < 30) return T.relDay(d);
   return date.toISOString().slice(0, 10);
 }

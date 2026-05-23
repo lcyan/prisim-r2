@@ -32,6 +32,23 @@ import { ApiClientError } from "@/lib/api/client";
 import { ApiErrorCode } from "@/lib/api/errors";
 import type { ConnectionSummary } from "@/lib/api/types";
 
+const T = {
+  title: "删除连接",
+  desc: (name: string) => `永久删除连接「${name}」。该操作不可撤销。`,
+  warn: "现有分享 URL 不会被立即撤销，将持续到 TTL 自然到期。",
+  typeToConfirm: (name: string) => `输入「${name}」以确认`,
+  cancel: "取消",
+  delete: "删除连接",
+  deleting: "正在删除…",
+  successToast: "连接已删除",
+  successDesc: (name: string) => `已移除「${name}」`,
+  failureToast: "删除失败",
+  errInUseWithCount: (n: number) => `连接仍有 ${n} 条活跃分享，请先删除这些分享。`,
+  errInUse: "连接仍有活跃分享，请先删除这些分享。",
+  errNotFound: "该连接已不存在。",
+  errUnknown: "未知错误",
+} as const;
+
 interface DeleteConnectionDialogProps {
   connection: ConnectionSummary | null;
   onOpenChange: (open: boolean) => void;
@@ -84,13 +101,13 @@ function DeleteConnectionForm({
     if (!confirmed || mutation.isPending) return;
     try {
       await mutation.mutateAsync(connection.id);
-      toast.success("Connection deleted", {
-        description: `"${connection.name}" removed`,
+      toast.success(T.successToast, {
+        description: T.successDesc(connection.name),
       });
       onDeleted?.(connection.id);
       onClose();
     } catch (err) {
-      toast.error("Couldn’t delete connection", {
+      toast.error(T.failureToast, {
         description: describeError(err),
       });
     }
@@ -103,21 +120,17 @@ function DeleteConnectionForm({
           <span className="grid h-7 w-7 place-items-center rounded-full bg-destructive/10 text-destructive">
             <AlertTriangle className="h-3.5 w-3.5" />
           </span>
-          <DialogTitle>Delete connection</DialogTitle>
+          <DialogTitle>{T.title}</DialogTitle>
         </div>
         <DialogDescription>
-          This removes the encrypted credentials from our database. Any
-          unexpired share URLs pointing at this connection will block the
-          delete — remove those first.
+          {T.desc(connection.name)} {T.warn}
         </DialogDescription>
       </DialogHeader>
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <div className="space-y-1.5">
           <Label htmlFor={confirmId}>
-            Type{" "}
-            <span className="font-mono text-foreground">{connection.name}</span>{" "}
-            to confirm
+            {T.typeToConfirm(connection.name)}
           </Label>
           <Input
             id={confirmId}
@@ -141,7 +154,7 @@ function DeleteConnectionForm({
             onClick={onClose}
             disabled={mutation.isPending}
           >
-            Cancel
+            {T.cancel}
           </Button>
           <Button
             type="submit"
@@ -151,10 +164,10 @@ function DeleteConnectionForm({
             {mutation.isPending ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Deleting…
+                {T.deleting}
               </>
             ) : (
-              "Delete connection"
+              T.delete
             )}
           </Button>
         </DialogFooter>
@@ -168,15 +181,13 @@ function describeError(err: unknown): string {
     if (err.code === ApiErrorCode.ConnectionInUse) {
       const details = err.details as { activeShares?: number } | undefined;
       const n = details?.activeShares ?? 0;
-      return n > 0
-        ? `Connection has ${n} active share${n === 1 ? "" : "s"}. Delete them first.`
-        : "Connection has active shares. Delete them first.";
+      return n > 0 ? T.errInUseWithCount(n) : T.errInUse;
     }
     if (err.code === ApiErrorCode.NotFound) {
-      return "This connection no longer exists.";
+      return T.errNotFound;
     }
     return `${err.code} — ${err.message} (request ${err.requestId})`;
   }
   if (err instanceof Error) return err.message;
-  return "Unknown error";
+  return T.errUnknown;
 }
