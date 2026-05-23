@@ -31,6 +31,7 @@ import {
   ExternalLink,
   Loader2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -61,6 +62,7 @@ export interface BucketSwitcherProps {
 }
 
 export function BucketSwitcher({ className }: BucketSwitcherProps) {
+  const router = useRouter();
   const activeConnectionId = useActiveConnectionStore(
     (s) => s.activeConnectionId,
   );
@@ -142,7 +144,14 @@ export function BucketSwitcher({ className }: BucketSwitcherProps) {
             return (
               <DropdownMenuItem
                 key={bucket.name}
-                onSelect={() => setActiveBucket(bucket.name)}
+                onSelect={() => {
+                  // Update the store first so other components (e.g. presign
+                  // hooks) observe the new selection before the route change
+                  // triggers a re-render, then jump to the object browser so
+                  // the main pane actually reflects the user's choice.
+                  setActiveBucket(bucket.name);
+                  router.push(`/buckets/${encodeURIComponent(bucket.name)}`);
+                }}
                 className="flex items-start gap-2"
               >
                 <Check

@@ -203,15 +203,9 @@
 }
 
 /* ─── Signature: 2px amber accent bar for active/selected states ─── */
+/* Implemented as an inset box-shadow so it works on <tr> (where a ::before
+ * pseudo gets coerced into an anonymous table-cell by browsers and shifts
+ * every real <td> one column to the right). */
 .signal-bar {
-  position: relative;
-}
-.signal-bar::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--primary);
+  box-shadow: inset 2px 0 0 0 var(--primary);
 }
