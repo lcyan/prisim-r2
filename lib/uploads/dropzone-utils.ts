@@ -77,15 +77,15 @@ export function describeSkipped(
   if (tooLarge.length > 0) {
     parts.push(
       tooLarge.length === 1
-        ? `“${tooLarge[0]!.file.name}” exceeds 5 GB`
-        : `${tooLarge.length} files exceed 5 GB`,
+        ? `“${tooLarge[0]!.file.name}” 超过 5 GB`
+        : `${tooLarge.length} 个文件超过 5 GB`,
     );
   }
   if (empty.length > 0) {
     parts.push(
       empty.length === 1
-        ? `“${empty[0]!.file.name}” is empty`
-        : `${empty.length} files are empty`,
+        ? `“${empty[0]!.file.name}” 为空`
+        : `${empty.length} 个文件为空`,
     );
   }
   return parts.join(" · ");
@@ -96,9 +96,9 @@ export function describeSkipped(
 export function describeQueued(accepted: ReadonlyArray<File>): string | null {
   if (accepted.length === 0) return null;
   if (accepted.length === 1) {
-    return `Queued “${accepted[0]!.name}”`;
+    return `已加入队列：“${accepted[0]!.name}”`;
   }
-  return `Queued ${accepted.length} files`;
+  return `已加入队列 ${accepted.length} 个文件`;
 }
 
 /** Build the destination R2 key for a file dropped into a given prefix.

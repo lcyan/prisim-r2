@@ -24,7 +24,7 @@ export function SignOutButton() {
       className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground"
     >
       <LogOut className="h-3 w-3" />
-      Sign out
+      退出登录
     </button>
   );
 }

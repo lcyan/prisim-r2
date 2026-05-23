@@ -12,7 +12,7 @@ export function Logo() {
         Prisim
       </span>
       <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-        R2 · edge console
+        R2 · 边缘控制台
       </span>
     </Link>
   );
