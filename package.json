@@ -28,7 +28,10 @@
       "better-sqlite3",
       "esbuild",
       "workerd"
-    ]
+    ],
+    "patchedDependencies": {
+      "@aws-sdk/xml-builder@3.972.24": "patches/@aws-sdk__xml-builder@3.972.24.patch"
+    }
   },
   "dependencies": {
     "@auth/core": "^0.34.3",

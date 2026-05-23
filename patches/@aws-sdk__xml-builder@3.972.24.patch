@@ -1,0 +1,14 @@
+diff --git a/package.json b/package.json
+index bc7fd1f6fd437756a82eda1b05e46945fb2ad1eb..9c4f8f4ee063a550d1f1e7efc3b49bf0e66f59f1 100644
+--- a/package.json
++++ b/package.json
+@@ -41,9 +41,6 @@
+   "files": [
+     "dist-*/**"
+   ],
+-  "browser": {
+-    "./dist-es/xml-parser": "./dist-es/xml-parser.browser"
+-  },
+   "react-native": {
+     "./dist-es/xml-parser": "./dist-es/xml-parser.browser",
+     "./dist-cjs/xml-parser": "./dist-cjs/xml-parser.browser"

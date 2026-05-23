@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@aws-sdk/xml-builder@3.972.24':
+    hash: eccb40bd075c7c0291940371b06104f90ba0432d589486bd10fe5f0e62a038f7
+    path: patches/@aws-sdk__xml-builder@3.972.24.patch
+
 importers:
 
   .:
@@ -3719,14 +3724,17 @@ packages:
     resolution: {integrity: sha512-mLCNbrQli11K1ySUmuNt4ZUB3OpGIDq4q2vTBTf5cL2lpsRjI9QKqSD0ndjW8FyvcW/Jj46gMe9syyHAsvMa/A==}
     engines: {node: '>=10.13.0'}
 
-  env-runner@0.1.7:
-    resolution: {integrity: sha512-i7h96jxETJYhXy5grgHNJ9xNzCzWIn9Ck/VkkYgOlE4gOqknsLX3CmlVb5LmwNex8sOoLFVZLz+TIw/+b5rktA==}
+  env-runner@0.1.9:
+    resolution: {integrity: sha512-W9AiZlPx0uXtghAJiTBkeZOgyQdecVvoln3cHoOEZswPq0cVMi+WBhUQjdUn+JcZFAFgOt+i5fcO7C2zniZoCg==}
     hasBin: true
     peerDependencies:
-      '@netlify/runtime': ^4
-      miniflare: ^4.20260317.3
+      '@netlify/runtime': ^4.1.23
+      '@vercel/queue': ^0.2.0
+      miniflare: ^4.20260515.0
     peerDependenciesMeta:
       '@netlify/runtime':
+        optional: true
+      '@vercel/queue':
         optional: true
       miniflare:
         optional: true
@@ -4346,8 +4354,8 @@ packages:
     resolution: {integrity: sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==}
     engines: {node: '>= 14'}
 
-  httpxy@0.5.2:
-    resolution: {integrity: sha512-C5OM92bmywDDdKTuYCGejdNFAb/zy0LX4srimOudYko847HvoWL2Eeik9odh9friPKu/JrlWv4z/amrJoxq2Cg==}
+  httpxy@0.5.3:
+    resolution: {integrity: sha512-SMS9V6Sn7VWaS11lYhoAr0ceoaiolTWf4jYdJn0NJhCdKMu9R2H9Fh0LBDWBHQF6HRLI1PmaePYsjanSpE5PEw==}
 
   human-signals@1.1.1:
     resolution: {integrity: sha512-SEQu7vl8KjNL2eoGBLF3+wAjpsNfA9XMlXAYj/3EdaNfAlxKthD1xjEQfGOUhllCGGJVNY34bRr6lPINhNjyZw==}
@@ -4889,8 +4897,8 @@ packages:
   nf3@0.3.17:
     resolution: {integrity: sha512-N9zEWySuJFw+gR0lhS5863YsvNeudOdqRyFvNb+jMXbeTJOdrjDqkCpDginIZfUm0LzT1t1nCRiDeqQm/8kirQ==}
 
-  nitro-nightly@3.0.1-20260520-201858-14f2fed3:
-    resolution: {integrity: sha512-JLKaCSHK/a4Y6r+3cEwWVBloGz+vzU3j2CVz0jbggJRZYM+QeMoHDLzfIka0MKo8KbzKoLCvgiJYCl72a/krWA==}
+  nitro-nightly@3.0.260522-beta:
+    resolution: {integrity: sha512-Pm0AiQ1nLcreUFZKJcmVI4l9K/ygXoFamIPhc44XJHj9vmt25Rlqjv55frw6sS0L1qHrySpo3xyVVBmR9aTBqA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -6259,7 +6267,7 @@ snapshots:
   '@aws-sdk/core@3.974.12':
     dependencies:
       '@aws-sdk/types': 3.973.8
-      '@aws-sdk/xml-builder': 3.972.24
+      '@aws-sdk/xml-builder': 3.972.24(patch_hash=eccb40bd075c7c0291940371b06104f90ba0432d589486bd10fe5f0e62a038f7)
       '@aws/lambda-invoke-store': 0.2.4
       '@smithy/core': 3.24.3
       '@smithy/signature-v4': 5.4.3
@@ -6453,7 +6461,7 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@aws-sdk/xml-builder@3.972.24':
+  '@aws-sdk/xml-builder@3.972.24(patch_hash=eccb40bd075c7c0291940371b06104f90ba0432d589486bd10fe5f0e62a038f7)':
     dependencies:
       '@nodable/entities': 2.1.0
       '@smithy/types': 4.14.2
@@ -8894,7 +8902,7 @@ snapshots:
       '@vercel/gatsby-plugin-vercel-builder': 2.2.6
       '@vercel/nft': 1.5.0
       '@vercel/static-config': 3.3.0
-      nitro: nitro-nightly@3.0.1-20260520-201858-14f2fed3(@vercel/blob@2.3.0)(better-sqlite3@12.10.0)(chokidar@4.0.0)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260520.1)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.10.0))(jiti@2.7.0)(lru-cache@11.5.0)(miniflare@4.20260518.0)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(tsx@4.21.0))
+      nitro: nitro-nightly@3.0.260522-beta(@vercel/blob@2.3.0)(better-sqlite3@12.10.0)(chokidar@4.0.0)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260520.1)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.10.0))(jiti@2.7.0)(lru-cache@11.5.0)(miniflare@4.20260518.0)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(tsx@4.21.0))
       ts-morph: 12.0.0
     transitivePeerDependencies:
       - '@azure/app-configuration'
@@ -9464,11 +9472,11 @@ snapshots:
       graceful-fs: 4.2.11
       tapable: 2.3.3
 
-  env-runner@0.1.7(miniflare@4.20260518.0):
+  env-runner@0.1.9(miniflare@4.20260518.0):
     dependencies:
       crossws: 0.4.5(srvx@0.11.15)
       exsolve: 1.0.8
-      httpxy: 0.5.2
+      httpxy: 0.5.3
       srvx: 0.11.15
     optionalDependencies:
       miniflare: 4.20260518.0
@@ -10305,7 +10313,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  httpxy@0.5.2: {}
+  httpxy@0.5.3: {}
 
   human-signals@1.1.1: {}
 
@@ -10783,12 +10791,12 @@ snapshots:
 
   nf3@0.3.17: {}
 
-  nitro-nightly@3.0.1-20260520-201858-14f2fed3(@vercel/blob@2.3.0)(better-sqlite3@12.10.0)(chokidar@4.0.0)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260520.1)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.10.0))(jiti@2.7.0)(lru-cache@11.5.0)(miniflare@4.20260518.0)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(tsx@4.21.0)):
+  nitro-nightly@3.0.260522-beta(@vercel/blob@2.3.0)(better-sqlite3@12.10.0)(chokidar@4.0.0)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260520.1)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.10.0))(jiti@2.7.0)(lru-cache@11.5.0)(miniflare@4.20260518.0)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(tsx@4.21.0)):
     dependencies:
       consola: 3.4.2
       crossws: 0.4.5(srvx@0.11.15)
       db0: 0.3.4(better-sqlite3@12.10.0)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260520.1)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.10.0))
-      env-runner: 0.1.7(miniflare@4.20260518.0)
+      env-runner: 0.1.9(miniflare@4.20260518.0)
       h3: 2.0.1-rc.22(crossws@0.4.5(srvx@0.11.15))
       hookable: 6.1.1
       nf3: 0.3.17
