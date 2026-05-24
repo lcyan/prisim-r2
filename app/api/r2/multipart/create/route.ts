@@ -38,6 +38,7 @@ import { ApiErrors } from "@/lib/api/errors";
 import { RateLimitBundles } from "@/lib/api/rate-limit";
 import { parseJson, R2MultipartCreateSchema } from "@/lib/api/schemas";
 import type { R2MultipartCreateResponse } from "@/lib/api/types";
+import { asU8 } from "@/lib/db/blob";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import {
   CryptoIntegrityError,
@@ -52,17 +53,6 @@ import { logAudit } from "@/lib/audit/log";
 export const runtime = "edge";
 
 type MultipartCreateEnv = DbEnv & CryptoEnv;
-
-/** Drizzle blob → Uint8Array. Buffer locally, ArrayBuffer on D1. Identical
- *  helper to the sibling routes; if a fifth route needs this, lift it into
- *  `lib/db/blob.ts` rather than copying again. */
-function asU8(value: unknown): Uint8Array {
-  if (value instanceof Uint8Array) return value;
-  if (value instanceof ArrayBuffer) return new Uint8Array(value);
-  throw new TypeError(
-    "multipart/create: stored credential blob is neither Uint8Array nor ArrayBuffer",
-  );
-}
 
 export const POST = withApi<R2MultipartCreateResponse>(
   async (req, ctx) => {
@@ -90,14 +80,14 @@ export const POST = withApi<R2MultipartCreateResponse>(
     try {
       [accessKeyId, secretAccessKey] = await Promise.all([
         decryptCredential(
-          asU8(connection.accessKeyCiphertext),
-          asU8(connection.accessKeyIv),
+          asU8(connection.accessKeyCiphertext, "multipart/create"),
+          asU8(connection.accessKeyIv, "multipart/create"),
           connection.id,
           env,
         ),
         decryptCredential(
-          asU8(connection.secretKeyCiphertext),
-          asU8(connection.secretKeyIv),
+          asU8(connection.secretKeyCiphertext, "multipart/create"),
+          asU8(connection.secretKeyIv, "multipart/create"),
           connection.id,
           env,
         ),

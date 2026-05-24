@@ -39,6 +39,7 @@ import {
   R2_PRESIGN_DEFAULT_TTL_SECONDS,
   type R2PresignInput,
 } from "@/lib/api/schemas";
+import { asU8 } from "@/lib/db/blob";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import {
   CryptoIntegrityError,
@@ -62,21 +63,6 @@ export const runtime = "edge";
 // lib/db|crypto because those modules each declare the minimal subset they
 // need; the route layer is the one place that touches both.
 type PresignEnv = DbEnv & CryptoEnv;
-
-/**
- * Normalize a blob column to Uint8Array.
- *
- * Drizzle's `blob({ mode: "buffer" })` returns a Node Buffer locally but an
- * ArrayBuffer under Cloudflare's D1 driver. decryptCredential needs a real
- * Uint8Array, so we pass Buffer through (Buffer extends Uint8Array) and wrap
- * ArrayBuffer in a view otherwise. We do NOT memcpy the bytes — the view
- * shares storage with the caller's buffer.
- */
-function asU8(value: unknown): Uint8Array {
-  if (value instanceof Uint8Array) return value;
-  if (value instanceof ArrayBuffer) return new Uint8Array(value);
-  throw new TypeError("presign: stored credential blob is neither Uint8Array nor ArrayBuffer");
-}
 
 /**
  * Resolve the audit op for a presign call. upload-part is a write semantically
@@ -121,14 +107,14 @@ export const POST = withApi(
     try {
       [accessKeyId, secretAccessKey] = await Promise.all([
         decryptCredential(
-          asU8(connection.accessKeyCiphertext),
-          asU8(connection.accessKeyIv),
+          asU8(connection.accessKeyCiphertext, "presign"),
+          asU8(connection.accessKeyIv, "presign"),
           connection.id,
           env,
         ),
         decryptCredential(
-          asU8(connection.secretKeyCiphertext),
-          asU8(connection.secretKeyIv),
+          asU8(connection.secretKeyCiphertext, "presign"),
+          asU8(connection.secretKeyIv, "presign"),
           connection.id,
           env,
         ),

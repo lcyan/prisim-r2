@@ -28,6 +28,7 @@ import {
   DashboardSummaryQuerySchema,
 } from "@/lib/api/schemas";
 import { RateLimitBundles } from "@/lib/api/rate-limit";
+import { asU8 } from "@/lib/db/blob";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import {
   CryptoIntegrityError,
@@ -43,32 +44,6 @@ import { getDashboardSummary } from "@/lib/dashboard/summary";
 export const runtime = "edge";
 
 type SummaryEnv = DbEnv & CryptoEnv;
-
-/**
- * Normalize a blob column to Uint8Array. Same helper as the presign and
- * buckets routes — when a fourth route needs this, lift to lib/db/blob.ts.
- */
-/**
- * Normalize a blob column to Uint8Array.
- *
- * In production (Pages edge runtime) D1 returns ArrayBuffer; in vitest under
- * jsdom, better-sqlite3 returns a Node Buffer — and JSDOM's separate JS
- * realm makes `instanceof Uint8Array` return false even though Buffer is a
- * Uint8Array subclass in Node's realm. `Buffer.isBuffer` checks an internal
- * slot, so it crosses realms reliably. The Buffer branch is gated on
- * `typeof Buffer !== "undefined"` so it compiles down to dead code in the
- * edge bundle (no `Buffer` global there).
- */
-function asU8(value: unknown): Uint8Array {
-  if (value instanceof Uint8Array) return value;
-  if (value instanceof ArrayBuffer) return new Uint8Array(value);
-  if (typeof Buffer !== "undefined" && Buffer.isBuffer(value)) {
-    return new Uint8Array(value);
-  }
-  throw new TypeError(
-    "dashboard/summary: stored credential blob is neither Uint8Array nor ArrayBuffer",
-  );
-}
 
 export const GET = withApi(
   async (req, ctx) => {
@@ -95,14 +70,14 @@ export const GET = withApi(
     try {
       [accessKeyId, secretAccessKey] = await Promise.all([
         decryptCredential(
-          asU8(connection.accessKeyCiphertext),
-          asU8(connection.accessKeyIv),
+          asU8(connection.accessKeyCiphertext, "dashboard/summary"),
+          asU8(connection.accessKeyIv, "dashboard/summary"),
           connection.id,
           env,
         ),
         decryptCredential(
-          asU8(connection.secretKeyCiphertext),
-          asU8(connection.secretKeyIv),
+          asU8(connection.secretKeyCiphertext, "dashboard/summary"),
+          asU8(connection.secretKeyIv, "dashboard/summary"),
           connection.id,
           env,
         ),

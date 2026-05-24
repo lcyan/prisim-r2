@@ -31,6 +31,7 @@ import { withApi } from "@/lib/api/middleware";
 import { ApiErrors } from "@/lib/api/errors";
 import { RateLimitBundles } from "@/lib/api/rate-limit";
 import { parseJson, R2MultipartAbortSchema } from "@/lib/api/schemas";
+import { asU8 } from "@/lib/db/blob";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import {
   CryptoIntegrityError,
@@ -45,14 +46,6 @@ import { logAudit } from "@/lib/audit/log";
 export const runtime = "edge";
 
 type MultipartAbortEnv = DbEnv & CryptoEnv;
-
-function asU8(value: unknown): Uint8Array {
-  if (value instanceof Uint8Array) return value;
-  if (value instanceof ArrayBuffer) return new Uint8Array(value);
-  throw new TypeError(
-    "multipart/abort: stored credential blob is neither Uint8Array nor ArrayBuffer",
-  );
-}
 
 export const POST = withApi(
   async (req, ctx) => {
@@ -79,14 +72,14 @@ export const POST = withApi(
     try {
       [accessKeyId, secretAccessKey] = await Promise.all([
         decryptCredential(
-          asU8(connection.accessKeyCiphertext),
-          asU8(connection.accessKeyIv),
+          asU8(connection.accessKeyCiphertext, "multipart/abort"),
+          asU8(connection.accessKeyIv, "multipart/abort"),
           connection.id,
           env,
         ),
         decryptCredential(
-          asU8(connection.secretKeyCiphertext),
-          asU8(connection.secretKeyIv),
+          asU8(connection.secretKeyCiphertext, "multipart/abort"),
+          asU8(connection.secretKeyIv, "multipart/abort"),
           connection.id,
           env,
         ),
