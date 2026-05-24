@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 /*
   ---break---
 */
@@ -57,12 +58,6 @@
     "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: "SF Mono", "JetBrains Mono", Monaco, Menlo, Consolas,
     "Source Han Mono", monospace;
-
-  /* 布局原语 */
-  --topbar-h: 3.5rem;        /* 56px */
-  --sidebar-w: 14.5rem;       /* 232px */
-  --row-h-tight: 2.25rem;     /* 36px */
-  --row-h: 2.5rem;            /* 40px */
 }
 
 :root[data-theme="orange"] {
@@ -155,10 +150,6 @@ code, .mono {
   font-family: var(--font-mono);
 }
 
-/* 侧栏活跃指示条（2px primary 色） */
-.signal-bar {
-  box-shadow: inset 2px 0 0 0 var(--primary);
-}
 /*
   ---break---
 */
