@@ -154,6 +154,7 @@
   --color-destructive-foreground: var(--primary-fg);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-info: var(--info);
   --color-border: var(--border);
   --color-input: var(--border);
   --color-ring: var(--primary);
