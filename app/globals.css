@@ -86,6 +86,56 @@
   --info-soft: #ECFDF5;
 }
 
+/* 暗色模式:语义层(背景 / 前景 / 边框 / 阴影) */
+:root[data-mode="dark"] {
+  --content-bg: #0B0D11;
+  --surface: #14171C;
+  --fg: #E6E7EA;
+  --fg-2: #B0B4BB;
+  --muted: #6B7280;
+  --muted-2: #4B5563;
+  --border: #1F2229;
+  --border-strong: #2A2E36;
+  --row-hover: #1A1D23;
+  --code-bg: #14171C;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.7);
+}
+
+/* 暗色 × 各主色:微调 primary 在深底上的对比度 */
+:root[data-theme="blue"][data-mode="dark"] {
+  --primary: #4391FF;
+  --primary-hover: #69A7FF;
+  --primary-active: #1F7AEB;
+  --primary-soft: rgba(67, 145, 255, 0.14);
+  --primary-soft-strong: rgba(67, 145, 255, 0.22);
+  --hover: rgba(67, 145, 255, 0.10);
+  --info: #4391FF;
+  --info-soft: rgba(67, 145, 255, 0.14);
+}
+:root[data-theme="orange"][data-mode="dark"] {
+  --primary: #FF8A33;
+  --primary-hover: #FFA561;
+  --primary-active: #EB6A0E;
+  --primary-soft: rgba(255, 138, 51, 0.14);
+  --primary-soft-strong: rgba(255, 138, 51, 0.22);
+  --hover: rgba(255, 138, 51, 0.10);
+  --info: #FF8A33;
+  --info-soft: rgba(255, 138, 51, 0.14);
+}
+:root[data-theme="green"][data-mode="dark"] {
+  --primary: #2FCD8A;
+  --primary-hover: #5BDDA8;
+  --primary-active: #14B377;
+  --primary-soft: rgba(47, 205, 138, 0.14);
+  --primary-soft-strong: rgba(47, 205, 138, 0.22);
+  --hover: rgba(47, 205, 138, 0.10);
+  --info: #2FCD8A;
+  --info-soft: rgba(47, 205, 138, 0.14);
+}
+
 /* shadcn ↔ 设计稿 token 桥接（Tailwind v4） */
 @theme inline {
   --color-background: var(--content-bg);
