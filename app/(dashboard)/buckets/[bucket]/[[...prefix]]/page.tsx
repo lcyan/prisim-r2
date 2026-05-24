@@ -50,7 +50,7 @@ const T = {
   noFilesSelected: "未选择文件",
   bulkSkipsFolders: "批量删除会跳过文件夹。请进入文件夹后再选择其中的文件。",
   tooManyDownloads: "下载请求过多。请稍候再试。",
-  connectionMissing: "找不到连接。请到「设置 → 连接」重新添加。",
+  connectionMissing: "找不到连接。请到「连接管理」重新添加。",
   errUnknown: "未知错误",
 } as const;
 

@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
 import type { ConnectionSummary } from "@/lib/api/types";
 
 const T = {
-  eyebrow: "设置 · 连接",
+  eyebrow: "连接管理",
   title: "R2 连接",
   desc: "绑定一个或多个 Cloudflare R2 API 令牌。凭据通过 AES-GCM 加密落库，保存后控制台不再可见明文 Secret。",
   refresh: "刷新",

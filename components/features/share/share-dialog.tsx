@@ -70,7 +70,7 @@ const T = {
   toastCreateFailed: "无法创建分享链接",
   toastCopyFailed: "复制失败，请手动从输入框复制。",
   errTooMany: "分享请求过多。请稍候再试。",
-  errNotFound: "找不到连接。请到「设置 → 连接」重新添加。",
+  errNotFound: "找不到连接。请到「连接管理」重新添加。",
   errValidation: "请选择 1 小时 / 1 天 / 7 天 之一。",
   errUnknown: "未知错误",
 } as const;

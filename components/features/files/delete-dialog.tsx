@@ -75,7 +75,7 @@ const T = {
   failTitle: "无法删除对象",
   errConfirmExpired: "确认已过期，请重新确认。",
   errTooMany: "删除请求过多。请稍候再试。",
-  errNotFound: "找不到连接。请到「设置 → 连接」重新添加。",
+  errNotFound: "找不到连接。请到「连接管理」重新添加。",
   errUnknown: "未知错误",
   errorCodePlaceholder: "错误",
 } as const;
