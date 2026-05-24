@@ -19,7 +19,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { FileBreadcrumb } from "@/components/features/files/breadcrumb";
 import {
   ObjectTable,
   type ObjectRow,
@@ -40,7 +39,6 @@ import {
 } from "@/stores/selected-keys";
 import {
   joinPrefix,
-  prefixAtDepth,
   segmentsToPrefix,
 } from "@/lib/r2/prefix";
 
@@ -175,9 +173,6 @@ export default function BucketBrowserPage() {
   const onFolderClick = (folderKey: string) => {
     handleNavigate(joinPrefix(prefix, folderKey));
   };
-  const onBreadcrumbClick = (depth: number) => {
-    handleNavigate(prefixAtDepth(prefix, depth));
-  };
 
   // Single-file download. The hook itself only mints a presigned GET URL
   // and hands it to the browser's native download manager — toast surface
@@ -258,11 +253,6 @@ export default function BucketBrowserPage() {
   if (!cid) {
     return (
       <div className="flex flex-col gap-4 p-6">
-        <FileBreadcrumb
-          bucket={bucket}
-          prefix={prefix}
-          onNavigate={onBreadcrumbClick}
-        />
         <div className="rounded-md border border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
           {T.pickConnection}
         </div>
@@ -272,11 +262,6 @@ export default function BucketBrowserPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 p-6">
-      <FileBreadcrumb
-        bucket={bucket}
-        prefix={prefix}
-        onNavigate={onBreadcrumbClick}
-      />
       {/* Dropzone wraps the table so a drag anywhere over the listing
           drops into the current prefix. Browse button + hint render
           above the table from inside the component. */}
