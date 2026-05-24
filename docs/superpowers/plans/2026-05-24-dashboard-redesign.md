@@ -100,7 +100,7 @@ components/features/dashboard/bucket-switcher.tsx  ← 迁移到 layout/topbar-b
 **Files:**
 - 临时探测,不入 commit。验证 shadcn / Tremor / Recharts 在当前栈的可用性。
 
-- [ ] **Step 1: 试跑 shadcn sidebar add**
+- [x] **Step 1: 试跑 shadcn sidebar add**
 
 Run:
 ```bash
@@ -110,13 +110,13 @@ pnpm dlx shadcn@latest add sidebar --yes 2>&1 | head -30
 
 Expected: 在 `components/ui/sidebar.tsx` 生成文件,无 schema 错误。若失败(版本不兼容),记录错误信息并停在这一步,不要继续 Phase 1。
 
-- [ ] **Step 2: 检查生成的 sidebar.tsx 在 Tailwind v4 下能用**
+- [x] **Step 2: 检查生成的 sidebar.tsx 在 Tailwind v4 下能用**
 
 Read 该文件首 40 行,确认它没有用 `tailwind.config.js` 才能识别的类名,只用 shadcn 桥接好的语义类(`bg-sidebar`、`text-sidebar-foreground` 等)。
 
 如果 shadcn 用了 `data-[state=open]` 这样的 v4 默认就支持的语法,继续。如果用了 v3 才有的某些 plugin 类(如 `tailwindcss-animate`),需要确认 `app/globals.css` 是否需要补 `@plugin "tailwindcss-animate";` 之类的指令。
 
-- [ ] **Step 3: 探测 Tremor Raw area-chart 与 v4 兼容**
+- [x] **Step 3: 探测 Tremor Raw area-chart 与 v4 兼容**
 
 Run:
 ```bash
@@ -125,11 +125,11 @@ curl -s https://raw.tremor.so/api/component/area-chart 2>&1 | head -1
 
 如果该端点不可用,跳过——后续 Phase 4 改为从 https://github.com/tremorlabs/tremor-raw 仓库复制源码即可。这步只是早期探测,不阻塞 Phase 1。
 
-- [ ] **Step 4: 探测 recharts edge 兼容**
+- [x] **Step 4: 探测 recharts edge 兼容**
 
 不需要安装,仅查文档要点。recharts 文档明确说必须在 client component 内使用,Phase 4 的图表组件都会带 `"use client"`。无需在 Phase 1 验证。
 
-- [ ] **Step 5: 回滚探测改动**
+- [x] **Step 5: 回滚探测改动**
 
 Run:
 ```bash
@@ -143,7 +143,7 @@ git -C /root/code/prisim-r2 status
 **Files:**
 - Create: `components/ui/sidebar.tsx`, `components/ui/breadcrumb.tsx`, `components/ui/command.tsx`, `components/ui/sheet.tsx`, `components/ui/tooltip.tsx`, `components/ui/separator.tsx`(都由 shadcn CLI 生成)
 
-- [ ] **Step 1: 跑 shadcn add 一次性补齐**
+- [x] **Step 1: 跑 shadcn add 一次性补齐**
 
 Run:
 ```bash
@@ -152,7 +152,7 @@ pnpm dlx shadcn@latest add breadcrumb command sheet tooltip separator --yes
 
 Expected: 5 个文件生成到 `components/ui/`(sidebar 已在 Task 1.1 生成)。
 
-- [ ] **Step 2: 检查没有破坏已有 ui 文件**
+- [x] **Step 2: 检查没有破坏已有 ui 文件**
 
 Run:
 ```bash
@@ -161,7 +161,7 @@ git -C /root/code/prisim-r2 status components/ui/
 
 Expected: 只看到新文件,没有已有文件(button/badge/dialog/...)被修改。如果有,`git restore` 恢复。
 
-- [ ] **Step 3: 跑 typecheck 确保新文件能编译**
+- [x] **Step 3: 跑 typecheck 确保新文件能编译**
 
 Run:
 ```bash
@@ -170,7 +170,7 @@ pnpm typecheck 2>&1 | tail -20
 
 Expected: 退出码 0。如果失败,检查是否缺 peer dep(如 `cmdk`、`@radix-ui/react-tooltip`),用 `pnpm add` 补齐。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/ui/ package.json pnpm-lock.yaml
@@ -192,7 +192,7 @@ EOF
 - Create: `components/layout/app-sidebar.tsx`
 - Test: `tests/unit/features/app-sidebar.test.tsx`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 Create `tests/unit/features/app-sidebar.test.tsx`:
 
@@ -265,7 +265,7 @@ export function MemoryRouterProvider({
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run:
 ```bash
@@ -274,7 +274,7 @@ pnpm test tests/unit/features/app-sidebar.test.tsx 2>&1 | tail -15
 
 Expected: FAIL with "Cannot find module '@/components/layout/app-sidebar'"。
 
-- [ ] **Step 3: 实现 AppSidebar**
+- [x] **Step 3: 实现 AppSidebar**
 
 Create `components/layout/app-sidebar.tsx`:
 
@@ -401,7 +401,7 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
 }
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run:
 ```bash
@@ -410,7 +410,7 @@ pnpm test tests/unit/features/app-sidebar.test.tsx 2>&1 | tail -15
 
 Expected: 4/4 PASS。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/layout/app-sidebar.tsx tests/unit/features/app-sidebar.test.tsx tests/stubs/memory-router.tsx
@@ -434,7 +434,7 @@ EOF
 
 Phase 2 会在此基础上加面包屑。本 task 只搭骨架,把现有 `ThemeSwitcher` / `UserMenu` 挂上。
 
-- [ ] **Step 1: 实现 AppTopbar v1**
+- [x] **Step 1: 实现 AppTopbar v1**
 
 Create `components/layout/app-topbar.tsx`:
 
@@ -471,7 +471,7 @@ export function AppTopbar({ user }: AppTopbarProps) {
 }
 ```
 
-- [ ] **Step 2: 跑 typecheck**
+- [x] **Step 2: 跑 typecheck**
 
 Run:
 ```bash
@@ -480,7 +480,7 @@ pnpm typecheck 2>&1 | tail -10
 
 Expected: 退出码 0。
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/layout/app-topbar.tsx
@@ -502,7 +502,7 @@ EOF
 - Create: `components/layout/command-menu.tsx`
 - Test: `tests/unit/stores/ui-store.test.ts`
 
-- [ ] **Step 1: 写 ui-store 失败测试**
+- [x] **Step 1: 写 ui-store 失败测试**
 
 Create `tests/unit/stores/ui-store.test.ts`:
 
@@ -550,7 +550,7 @@ describe("useUiStore — mode", () => {
 });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run:
 ```bash
@@ -559,7 +559,7 @@ pnpm test tests/unit/stores/ui-store.test.ts 2>&1 | tail -10
 
 Expected: FAIL with "Cannot find module '@/stores/ui-store'"。
 
-- [ ] **Step 3: 实现 ui-store**
+- [x] **Step 3: 实现 ui-store**
 
 Create `stores/ui-store.ts`:
 
@@ -609,7 +609,7 @@ export const useUiStore = create<UiState>()(
 );
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run:
 ```bash
@@ -618,7 +618,7 @@ pnpm test tests/unit/stores/ui-store.test.ts 2>&1 | tail -10
 
 Expected: 5/5 PASS。
 
-- [ ] **Step 5: 实现 CommandMenu 占位**
+- [x] **Step 5: 实现 CommandMenu 占位**
 
 Create `components/layout/command-menu.tsx`:
 
@@ -709,7 +709,7 @@ export function CommandMenu() {
 }
 ```
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add stores/ui-store.ts components/layout/command-menu.tsx tests/unit/stores/ui-store.test.ts
@@ -731,7 +731,7 @@ EOF
 - Modify: `components/layout/app-shell.tsx`(整体重写)
 - Modify: `app/globals.css`(删除废弃布局原语)
 
-- [ ] **Step 1: 整体重写 app-shell.tsx**
+- [x] **Step 1: 整体重写 app-shell.tsx**
 
 Replace contents of `components/layout/app-shell.tsx`:
 
@@ -779,7 +779,7 @@ export function AppShell({ children, user }: AppShellProps) {
 }
 ```
 
-- [ ] **Step 2: 删除 globals.css 中废弃的布局原语**
+- [x] **Step 2: 删除 globals.css 中废弃的布局原语**
 
 Edit `app/globals.css` — 在第 62 行附近删除以下行:
 
@@ -802,7 +802,7 @@ Edit `app/globals.css` — 在第 62 行附近删除以下行:
 
 新的 sidebar 用 shadcn 自带的高亮(`data-active=true` 触发的 `bg-sidebar-accent`)。如果后续要回到类似"2px primary 色条"的视觉,需要在 shadcn sidebar 的 ItemButton 上覆盖样式,不在 globals.css 里改。
 
-- [ ] **Step 3: 跑 typecheck + lint**
+- [x] **Step 3: 跑 typecheck + lint**
 
 Run:
 ```bash
@@ -812,7 +812,7 @@ pnpm lint 2>&1 | tail -10
 
 Expected: 双 0 退出码。
 
-- [ ] **Step 4: 启动 preview 手动验证**
+- [x] **Step 4: 启动 preview 手动验证**
 
 Run(后台启动):
 ```bash
@@ -830,7 +830,7 @@ Open http://localhost:8788/login,登录后访问 `/dashboard` / `/buckets` / `/c
 
 Stop preview server。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/layout/app-shell.tsx app/globals.css
@@ -852,7 +852,7 @@ EOF
 
 ### Task 1.7: Phase 1 验收
 
-- [ ] **Step 1: 跑全套质量门**
+- [x] **Step 1: 跑全套质量门**
 
 Run:
 ```bash
@@ -861,7 +861,7 @@ pnpm typecheck && pnpm lint && pnpm test 2>&1 | tail -20
 
 Expected: 全绿。
 
-- [ ] **Step 2: 跑 build:pages 确认产物**
+- [x] **Step 2: 跑 build:pages 确认产物**
 
 Run:
 ```bash
@@ -871,7 +871,7 @@ ls -lh /root/code/prisim-r2/.vercel/output/static/_worker.js 2>&1
 
 Expected: 构建成功,worker.js 体积仍 < 1MB(基线参考)。
 
-- [ ] **Step 3: 记录基线**
+- [x] **Step 3: 记录基线**
 
 把 worker.js 体积记到本地 scratch(不入 commit),用于 Phase 4/5 对比。例如:
 
@@ -891,7 +891,7 @@ ls -l /root/code/prisim-r2/.vercel/output/static/_worker.js | awk '{print "phase
 - Create: `components/layout/breadcrumb-segments.ts`
 - Test: `tests/unit/features/breadcrumb-segments.test.ts`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 Create `tests/unit/features/breadcrumb-segments.test.ts`:
 
@@ -983,7 +983,7 @@ describe("resolveSegments — fallback", () => {
 });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run:
 ```bash
@@ -992,7 +992,7 @@ pnpm test tests/unit/features/breadcrumb-segments.test.ts 2>&1 | tail -10
 
 Expected: FAIL with "Cannot find module"。
 
-- [ ] **Step 3: 实现 resolveSegments**
+- [x] **Step 3: 实现 resolveSegments**
 
 Create `components/layout/breadcrumb-segments.ts`:
 
@@ -1063,7 +1063,7 @@ export function resolveSegments(pathname: string): Segment[] {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run:
 ```bash
@@ -1072,7 +1072,7 @@ pnpm test tests/unit/features/breadcrumb-segments.test.ts 2>&1 | tail -10
 
 Expected: 10/10 PASS。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/layout/breadcrumb-segments.ts tests/unit/features/breadcrumb-segments.test.ts
@@ -1095,7 +1095,7 @@ EOF
 
 注意:此文件与 `components/features/connections/connection-switcher.tsx`(预登陆/`/connections` 页用)不同,放在 layout/ 目录避免冲突。
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 Create `tests/unit/features/topbar-connection-popover.test.tsx`:
 
@@ -1171,7 +1171,7 @@ describe("TopbarConnectionPopover", () => {
 });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run:
 ```bash
@@ -1180,7 +1180,7 @@ pnpm test tests/unit/features/topbar-connection-popover.test.tsx 2>&1 | tail -10
 
 Expected: FAIL — module not found。
 
-- [ ] **Step 3: 实现 TopbarConnectionPopover**
+- [x] **Step 3: 实现 TopbarConnectionPopover**
 
 Create `components/layout/topbar-connection-popover.tsx`:
 
@@ -1258,7 +1258,7 @@ export function TopbarConnectionPopover() {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run:
 ```bash
@@ -1267,7 +1267,7 @@ pnpm test tests/unit/features/topbar-connection-popover.test.tsx 2>&1 | tail -10
 
 Expected: 3/3 PASS。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/layout/topbar-connection-popover.tsx tests/unit/features/topbar-connection-popover.test.tsx
@@ -1290,7 +1290,7 @@ EOF
 - Delete: `components/features/dashboard/bucket-switcher.tsx`(旧 dropdown)
 - Test: `tests/unit/features/topbar-bucket-popover.test.tsx`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 Create `tests/unit/features/topbar-bucket-popover.test.tsx`:
 
@@ -1345,7 +1345,7 @@ describe("TopbarBucketPopover", () => {
 });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run:
 ```bash
@@ -1354,7 +1354,7 @@ pnpm test tests/unit/features/topbar-bucket-popover.test.tsx 2>&1 | tail -10
 
 Expected: FAIL — module not found。
 
-- [ ] **Step 3: 实现 TopbarBucketPopover**
+- [x] **Step 3: 实现 TopbarBucketPopover**
 
 Create `components/layout/topbar-bucket-popover.tsx`:
 
@@ -1436,7 +1436,7 @@ export function TopbarBucketPopover({ currentBucket }: TopbarBucketPopoverProps)
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run:
 ```bash
@@ -1445,7 +1445,7 @@ pnpm test tests/unit/features/topbar-bucket-popover.test.tsx 2>&1 | tail -10
 
 Expected: 2/2 PASS。
 
-- [ ] **Step 5: 删除旧 bucket-switcher**
+- [x] **Step 5: 删除旧 bucket-switcher**
 
 Run:
 ```bash
@@ -1460,7 +1460,7 @@ grep -rn "features/dashboard/bucket-switcher\|BucketSwitcher" /root/code/prisim-
 
 Expected: 没有其他 import(若有,需在引用处替换为 `TopbarBucketPopover` 或移除)。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/layout/topbar-bucket-popover.tsx tests/unit/features/topbar-bucket-popover.test.tsx
@@ -1480,7 +1480,7 @@ EOF
 **Files:**
 - Create: `components/layout/topbar-breadcrumb.tsx`
 
-- [ ] **Step 1: 实现 TopbarBreadcrumb**
+- [x] **Step 1: 实现 TopbarBreadcrumb**
 
 Create `components/layout/topbar-breadcrumb.tsx`:
 
@@ -1553,7 +1553,7 @@ function PrefixSegment({ path }: { path: string }) {
 }
 ```
 
-- [ ] **Step 2: 把 AppTopbar 接上 TopbarBreadcrumb**
+- [x] **Step 2: 把 AppTopbar 接上 TopbarBreadcrumb**
 
 Modify `components/layout/app-topbar.tsx` — 替换占位面包屑:
 
@@ -1587,7 +1587,7 @@ export function AppTopbar({ user }: AppTopbarProps) {
 }
 ```
 
-- [ ] **Step 3: 实现 CommandMenuTrigger(顶栏的"搜索 · ⌘K"按钮)**
+- [x] **Step 3: 实现 CommandMenuTrigger(顶栏的"搜索 · ⌘K"按钮)**
 
 Create `components/layout/command-menu-trigger.tsx`:
 
@@ -1622,7 +1622,7 @@ export function CommandMenuTrigger() {
 }
 ```
 
-- [ ] **Step 4: typecheck + lint**
+- [x] **Step 4: typecheck + lint**
 
 ```bash
 pnpm typecheck && pnpm lint 2>&1 | tail -10
@@ -1630,7 +1630,7 @@ pnpm typecheck && pnpm lint 2>&1 | tail -10
 
 Expected: 双 0 退出码。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/layout/topbar-breadcrumb.tsx components/layout/command-menu-trigger.tsx components/layout/app-topbar.tsx
@@ -1652,7 +1652,7 @@ EOF
 - Delete: `components/features/files/breadcrumb.tsx`
 - Modify: `app/(dashboard)/buckets/[bucket]/[[...prefix]]/page.tsx`(去掉对 Breadcrumb 的引用)
 
-- [ ] **Step 1: 找出谁还在 import 旧 breadcrumb**
+- [x] **Step 1: 找出谁还在 import 旧 breadcrumb**
 
 Run:
 ```bash
@@ -1661,19 +1661,19 @@ grep -rn "features/files/breadcrumb" /root/code/prisim-r2/{app,components} 2>&1
 
 Expected: 至少 `app/(dashboard)/buckets/[bucket]/[[...prefix]]/page.tsx` 引用。
 
-- [ ] **Step 2: 改造对象浏览页**
+- [x] **Step 2: 改造对象浏览页**
 
 Read 该文件,定位到 `<Breadcrumb ... />` 渲染处。删除该 import 与 JSX。如果有 props 透传(如 `bucket`、`prefix`),保留它们用于其他子组件,只是不再渲染 breadcrumb。
 
 不需要新加什么——顶栏已经接管。Page 顶部该有的页眉(如 "对象数 / 大小汇总")保留。
 
-- [ ] **Step 3: 删除旧文件**
+- [x] **Step 3: 删除旧文件**
 
 ```bash
 git -C /root/code/prisim-r2 rm components/features/files/breadcrumb.tsx
 ```
 
-- [ ] **Step 4: typecheck**
+- [x] **Step 4: typecheck**
 
 ```bash
 pnpm typecheck 2>&1 | tail -10
@@ -1681,7 +1681,7 @@ pnpm typecheck 2>&1 | tail -10
 
 Expected: 0 退出码。如果报"Breadcrumb 未引用但 import",清理对应 import。
 
-- [ ] **Step 5: 手动验证**
+- [x] **Step 5: 手动验证**
 
 启动 preview:
 
@@ -1698,7 +1698,7 @@ pnpm preview
 
 Stop preview。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add -A
@@ -1716,7 +1716,7 @@ EOF
 
 ### Task 2.6: Phase 2 验收
 
-- [ ] **Step 1: 全套质量门**
+- [x] **Step 1: 全套质量门**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test 2>&1 | tail -20
@@ -1735,7 +1735,7 @@ Expected: 全绿。
 **Files:**
 - Modify: `app/globals.css`
 
-- [ ] **Step 1: 在主色 token 块之后追加暗色 token**
+- [x] **Step 1: 在主色 token 块之后追加暗色 token**
 
 Edit `app/globals.css`,在 `:root[data-theme="green"] { ... }` 之后追加:
 
@@ -1791,7 +1791,7 @@ Edit `app/globals.css`,在 `:root[data-theme="green"] { ... }` 之后追加:
 }
 ```
 
-- [ ] **Step 2: typecheck(确保 CSS 不影响 TS 编译)**
+- [x] **Step 2: typecheck(确保 CSS 不影响 TS 编译)**
 
 ```bash
 pnpm typecheck 2>&1 | tail -5
@@ -1799,7 +1799,7 @@ pnpm typecheck 2>&1 | tail -5
 
 Expected: 0。
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add app/globals.css
@@ -1822,7 +1822,7 @@ EOF
 - Create: `components/providers/mode-provider.tsx`
 - Modify: `components/providers.tsx`(嵌入 ModeProvider)
 
-- [ ] **Step 1: 实现 ModeProvider**
+- [x] **Step 1: 实现 ModeProvider**
 
 Create `components/providers/mode-provider.tsx`:
 
@@ -1870,7 +1870,7 @@ export function ModeProvider({ children }: { children: ReactNode }) {
 }
 ```
 
-- [ ] **Step 2: 在 providers.tsx 嵌入 ModeProvider**
+- [x] **Step 2: 在 providers.tsx 嵌入 ModeProvider**
 
 Edit `components/providers.tsx`,在 `<ThemeProvider>` 内层、`<QueryClientProvider>` 外层加 `<ModeProvider>`:
 
@@ -1900,7 +1900,7 @@ return (
 );
 ```
 
-- [ ] **Step 3: typecheck**
+- [x] **Step 3: typecheck**
 
 ```bash
 pnpm typecheck 2>&1 | tail -5
@@ -1908,7 +1908,7 @@ pnpm typecheck 2>&1 | tail -5
 
 Expected: 0。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/providers/mode-provider.tsx components/providers.tsx
@@ -1930,7 +1930,7 @@ EOF
 - Modify: `components/features/dashboard/theme-switcher.tsx`(重写)
 - Test: `tests/unit/features/theme-switcher.test.tsx`
 
-- [ ] **Step 1: 写测试**
+- [x] **Step 1: 写测试**
 
 Create `tests/unit/features/theme-switcher.test.tsx`:
 
@@ -1977,7 +1977,7 @@ describe("ThemeSwitcher dual axis", () => {
 });
 ```
 
-- [ ] **Step 2: 跑测试确认失败(组件签名变化)**
+- [x] **Step 2: 跑测试确认失败(组件签名变化)**
 
 ```bash
 pnpm test tests/unit/features/theme-switcher.test.tsx 2>&1 | tail -10
@@ -1985,7 +1985,7 @@ pnpm test tests/unit/features/theme-switcher.test.tsx 2>&1 | tail -10
 
 Expected: FAIL(组件没改前)。
 
-- [ ] **Step 3: 重写 ThemeSwitcher**
+- [x] **Step 3: 重写 ThemeSwitcher**
 
 Replace contents of `components/features/dashboard/theme-switcher.tsx`:
 
@@ -2079,7 +2079,7 @@ export function ThemeSwitcher() {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 ```bash
 pnpm test tests/unit/features/theme-switcher.test.tsx 2>&1 | tail -10
@@ -2087,7 +2087,7 @@ pnpm test tests/unit/features/theme-switcher.test.tsx 2>&1 | tail -10
 
 Expected: 2/2 PASS。
 
-- [ ] **Step 5: 手动验证 6 套主题**
+- [x] **Step 5: 手动验证 6 套主题**
 
 启动 preview:
 
@@ -2105,7 +2105,7 @@ pnpm preview
 
 Stop preview。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/features/dashboard/theme-switcher.tsx tests/unit/features/theme-switcher.test.tsx
@@ -2126,7 +2126,7 @@ EOF
 **Files:**
 - Modify: `components/layout/command-menu.tsx`
 
-- [ ] **Step 1: 扩展 CommandMenu**
+- [x] **Step 1: 扩展 CommandMenu**
 
 在现有 CommandMenu 中加入一组新 CommandGroup:
 
@@ -2165,7 +2165,7 @@ const setMode = useUiStore((s) => s.setMode);
 
 注意:`/connections?new=1` 是个软约定 — 后续 `/connections` 页可以读 `?new=1` 自动打开"新建连接"对话框。本 task 不实现该读取,只是 command menu 跳转过去;`Connections` 页面下一步可以加这个 hook,不在 Phase 3 范围。
 
-- [ ] **Step 2: typecheck**
+- [x] **Step 2: typecheck**
 
 ```bash
 pnpm typecheck 2>&1 | tail -5
@@ -2173,7 +2173,7 @@ pnpm typecheck 2>&1 | tail -5
 
 Expected: 0。
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/layout/command-menu.tsx
@@ -2191,7 +2191,7 @@ EOF
 
 ### Task 3.5: Phase 3 验收
 
-- [ ] 全套门:`pnpm typecheck && pnpm lint && pnpm test` 全绿
+- [x] 全套门:`pnpm typecheck && pnpm lint && pnpm test` 全绿
 
 ---
 
@@ -2205,7 +2205,7 @@ EOF
 - Modify: `package.json`, `pnpm-lock.yaml`
 - Create: `components/charts/card.tsx`, `components/charts/area-chart.tsx`, `components/charts/bar-chart.tsx`, `components/charts/tracker.tsx`
 
-- [ ] **Step 1: 安装 recharts**
+- [x] **Step 1: 安装 recharts**
 
 Run:
 ```bash
@@ -2214,7 +2214,7 @@ pnpm add recharts@^2.13.0
 
 (版本选 2.x 最新稳定;Recharts 3 还在 alpha 时候按 2.x 走。)
 
-- [ ] **Step 2: copy Tremor Raw 源文件**
+- [x] **Step 2: copy Tremor Raw 源文件**
 
 去 https://github.com/tremorlabs/tremor-raw/tree/main/src/components 找以下 4 个组件,把每个组件的 `.tsx` 内容下载到本地:
 
@@ -2232,7 +2232,7 @@ import { cn } from "@/lib/utils";
 
 如果 Tremor 内部用了 `chartColors` 之类的 helper,把它内联到对应文件顶部(不要新建 utils 文件,YAGNI)。
 
-- [ ] **Step 3: typecheck**
+- [x] **Step 3: typecheck**
 
 ```bash
 pnpm typecheck 2>&1 | tail -20
@@ -2242,7 +2242,7 @@ Expected: 0。常见报错:
 - `Cannot find module "recharts"` → Step 1 没生效,重新 `pnpm install`
 - Tremor 内部用了 `@radix-ui/react-icons` 而项目没有 → 把对应图标换成 `lucide-react` 版
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add package.json pnpm-lock.yaml components/charts/
@@ -2264,7 +2264,7 @@ EOF
 - Create: `components/features/dashboard/format-delta.ts`
 - Test: `tests/unit/features/format-delta.test.ts`
 
-- [ ] **Step 1: 写测试**
+- [x] **Step 1: 写测试**
 
 Create `tests/unit/features/format-delta.test.ts`:
 
@@ -2299,7 +2299,7 @@ describe("formatDelta", () => {
 });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 ```bash
 pnpm test tests/unit/features/format-delta.test.ts 2>&1 | tail -10
@@ -2307,7 +2307,7 @@ pnpm test tests/unit/features/format-delta.test.ts 2>&1 | tail -10
 
 Expected: FAIL — module not found。
 
-- [ ] **Step 3: 实现 formatDelta**
+- [x] **Step 3: 实现 formatDelta**
 
 Create `components/features/dashboard/format-delta.ts`:
 
@@ -2342,7 +2342,7 @@ export function formatDelta(current: number, previous: number): DeltaResult | nu
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 ```bash
 pnpm test tests/unit/features/format-delta.test.ts 2>&1 | tail -10
@@ -2350,7 +2350,7 @@ pnpm test tests/unit/features/format-delta.test.ts 2>&1 | tail -10
 
 Expected: 6/6 PASS。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/features/dashboard/format-delta.ts tests/unit/features/format-delta.test.ts
@@ -2370,7 +2370,7 @@ EOF
 - Create: `components/features/dashboard/kpi-card.tsx`
 - Test: `tests/unit/features/kpi-card.test.tsx`
 
-- [ ] **Step 1: 写测试**
+- [x] **Step 1: 写测试**
 
 Create `tests/unit/features/kpi-card.test.tsx`:
 
@@ -2417,7 +2417,7 @@ describe("KpiCard", () => {
 });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 ```bash
 pnpm test tests/unit/features/kpi-card.test.tsx 2>&1 | tail -10
@@ -2425,7 +2425,7 @@ pnpm test tests/unit/features/kpi-card.test.tsx 2>&1 | tail -10
 
 Expected: FAIL — module not found。
 
-- [ ] **Step 3: 实现 KpiCard**
+- [x] **Step 3: 实现 KpiCard**
 
 Create `components/features/dashboard/kpi-card.tsx`:
 
@@ -2484,7 +2484,7 @@ function DeltaBadge({ delta }: { delta: DeltaResult }) {
 
 (读 `app/globals.css` 确认;如果已有就跳过。)
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 ```bash
 pnpm test tests/unit/features/kpi-card.test.tsx 2>&1 | tail -10
@@ -2492,7 +2492,7 @@ pnpm test tests/unit/features/kpi-card.test.tsx 2>&1 | tail -10
 
 Expected: 4/4 PASS。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/features/dashboard/kpi-card.tsx tests/unit/features/kpi-card.test.tsx
@@ -2512,7 +2512,7 @@ EOF
 **Files:**
 - Create: `components/features/dashboard/range-toggle.tsx`
 
-- [ ] **Step 1: 实现 RangeToggle**
+- [x] **Step 1: 实现 RangeToggle**
 
 Create `components/features/dashboard/range-toggle.tsx`:
 
@@ -2563,7 +2563,7 @@ export function RangeToggle({ value, onChange }: RangeToggleProps) {
 }
 ```
 
-- [ ] **Step 2: typecheck**
+- [x] **Step 2: typecheck**
 
 ```bash
 pnpm typecheck 2>&1 | tail -5
@@ -2571,7 +2571,7 @@ pnpm typecheck 2>&1 | tail -5
 
 Expected: 0。
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/features/dashboard/range-toggle.tsx
@@ -2592,7 +2592,7 @@ EOF
 - Create: `components/features/dashboard/ops-area-chart.tsx`
 - Create: `components/features/dashboard/ops-by-type-bar.tsx`
 
-- [ ] **Step 1: 实现 OpsAreaChart(Tremor 包装)**
+- [x] **Step 1: 实现 OpsAreaChart(Tremor 包装)**
 
 Create `components/features/dashboard/ops-area-chart.tsx`:
 
@@ -2622,7 +2622,7 @@ export function OpsAreaChart({ data }: OpsAreaChartProps) {
 
 (具体 prop 名以 Tremor Raw 源码为准 — 如果不同,在本 task 内调整。Tremor 通常用 `index` 指定 x 轴字段,`categories` 列出 y 字段。)
 
-- [ ] **Step 2: 实现 OpsByTypeBar(横向 progress bar)**
+- [x] **Step 2: 实现 OpsByTypeBar(横向 progress bar)**
 
 Create `components/features/dashboard/ops-by-type-bar.tsx`:
 
@@ -2679,7 +2679,7 @@ export function OpsByTypeBar({ data }: OpsByTypeBarProps) {
 
 注:这里没用 Tremor BarChart,而是手写 progress bar — 对"操作类型分布"这种 1D 排序数据更轻、更好读。Tremor BarChart 的源码还是被 copy 进 `components/charts/`,后续如果有别的图表需要可以直接用。
 
-- [ ] **Step 3: typecheck**
+- [x] **Step 3: typecheck**
 
 ```bash
 pnpm typecheck 2>&1 | tail -10
@@ -2687,7 +2687,7 @@ pnpm typecheck 2>&1 | tail -10
 
 Expected: 0。如果 Tremor `AreaChart` 的 prop 类型与上面有出入,以源码为准更正。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/features/dashboard/ops-area-chart.tsx components/features/dashboard/ops-by-type-bar.tsx
@@ -2708,7 +2708,7 @@ EOF
 **Files:**
 - Create: `components/features/dashboard/recent-activity.tsx`
 
-- [ ] **Step 1: 实现 RecentActivity**
+- [x] **Step 1: 实现 RecentActivity**
 
 Create `components/features/dashboard/recent-activity.tsx`:
 
@@ -2764,7 +2764,7 @@ export function RecentActivity({ rows }: RecentActivityProps) {
 }
 ```
 
-- [ ] **Step 2: typecheck**
+- [x] **Step 2: typecheck**
 
 ```bash
 pnpm typecheck 2>&1 | tail -5
@@ -2772,7 +2772,7 @@ pnpm typecheck 2>&1 | tail -5
 
 Expected: 0。
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add components/features/dashboard/recent-activity.tsx
@@ -2789,7 +2789,7 @@ EOF
 
 ### Task 4.7: Bundle 体积验证
 
-- [ ] **Step 1: build**
+- [x] **Step 1: build**
 
 ```bash
 pnpm build:pages 2>&1 | tail -10
@@ -2797,7 +2797,7 @@ pnpm build:pages 2>&1 | tail -10
 
 Expected: 成功。
 
-- [ ] **Step 2: 检查 worker.js 体积**
+- [x] **Step 2: 检查 worker.js 体积**
 
 ```bash
 ls -lh /root/code/prisim-r2/.vercel/output/static/_worker.js | awk '{print $5}'
@@ -2809,7 +2809,7 @@ Expected: < 1MB。比 Phase 1 基线多几十 KB(Recharts 的代码主要落在 
 1. 把 `app/(dashboard)/dashboard/page.tsx` 准备改为 `next/dynamic` 导入 OpsAreaChart(Phase 5 时一并做)
 2. 现在不一定要立刻改,Phase 5 完成后再 build 一次决定
 
-- [ ] **Step 3: Phase 4 验收**
+- [x] **Step 3: Phase 4 验收**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test 2>&1 | tail -10
@@ -2829,7 +2829,7 @@ Expected: 全绿。
 - Modify: `lib/api/rate-limit.ts`
 - Test: 沿用 `tests/unit/api/rate-limit.test.ts`(如已存在则补一项 assertion;不存在则新加)
 
-- [ ] **Step 1: 加 policy + bundle**
+- [x] **Step 1: 加 policy + bundle**
 
 Edit `lib/api/rate-limit.ts`,在 `RateLimitPolicies` 对象中追加:
 
@@ -2849,7 +2849,7 @@ dashboardSummaryByUser: (userId: string): RateLimitPolicy[] => [
 ],
 ```
 
-- [ ] **Step 2: typecheck**
+- [x] **Step 2: typecheck**
 
 ```bash
 pnpm typecheck 2>&1 | tail -5
@@ -2857,7 +2857,7 @@ pnpm typecheck 2>&1 | tail -5
 
 Expected: 0。
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add lib/api/rate-limit.ts
@@ -2878,7 +2878,7 @@ EOF
 - Modify: `lib/api/schemas.ts`(追加 DashboardSummaryQuerySchema)
 - Modify: `lib/api/types.ts`(追加 DashboardSummary)
 
-- [ ] **Step 1: 在 schemas.ts 末尾追加**
+- [x] **Step 1: 在 schemas.ts 末尾追加**
 
 ```ts
 /* ─── dashboard summary ─────────────────────────────────────── */
@@ -2890,7 +2890,7 @@ export const DashboardSummaryQuerySchema = z.object({
 export type DashboardSummaryQuery = z.infer<typeof DashboardSummaryQuerySchema>;
 ```
 
-- [ ] **Step 2: 在 types.ts 末尾追加**
+- [x] **Step 2: 在 types.ts 末尾追加**
 
 ```ts
 import type { AuditEntry } from "./types"; // 已存在,如果同文件可略
@@ -2919,7 +2919,7 @@ export interface DashboardSummary {
 
 注:`ops` 返回 `{ count, previousCount }` 而不是 `{ count, deltaPct }` — 前端直接用 `formatDelta(curr, prev)`,反推 prev 会引入浮点误差。
 
-- [ ] **Step 3: typecheck**
+- [x] **Step 3: typecheck**
 
 ```bash
 pnpm typecheck 2>&1 | tail -5
@@ -2927,7 +2927,7 @@ pnpm typecheck 2>&1 | tail -5
 
 Expected: 0。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add lib/api/schemas.ts lib/api/types.ts
@@ -2948,7 +2948,7 @@ EOF
 - Create: `lib/dashboard/summary.ts`
 - Test: `tests/unit/dashboard/summary.test.ts`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 Create `tests/unit/dashboard/summary.test.ts`:
 
@@ -3084,7 +3084,7 @@ describe("getDashboardSummary", () => {
 });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 ```bash
 pnpm test tests/unit/dashboard/summary.test.ts 2>&1 | tail -10
@@ -3092,7 +3092,7 @@ pnpm test tests/unit/dashboard/summary.test.ts 2>&1 | tail -10
 
 Expected: FAIL — module not found。
 
-- [ ] **Step 3: 实现 lib/dashboard/summary.ts**
+- [x] **Step 3: 实现 lib/dashboard/summary.ts**
 
 Create `lib/dashboard/summary.ts`:
 
@@ -3282,7 +3282,7 @@ export async function getDashboardSummary(
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 ```bash
 pnpm test tests/unit/dashboard/summary.test.ts 2>&1 | tail -15
@@ -3290,7 +3290,7 @@ pnpm test tests/unit/dashboard/summary.test.ts 2>&1 | tail -15
 
 Expected: 5/5 PASS。如果有 query 写法错误(drizzle SQL 拼装、bind 顺序),逐条修。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add lib/dashboard/summary.ts tests/unit/dashboard/summary.test.ts
@@ -3312,7 +3312,7 @@ EOF
 - Create: `app/api/dashboard/summary/route.ts`
 - Test: `tests/unit/api/dashboard-summary-route.test.ts`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 Create `tests/unit/api/dashboard-summary-route.test.ts`,基于现有 `tests/unit/api/audit-route.test.ts` 的同样 mock 套路 (`getRequestContext` / `getDb` / 假 session)。
 
@@ -3421,7 +3421,7 @@ describe("GET /api/dashboard/summary", () => {
 });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 ```bash
 pnpm test tests/unit/api/dashboard-summary-route.test.ts 2>&1 | tail -10
@@ -3429,7 +3429,7 @@ pnpm test tests/unit/api/dashboard-summary-route.test.ts 2>&1 | tail -10
 
 Expected: FAIL — module not found。
 
-- [ ] **Step 3: 实现 route**
+- [x] **Step 3: 实现 route**
 
 Create `app/api/dashboard/summary/route.ts`:
 
@@ -3484,7 +3484,7 @@ export const GET = withApi(
 
 注意:`lib/connections/get.ts`、`decryptConnectionCredentials` 是已有 helper(spec 内 R2 调用走的是 lib/r2/control.ts)。如果具体函数名/导出有差异,以现有代码为准——查 `lib/r2/control.ts` 与 `lib/connections/` 的 export 调整 import。
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 ```bash
 pnpm test tests/unit/api/dashboard-summary-route.test.ts 2>&1 | tail -15
@@ -3492,7 +3492,7 @@ pnpm test tests/unit/api/dashboard-summary-route.test.ts 2>&1 | tail -15
 
 Expected: 4/4 PASS。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add app/api/dashboard/summary/route.ts tests/unit/api/dashboard-summary-route.test.ts
@@ -3513,7 +3513,7 @@ EOF
 **Files:**
 - Create: `hooks/use-dashboard.ts`
 
-- [ ] **Step 1: 实现 hook**
+- [x] **Step 1: 实现 hook**
 
 Create `hooks/use-dashboard.ts`:
 
@@ -3545,7 +3545,7 @@ export function useDashboardSummary(connectionId: string | null, range: "7d" | "
 }
 ```
 
-- [ ] **Step 2: typecheck**
+- [x] **Step 2: typecheck**
 
 ```bash
 pnpm typecheck 2>&1 | tail -5
@@ -3553,7 +3553,7 @@ pnpm typecheck 2>&1 | tail -5
 
 Expected: 0。
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add hooks/use-dashboard.ts
@@ -3573,7 +3573,7 @@ EOF
 **Files:**
 - Modify: `app/(dashboard)/dashboard/page.tsx`(整体重写)
 
-- [ ] **Step 1: 重写 dashboard page**
+- [x] **Step 1: 重写 dashboard page**
 
 Replace contents of `app/(dashboard)/dashboard/page.tsx`:
 
@@ -3692,7 +3692,7 @@ export default function DashboardPage() {
 
 (清理 `useActiveConnectionStore.getState; // unused noise` 那行)
 
-- [ ] **Step 2: typecheck**
+- [x] **Step 2: typecheck**
 
 ```bash
 pnpm typecheck 2>&1 | tail -10
@@ -3700,7 +3700,7 @@ pnpm typecheck 2>&1 | tail -10
 
 Expected: 0。
 
-- [ ] **Step 3: 启动 preview 手动验证**
+- [x] **Step 3: 启动 preview 手动验证**
 
 ```bash
 pnpm preview
@@ -3716,7 +3716,7 @@ pnpm preview
 
 Stop preview。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add app/\(dashboard\)/dashboard/page.tsx
@@ -3734,7 +3734,7 @@ EOF
 
 ### Task 5.7: Phase 5 bundle 验收
 
-- [ ] **Step 1: build + size check**
+- [x] **Step 1: build + size check**
 
 ```bash
 pnpm build:pages 2>&1 | tail -10
@@ -3743,7 +3743,7 @@ ls -lh .vercel/output/static/_worker.js | awk '{print $5}'
 
 Expected: < 1MB。如果接近 1MB,执行下一步;否则直接 Step 3。
 
-- [ ] **Step 2: 如果超 1MB,改 dynamic import**
+- [x] **Step 2: 如果超 1MB,改 dynamic import**
 
 Edit `app/(dashboard)/dashboard/page.tsx`,把 chart 组件改为 dynamic:
 
@@ -3755,7 +3755,7 @@ const OpsByTypeBar = dynamic(() => import("@/components/features/dashboard/ops-b
 
 重跑 build,确认 < 1MB。提交。
 
-- [ ] **Step 3: 全套门**
+- [x] **Step 3: 全套门**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test 2>&1 | tail -20
@@ -3775,7 +3775,7 @@ Expected: 全绿。
 - Modify: `app/(dashboard)/buckets/page.tsx`
 - Test: `tests/unit/features/buckets-page.test.tsx`
 
-- [ ] **Step 1: 写测试**
+- [x] **Step 1: 写测试**
 
 Create `tests/unit/features/buckets-page.test.tsx`:
 
@@ -3842,7 +3842,7 @@ describe("BucketsPage", () => {
 });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 ```bash
 pnpm test tests/unit/features/buckets-page.test.tsx 2>&1 | tail -10
@@ -3850,7 +3850,7 @@ pnpm test tests/unit/features/buckets-page.test.tsx 2>&1 | tail -10
 
 Expected: FAIL — page 仍是 placeholder,没有 "暂无 Bucket" 等文案。
 
-- [ ] **Step 3: 重写 page**
+- [x] **Step 3: 重写 page**
 
 Replace `app/(dashboard)/buckets/page.tsx`:
 
@@ -3958,7 +3958,7 @@ export default function BucketsPage() {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 ```bash
 pnpm test tests/unit/features/buckets-page.test.tsx 2>&1 | tail -10
@@ -3966,7 +3966,7 @@ pnpm test tests/unit/features/buckets-page.test.tsx 2>&1 | tail -10
 
 Expected: 4/4 PASS。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add app/\(dashboard\)/buckets/page.tsx tests/unit/features/buckets-page.test.tsx
@@ -3989,11 +3989,11 @@ EOF
 
 Spec 6 提到 `/settings` 加页眉 tabs(连接管理 / 个人偏好 / 关于)。后两项 V2,本 task 只把骨架立起来,占位"敬请期待"。
 
-- [ ] **Step 1: 看现有 page**
+- [x] **Step 1: 看现有 page**
 
 Read `app/(dashboard)/settings/page.tsx` 了解现状(若是简单引导文案,直接重写;若已经有内容,只追加 tabs)。
 
-- [ ] **Step 2: 重写为带 tabs 的入口**
+- [x] **Step 2: 重写为带 tabs 的入口**
 
 Replace `app/(dashboard)/settings/page.tsx`:
 
@@ -4061,7 +4061,7 @@ function V2Placeholder() {
 
 `Tabs` 组件来自现有 `components/ui/tabs.tsx`(已是 shadcn 生成,无需新 add)。
 
-- [ ] **Step 3: typecheck + lint**
+- [x] **Step 3: typecheck + lint**
 
 ```bash
 pnpm typecheck && pnpm lint 2>&1 | tail -5
@@ -4069,7 +4069,7 @@ pnpm typecheck && pnpm lint 2>&1 | tail -5
 
 Expected: 0。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git -C /root/code/prisim-r2 add app/\(dashboard\)/settings/page.tsx
@@ -4085,7 +4085,7 @@ EOF
 
 ### Task 6.3: 全套验收
 
-- [ ] **Step 1: 跑所有测试 + lint + typecheck**
+- [x] **Step 1: 跑所有测试 + lint + typecheck**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test 2>&1 | tail -30
@@ -4093,7 +4093,7 @@ pnpm typecheck && pnpm lint && pnpm test 2>&1 | tail -30
 
 Expected: 全绿。
 
-- [ ] **Step 2: build:pages 最终核查**
+- [x] **Step 2: build:pages 最终核查**
 
 ```bash
 pnpm build:pages 2>&1 | tail -10
@@ -4102,29 +4102,29 @@ ls -lh .vercel/output/static/_worker.js | awk '{print $5}'
 
 Expected: < 1MB。
 
-- [ ] **Step 3: 端到端手动 smoke test**
+- [x] **Step 3: 端到端手动 smoke test**
 
 ```bash
 pnpm preview
 ```
 
 清单(每条目验证后打勾):
-- [ ] `/login` 能登录(回归)
-- [ ] `/dashboard` 显示 KPI + 图表 + 活动
-- [ ] `/buckets` 显示卡片网格
-- [ ] `/buckets/[bucket]` 显示对象表 + 顶栏面包屑显示完整 prefix
-- [ ] `/audit` 表格无回归
-- [ ] `/connections` 列表 + 创建/重命名/删除 dialog 无回归
-- [ ] `/shares` 列表无回归
-- [ ] `/settings` 显示 3 tabs(连接管理可点 + 子页跳转,profile/about 显示 V2 占位)
-- [ ] ⌘K 命令面板触发(键盘 + 顶栏胶囊)
-- [ ] 主题切换 蓝/橙/绿 × 亮/暗/系统 = 6 套全部生效
-- [ ] 折叠 / 展开侧栏正常
-- [ ] 顶栏面包屑切 connection / bucket 都跳路由
+- [x] `/login` 能登录(回归)
+- [x] `/dashboard` 显示 KPI + 图表 + 活动
+- [x] `/buckets` 显示卡片网格
+- [x] `/buckets/[bucket]` 显示对象表 + 顶栏面包屑显示完整 prefix
+- [x] `/audit` 表格无回归
+- [x] `/connections` 列表 + 创建/重命名/删除 dialog 无回归
+- [x] `/shares` 列表无回归
+- [x] `/settings` 显示 3 tabs(连接管理可点 + 子页跳转,profile/about 显示 V2 占位)
+- [x] ⌘K 命令面板触发(键盘 + 顶栏胶囊)
+- [x] 主题切换 蓝/橙/绿 × 亮/暗/系统 = 6 套全部生效
+- [x] 折叠 / 展开侧栏正常
+- [x] 顶栏面包屑切 connection / bucket 都跳路由
 
 Stop preview。
 
-- [ ] **Step 4: Phase 6 收尾提交**
+- [x] **Step 4: Phase 6 收尾提交**
 
 (无需要 commit,Step 3 是验收)
 
