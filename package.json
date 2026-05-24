@@ -23,16 +23,6 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:prod": "wrangler d1 migrations apply DB --remote"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "better-sqlite3",
-      "esbuild",
-      "workerd"
-    ],
-    "patchedDependencies": {
-      "@aws-sdk/xml-builder@3.972.24": "patches/@aws-sdk__xml-builder@3.972.24.patch"
-    }
-  },
   "dependencies": {
     "@auth/core": "^0.34.3",
     "@aws-sdk/client-s3": "3.1050.0",

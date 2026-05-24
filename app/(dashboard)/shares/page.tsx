@@ -145,7 +145,7 @@ export default function SharesPage() {
               <Th className="pl-4">{T.thKey}</Th>
               <Th className="w-32">{T.thCreated}</Th>
               <Th className="w-40">{T.thExpires}</Th>
-              <Th className="w-44 pr-4 text-right">{T.thActions}</Th>
+              <Th className="w-52 pr-4 text-right">{T.thActions}</Th>
             </tr>
           </thead>
           <tbody>
@@ -359,7 +359,7 @@ function Row({
             disabled={isRevealing}
             aria-label={T.showLink}
             title={T.showLink}
-            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isRevealing ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -373,7 +373,7 @@ function Row({
             onClick={() => onDelete(row)}
             aria-label={T.delete}
             title={T.delete}
-            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+            className="inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
           >
             <Trash2 className="h-3.5 w-3.5" />
             {T.delete}

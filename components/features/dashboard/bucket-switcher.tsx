@@ -7,6 +7,7 @@
 //
 // 切 connection 不在这里 —— 用户去左侧"连接管理"页切换。
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, Database, ExternalLink } from "lucide-react";
 import {
@@ -40,12 +41,30 @@ function maskAccountId(accountId: string): string {
 
 export function BucketSwitcher() {
   const router = useRouter();
-  const { activeConnectionId, activeBucket, setActiveBucket } =
-    useActiveConnectionStore();
+  const {
+    activeConnectionId,
+    activeBucket,
+    setActiveBucket,
+    setActiveConnectionId,
+  } = useActiveConnectionStore();
   const { data: connections } = useConnections();
   const { data: buckets } = useBuckets(activeConnectionId);
 
   const conn = connections?.find((c) => c.id === activeConnectionId) ?? null;
+
+  // 自动选择连接：当用户已经有连接但 store 里没有 active id（首次登录、清缓存、
+  // 或之前激活的连接被删了），自动选第一个，避免侧栏/切换器误报"未配置"。
+  useEffect(() => {
+    if (!connections) return;
+    const first = connections[0];
+    if (!first) return;
+    const stillExists =
+      activeConnectionId &&
+      connections.some((c) => c.id === activeConnectionId);
+    if (!stillExists) {
+      setActiveConnectionId(first.id);
+    }
+  }, [connections, activeConnectionId, setActiveConnectionId]);
 
   return (
     <DropdownMenu>

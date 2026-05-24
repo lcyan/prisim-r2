@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@aws-sdk/xml-builder@3.972.24': eccb40bd075c7c0291940371b06104f90ba0432d589486bd10fe5f0e62a038f7
+
 importers:
 
   .:
@@ -6549,7 +6552,7 @@ snapshots:
   '@aws-sdk/core@3.974.12':
     dependencies:
       '@aws-sdk/types': 3.973.8
-      '@aws-sdk/xml-builder': 3.972.24
+      '@aws-sdk/xml-builder': 3.972.24(patch_hash=eccb40bd075c7c0291940371b06104f90ba0432d589486bd10fe5f0e62a038f7)
       '@aws/lambda-invoke-store': 0.2.4
       '@smithy/core': 3.24.3
       '@smithy/signature-v4': 5.4.3
@@ -6743,7 +6746,7 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@aws-sdk/xml-builder@3.972.24':
+  '@aws-sdk/xml-builder@3.972.24(patch_hash=eccb40bd075c7c0291940371b06104f90ba0432d589486bd10fe5f0e62a038f7)':
     dependencies:
       '@nodable/entities': 2.1.0
       '@smithy/types': 4.14.2
