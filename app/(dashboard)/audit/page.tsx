@@ -164,7 +164,7 @@ function FilterBar({
   return (
     <div className="flex flex-wrap items-center gap-3">
       <label className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span className="font-mono uppercase tracking-wider">{T.opLabel}</span>
+        <span>{T.opLabel}</span>
         <select
           value={op}
           onChange={(e) => onOpChange(e.target.value as "" | AuditOpValue)}
@@ -181,7 +181,7 @@ function FilterBar({
       </label>
 
       <label className="flex flex-1 items-center gap-2 text-xs text-muted-foreground sm:max-w-xs">
-        <span className="font-mono uppercase tracking-wider">{T.bucketLabel}</span>
+        <span>{T.bucketLabel}</span>
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -225,7 +225,7 @@ function Body({
           <button
             type="button"
             onClick={onRetry}
-            className="mt-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+            className="mt-3 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             {T.retry}
           </button>
@@ -242,7 +242,7 @@ function Body({
             className="mx-auto h-5 w-5 animate-spin text-muted-foreground"
             strokeWidth={1.5}
           />
-          <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <p className="mt-3 text-xs text-muted-foreground">
             {T.loading}
           </p>
         </td>
@@ -257,7 +257,7 @@ function Body({
           <p className="font-display text-lg italic text-muted-foreground">
             {T.emptyTitle}
           </p>
-          <p className="mt-2 font-mono text-xs text-muted-foreground">
+          <p className="mt-2 text-xs text-muted-foreground">
             {T.emptyHint}
           </p>
         </td>
@@ -278,7 +278,7 @@ function Row({ row }: { row: AuditEntry }) {
   return (
     <tr className="group h-11 border-b border-border/60 transition-colors hover:bg-accent/40">
       <td
-        className="pl-4 font-mono text-xs text-muted-foreground"
+        className="pl-4 text-xs text-muted-foreground"
         title={new Date(row.createdAt).toISOString()}
       >
         {formatRelative(new Date(row.createdAt))}
@@ -300,7 +300,7 @@ function Row({ row }: { row: AuditEntry }) {
         </span>
         {row.errorMsg ? (
           <span
-            className="block truncate font-mono text-[10px] text-destructive"
+            className="block truncate font-mono text-xs text-destructive"
             title={row.errorMsg}
           >
             {row.errorMsg}
@@ -310,7 +310,7 @@ function Row({ row }: { row: AuditEntry }) {
       <td className="px-2">
         <Badge
           variant={row.status === "success" ? "secondary" : "destructive"}
-          className="font-mono text-[10px]"
+          className="text-xs"
         >
           {row.status === "success" ? T.statusSuccess : T.statusFailure}
         </Badge>
@@ -334,7 +334,7 @@ function Th({
 }) {
   return (
     <th
-      className={`text-left font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground ${className ?? ""}`}
+      className={`text-left text-xs font-medium text-muted-foreground ${className ?? ""}`}
     >
       {children}
     </th>

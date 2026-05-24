@@ -87,7 +87,7 @@ export function BucketSwitcher() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-80">
         {conn ? (
-          <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <DropdownMenuLabel className="text-xs text-muted-foreground">
             {T.connectionHead(conn.name, maskAccountId(conn.accountId))}
           </DropdownMenuLabel>
         ) : (
@@ -98,7 +98,7 @@ export function BucketSwitcher() {
 
         {conn ? (
           <>
-            <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
               {T.bucketsHead}
             </DropdownMenuLabel>
             {(buckets ?? []).map((b) => {

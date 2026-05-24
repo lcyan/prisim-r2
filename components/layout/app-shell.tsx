@@ -146,7 +146,7 @@ function Sidebar() {
       {/* Brand */}
       <div className="border-b border-border px-4 py-4">
         <p className="text-base font-semibold tracking-tight">{T.brand}</p>
-        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {T.brandSub}
         </p>
       </div>
@@ -220,7 +220,7 @@ function Sidebar() {
 
       {/* 活动连接卡 */}
       <div className="border-t border-border p-3">
-        <p className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+        <p className="mb-1.5 text-xs text-muted-foreground">
           {T.activeConnLabel}
         </p>
         {activeConn ? (

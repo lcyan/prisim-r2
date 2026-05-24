@@ -92,11 +92,11 @@ function LoginForm() {
           <span className="font-display text-lg font-semibold tracking-tight">
             Prisim
           </span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {T.brandSubtitle}
           </span>
         </div>
-        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {T.buildBadge}
         </p>
       </header>
@@ -159,9 +159,9 @@ function LoginForm() {
             </button>
           </form>
 
-          <p className="mt-8 text-center font-mono text-[10px] leading-relaxed text-muted-foreground">
+          <p className="mt-8 text-center text-xs leading-relaxed text-muted-foreground">
             {T.singleUser1}{" "}
-            <code className="rounded bg-secondary px-1 py-0.5">
+            <code className="rounded bg-secondary px-1 py-0.5 font-mono">
               scripts/seed-admin.ts
             </code>{" "}
             {T.singleUser2}
@@ -170,7 +170,7 @@ function LoginForm() {
       </main>
 
       <footer className="flex items-center justify-between border-t border-border px-6 py-3">
-        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {T.footerLeft}
         </p>
         <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -218,7 +218,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+      <span className="mb-1.5 block text-xs text-muted-foreground">
         {label}
       </span>
       <div className="relative">
@@ -249,7 +249,7 @@ function ErrorBanner({ code }: { code: string }) {
         <p className="mt-0.5 text-xs text-destructive/80">
           {describeError(code)}
         </p>
-        <p className="mt-0.5 font-mono text-[10px] text-destructive/60">
+        <p className="mt-0.5 font-mono text-xs text-destructive/60">
           {code}
         </p>
       </div>
@@ -265,7 +265,7 @@ function Letterhead() {
       </h1>
       <div className="mx-auto mt-3 flex items-center justify-center gap-2">
         <span className="h-px w-12 bg-border" aria-hidden />
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           {T.letterheadCenter}
         </span>
         <span className="h-px w-12 bg-border" aria-hidden />

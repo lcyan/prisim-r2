@@ -217,7 +217,7 @@ export function ObjectTable({
               type="button"
               onClick={onLoadMore}
               disabled={isFetchingNextPage}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-4 font-mono text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-4 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isFetchingNextPage ? (
                 <>
@@ -252,7 +252,7 @@ function SelectionBanner({
   if (selectedCount === 0) return null;
   return (
     <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-primary/[0.04] px-4 py-2">
-      <span className="font-mono text-xs text-foreground">
+      <span className="text-xs text-foreground">
         {T.selectedN(selectedCount)}
       </span>
       <div className="flex items-center gap-2">
@@ -267,7 +267,7 @@ function SelectionBanner({
         <button
           type="button"
           onClick={onClearSelection}
-          className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+          className="text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           {T.clear}
         </button>
@@ -313,7 +313,7 @@ function TableBody({
           <button
             type="button"
             onClick={onRetry}
-            className="mt-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+            className="mt-3 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             {T.retry}
           </button>
@@ -330,7 +330,7 @@ function TableBody({
             className="mx-auto h-5 w-5 animate-spin text-muted-foreground"
             strokeWidth={1.5}
           />
-          <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <p className="mt-3 text-xs text-muted-foreground">
             {T.loading}
           </p>
         </td>
@@ -345,7 +345,7 @@ function TableBody({
           <p className="font-display text-lg italic text-muted-foreground">
             {T.emptyTitle}
           </p>
-          <p className="mt-2 font-mono text-xs text-muted-foreground">
+          <p className="mt-2 text-xs text-muted-foreground">
             {T.emptyHint}
           </p>
         </td>
@@ -379,7 +379,7 @@ function Th({
   return (
     <th
       className={cn(
-        "px-2 text-left font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground",
+        "px-2 text-left text-xs font-medium text-muted-foreground",
         className,
       )}
     >
@@ -450,7 +450,7 @@ function Row({
       <td className="px-2 text-right font-mono text-xs tabular-nums text-muted-foreground">
         {row.kind === "file" ? formatBytes(row.size ?? 0) : "—"}
       </td>
-      <td className="px-2 font-mono text-xs text-muted-foreground">
+      <td className="px-2 text-xs text-muted-foreground">
         {row.kind === "file" && row.lastModified
           ? formatRelative(new Date(row.lastModified))
           : "—"}

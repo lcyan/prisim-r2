@@ -90,7 +90,7 @@ export function ThemeSwitcher() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+        <DropdownMenuLabel className="text-xs text-muted-foreground">
           {T.popoverTitle}
         </DropdownMenuLabel>
         {THEMES.map((t) => {

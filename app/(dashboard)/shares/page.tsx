@@ -267,7 +267,7 @@ function Body({
           <button
             type="button"
             onClick={onRetry}
-            className="mt-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+            className="mt-3 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             {T.retry}
           </button>
@@ -284,7 +284,7 @@ function Body({
             className="mx-auto h-5 w-5 animate-spin text-muted-foreground"
             strokeWidth={1.5}
           />
-          <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <p className="mt-3 text-xs text-muted-foreground">
             {T.loading}
           </p>
         </td>
@@ -299,7 +299,7 @@ function Body({
           <p className="font-display text-lg italic text-muted-foreground">
             {T.emptyTitle}
           </p>
-          <p className="mt-2 font-mono text-xs text-muted-foreground">
+          <p className="mt-2 text-xs text-muted-foreground">
             {T.emptyHint}
           </p>
         </td>
@@ -340,15 +340,15 @@ function Row({
           <span className="truncate font-mono text-xs text-foreground" title={row.key}>
             {row.key}
           </span>
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {row.bucket}
           </span>
         </div>
       </td>
-      <td className="px-2 font-mono text-xs text-muted-foreground">
+      <td className="px-2 text-xs text-muted-foreground">
         {formatRelative(new Date(row.createdAt))}
       </td>
-      <td className="px-2 font-mono text-xs">
+      <td className="px-2 text-xs">
         <ExpiryCell expiresAt={row.expiresAt} />
       </td>
       <td className="pr-4 text-right">
@@ -424,7 +424,7 @@ function Th({
   return (
     <th
       className={
-        "px-2 text-left font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground " +
+        "px-2 text-left text-xs font-medium text-muted-foreground " +
         (className ?? "")
       }
     >

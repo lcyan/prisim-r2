@@ -213,7 +213,7 @@ export function ConnectionSwitcherMenu({
       style={{ boxShadow: "var(--shadow-lg)" }}
     >
       <div className="border-b border-border px-3 py-2">
-        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {T.title}
         </p>
       </div>
@@ -221,7 +221,7 @@ export function ConnectionSwitcherMenu({
       <ul className="max-h-[280px] overflow-auto py-1">
         {connections.length === 0 ? (
           <li className="px-3 py-6 text-center">
-            <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {T.empty}
             </p>
           </li>
@@ -250,7 +250,7 @@ export function ConnectionSwitcherMenu({
                         {c.accountIdMasked}
                       </span>
                     </div>
-                    <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+                    <p className="mt-0.5 text-xs text-muted-foreground">
                       {c.accessKeyMasked}
                       {c.lastUsedAt
                         ? T.used(relativeShort(c.lastUsedAt))
@@ -283,7 +283,7 @@ export function ConnectionSwitcherMenu({
           <button
             type="button"
             onClick={onManage}
-            className="inline-flex h-7 items-center gap-1.5 rounded px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="inline-flex h-7 items-center gap-1.5 rounded px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <SettingsIcon className="h-3 w-3" />
             {T.manage}
@@ -401,7 +401,7 @@ export function AddConnectionDialog({ onClose, onAdd }: DialogProps) {
             >
               {T.dialogTitle}
             </h2>
-            <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {T.dialogSubtitle}
             </p>
           </div>
@@ -503,7 +503,7 @@ export function AddConnectionDialog({ onClose, onAdd }: DialogProps) {
                 <p className="text-xs font-medium text-destructive">
                   {T.errorTitle}
                 </p>
-                <p className="mt-0.5 font-mono text-[10px] text-destructive/80">
+                <p className="mt-0.5 font-mono text-xs text-destructive/80">
                   {error}
                 </p>
               </div>
@@ -515,7 +515,7 @@ export function AddConnectionDialog({ onClose, onAdd }: DialogProps) {
               href="https://developers.cloudflare.com/r2/api/s3/tokens/"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               <CircleHelp className="h-3 w-3" />
               {T.helpLink}
@@ -576,11 +576,11 @@ function DialogField({
   return (
     <label className="block">
       <div className="mb-1 flex items-baseline justify-between gap-3">
-        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           {label}
         </span>
         {hint ? (
-          <span className="truncate font-mono text-[10px] text-muted-foreground/70">
+          <span className="truncate text-xs text-muted-foreground/70">
             {hint}
           </span>
         ) : null}

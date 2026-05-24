@@ -25,7 +25,7 @@ export function HomeRedirector() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         正在跳转…
       </p>
     </div>

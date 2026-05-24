@@ -116,7 +116,7 @@ export function UploadDrawer({
               <button
                 type="button"
                 onClick={onClearDone}
-                className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground"
+                className="text-xs text-muted-foreground transition-colors hover:text-foreground"
               >
                 {T.clearCompleted}
               </button>
@@ -147,7 +147,7 @@ function DrawerHeader({
       className="flex w-full items-center justify-between gap-3 border-b border-border bg-secondary/50 px-3.5 py-2.5 text-left transition-colors hover:bg-secondary"
     >
       <div className="flex items-center gap-3">
-        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {T.uploads}
         </p>
         <div className="flex items-center gap-2.5 text-xs">
@@ -187,7 +187,7 @@ function StatChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 font-mono",
+        "inline-flex items-center gap-1",
         tone === "active" && "text-foreground",
         tone === "muted" && "text-muted-foreground",
         tone === "success" && "text-success",
@@ -254,7 +254,7 @@ function UploadRow({
 
         <p
           className={cn(
-            "mt-1 font-mono text-[10px] tabular-nums",
+            "mt-1 text-xs tabular-nums",
             statusToneClass(task.status),
           )}
         >

@@ -195,10 +195,10 @@ function ShareForm({
                     : "border-border hover:border-foreground/30",
                 )}
               >
-                <span className="font-mono text-sm text-foreground">
+                <span className="text-sm text-foreground">
                   {opt.label}
                 </span>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   {opt.description}
                 </span>
               </button>

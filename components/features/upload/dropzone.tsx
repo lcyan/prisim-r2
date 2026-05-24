@@ -227,7 +227,7 @@ export function Dropzone({
             {T.hintLine3}
           </span>
         </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           {T.maxFileSize}
         </span>
 
