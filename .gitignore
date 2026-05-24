@@ -48,10 +48,13 @@ pnpm-debug.log*
 .wrangler/
 
 # taskmaster local
-.taskmaster/reports/
+.taskmaster/
 
 # superpowers brainstorming companion (local visual mockups)
 .superpowers/
 
-# design assets (local reference only — see docs/superpowers/specs for source-of-truth)
+# superpowers plans/specs (AI dev artifacts)
+docs/superpowers/
+
+# design assets (local reference only)
 /doc/
