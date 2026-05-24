@@ -32,7 +32,7 @@ export function RecentActivity({ rows }: RecentActivityProps) {
           {rows.map((row) => (
             <li key={row.id} className="grid grid-cols-[80px_120px_1fr_auto] items-center gap-2">
               <span className="text-muted-foreground">{formatRelative(new Date(row.createdAt))}</span>
-              <Badge variant={row.status === "success" ? "secondary" : "destructive"} className="justify-self-start font-mono text-[10px]">
+              <Badge variant={row.status === "success" ? "secondary" : "destructive"} className="justify-self-start font-mono text-xs">
                 {row.op}
               </Badge>
               <span className="truncate font-mono text-foreground" title={`${row.bucket ?? ""} / ${row.key ?? ""}`}>

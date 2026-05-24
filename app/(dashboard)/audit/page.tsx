@@ -168,7 +168,7 @@ function FilterBar({
         <select
           value={op}
           onChange={(e) => onOpChange(e.target.value as "" | AuditOpValue)}
-          className="h-9 rounded-md border border-input bg-transparent px-2 font-mono text-xs text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="h-9 rounded-md border border-input bg-transparent px-2 text-xs text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           aria-label={T.arOpAria}
         >
           <option value="">{T.opAll}</option>
@@ -189,7 +189,7 @@ function FilterBar({
             value={bucket}
             onChange={(e) => onBucketChange(e.target.value)}
             placeholder={T.bucketPlaceholder}
-            className="pl-7 font-mono text-xs"
+            className="pl-7 text-xs"
             aria-label={T.arBucketAria}
           />
         </div>
@@ -284,7 +284,7 @@ function Row({ row }: { row: AuditEntry }) {
         {formatRelative(new Date(row.createdAt))}
       </td>
       <td className="px-2">
-        <Badge variant="outline" className="font-mono text-[10px]">
+        <Badge variant="outline" className="font-mono text-xs">
           {row.op}
         </Badge>
       </td>
@@ -316,7 +316,7 @@ function Row({ row }: { row: AuditEntry }) {
         </Badge>
       </td>
       <td
-        className="pr-4 truncate font-mono text-[11px] text-muted-foreground"
+        className="pr-4 truncate font-mono text-xs text-muted-foreground"
         title={row.ua ?? row.ip ?? ""}
       >
         {row.ip ?? "—"}
