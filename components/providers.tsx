@@ -34,6 +34,7 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { UploadDrawerContainer } from "@/components/features/upload/upload-drawer-container";
 import { UploadQueueProvider } from "@/components/features/upload/upload-queue-provider";
+import { ModeProvider } from "@/components/providers/mode-provider";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -70,21 +71,23 @@ export function Providers({ children }: { children: ReactNode }) {
       enableColorScheme={false}
       disableTransitionOnChange
     >
-      <QueryClientProvider client={queryClient}>
-        {children}
-        {/* UploadQueueProvider starts the dispatcher once; the drawer is
-            mounted globally so the queue surface follows the user across
-            routes. Both render no DOM until there's something to show. */}
-        <UploadQueueProvider />
-        <UploadDrawerContainer />
-        {/* offset.top 让 toast 出现在 56px 顶栏下方而不是压在顶栏上 */}
-        <Toaster
-          position="top-right"
-          richColors
-          closeButton
-          offset={{ top: "4.5rem" }}
-        />
-      </QueryClientProvider>
+      <ModeProvider>
+        <QueryClientProvider client={queryClient}>
+          {children}
+          {/* UploadQueueProvider starts the dispatcher once; the drawer is
+              mounted globally so the queue surface follows the user across
+              routes. Both render no DOM until there's something to show. */}
+          <UploadQueueProvider />
+          <UploadDrawerContainer />
+          {/* offset.top 让 toast 出现在 56px 顶栏下方而不是压在顶栏上 */}
+          <Toaster
+            position="top-right"
+            richColors
+            closeButton
+            offset={{ top: "4.5rem" }}
+          />
+        </QueryClientProvider>
+      </ModeProvider>
     </ThemeProvider>
   );
 }
