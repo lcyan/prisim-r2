@@ -2,11 +2,15 @@
 
 // components/layout/command-menu.tsx
 //
-// Phase 1 占位:支持 ⌘K 触发与 6 项静态导航。Phase 2 加 bucket / connection
-// 动态加载,Phase 3 加 "切主题 / 切模式" 快捷动作。
+// ⌘K command menu. Renders two groups:
+//   - 导航  · 6 静态目的地
+//   - 快捷动作  · 新建连接 + 切主色 (蓝/橙/绿) + 切模式 (亮/暗/系统)
+//
+// 键盘绑定在 useEffect 全局监听;按 ⌘K (macOS) / ctrl+K (其他) 触发。
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 
 import {
   CommandDialog,
@@ -28,6 +32,14 @@ const T = {
   navAudit: "审计日志",
   navConnections: "连接管理",
   navSettings: "设置",
+  groupActions: "快捷动作",
+  pickBlue: "切换主题 · 经典蓝",
+  pickOrange: "切换主题 · 活力橙",
+  pickGreen: "切换主题 · 清新绿",
+  pickLight: "切换到亮色",
+  pickDark: "切换到暗色",
+  pickSystem: "跟随系统",
+  newConnection: "新建连接",
 } as const;
 
 const NAV = [
@@ -44,6 +56,8 @@ export function CommandMenu() {
   const open = useUiStore((s) => s.commandMenuOpen);
   const close = useUiStore((s) => s.closeCommandMenu);
   const toggle = useUiStore((s) => s.toggleCommandMenu);
+  const { setTheme } = useTheme();
+  const setMode = useUiStore((s) => s.setMode);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -77,6 +91,15 @@ export function CommandMenu() {
               {item.label}
             </CommandItem>
           ))}
+        </CommandGroup>
+        <CommandGroup heading={T.groupActions}>
+          <CommandItem onSelect={run(() => router.push("/connections?new=1"))}>{T.newConnection}</CommandItem>
+          <CommandItem onSelect={run(() => setTheme("blue"))}>{T.pickBlue}</CommandItem>
+          <CommandItem onSelect={run(() => setTheme("orange"))}>{T.pickOrange}</CommandItem>
+          <CommandItem onSelect={run(() => setTheme("green"))}>{T.pickGreen}</CommandItem>
+          <CommandItem onSelect={run(() => setMode("light"))}>{T.pickLight}</CommandItem>
+          <CommandItem onSelect={run(() => setMode("dark"))}>{T.pickDark}</CommandItem>
+          <CommandItem onSelect={run(() => setMode("system"))}>{T.pickSystem}</CommandItem>
         </CommandGroup>
       </CommandList>
     </CommandDialog>
