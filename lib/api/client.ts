@@ -56,12 +56,21 @@ export function readCsrfCookie(): string | null {
 export async function ensureCsrfToken(): Promise<string> {
   const existing = readCsrfCookie();
   if (existing) return existing;
+  return refreshCsrfToken();
+}
+
+/** Force-fetch a fresh CSRF token, ignoring any existing cookie. Used by
+ * `apiFetch`'s csrf.invalid retry path: a re-login mints a new server-side
+ * hash, but the browser may still hold the previous session's `csrf=`
+ * cookie until something explicitly rotates it. */
+export async function refreshCsrfToken(): Promise<string> {
   const res = await fetch("/api/csrf", {
     method: "GET",
     credentials: "include",
+    cache: "no-store",
   });
   if (!res.ok) {
-    throw new Error(`Failed to bootstrap CSRF token: ${res.status}`);
+    throw new Error(`Failed to refresh CSRF token: ${res.status}`);
   }
   const body = (await res.json()) as { csrfToken: string };
   return body.csrfToken;
@@ -79,23 +88,52 @@ export interface ApiFetchInit extends Omit<RequestInit, "body"> {
  * Wrapper around `fetch` that handles CSRF and unified error parsing.
  * Returns the parsed JSON body on 2xx; throws ApiClientError on 4xx/5xx
  * when the server speaks our error envelope, or a plain Error otherwise.
+ *
+ * Auto-retry on `csrf.invalid`: a stale `csrf=` cookie (e.g. one that
+ * survived a re-login) makes the server reject the X-CSRF-Token header.
+ * We force-refresh the cookie via GET /api/csrf and retry once. If the
+ * retry still fails — typical when the JWT itself has expired — the
+ * second error bubbles so the user is prompted to sign in again.
  */
 export async function apiFetch<T = unknown>(
   input: string,
   init: ApiFetchInit = {},
 ): Promise<T> {
   const method = (init.method ?? "GET").toUpperCase();
+  const isMutation = MUTATING_METHODS.has(method);
+  const csrfToken = isMutation
+    ? (readCsrfCookie() ?? (await ensureCsrfToken()))
+    : null;
+
+  try {
+    return await performFetch<T>(input, init, method, csrfToken);
+  } catch (err) {
+    if (
+      isMutation &&
+      err instanceof ApiClientError &&
+      err.code === "csrf.invalid"
+    ) {
+      const fresh = await refreshCsrfToken();
+      return await performFetch<T>(input, init, method, fresh);
+    }
+    throw err;
+  }
+}
+
+async function performFetch<T>(
+  input: string,
+  init: ApiFetchInit,
+  method: string,
+  csrfToken: string | null,
+): Promise<T> {
   const headers = new Headers(init.headers);
 
   if (init.json !== undefined) {
     headers.set("content-type", "application/json");
   }
 
-  if (MUTATING_METHODS.has(method)) {
-    // Lazy bootstrap so callers don't have to remember to seed the cookie
-    // before the very first mutation in a session.
-    const token = readCsrfCookie() ?? (await ensureCsrfToken());
-    headers.set(CSRF_HEADER_NAME, token);
+  if (csrfToken) {
+    headers.set(CSRF_HEADER_NAME, csrfToken);
   }
 
   const res = await fetch(input, {
