@@ -44,6 +44,37 @@ import { ApiErrorCode } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
 import { formatRemaining } from "@/components/features/share/format-remaining";
 
+const T = {
+  ttl1h: "1 小时",
+  ttl1hHint: "短期有效",
+  ttl1d: "1 天",
+  ttl1dHint: "常用时长",
+  ttl7d: "7 天",
+  ttl7dHint: "最长时长",
+  shareTitle: "分享对象",
+  shareDescBefore: "为 ",
+  shareDescAfter: " 生成一个 presigned 链接，任何拥有该 URL 的人都能下载。链接在过期前无法撤销。",
+  ttlLabel: "链接有效期",
+  cancel: "取消",
+  creating: "正在创建…",
+  create: "创建链接",
+  readyTitle: "分享链接已生成",
+  readyDescBefore: "任何拥有此链接的人都能下载 ",
+  readyDescAfter: " 直到链接过期。该 URL 仅展示一次，请立即复制。",
+  presignedUrl: "Presigned URL",
+  copyAria: "复制链接",
+  urlAria: "Presigned 分享链接",
+  done: "完成",
+  expired: "已过期",
+  expiresIn: "剩余",
+  toastCreateFailed: "无法创建分享链接",
+  toastCopyFailed: "复制失败，请手动从输入框复制。",
+  errTooMany: "分享请求过多。请稍候再试。",
+  errNotFound: "找不到连接。请到「连接管理」重新添加。",
+  errValidation: "请选择 1 小时 / 1 天 / 7 天 之一。",
+  errUnknown: "未知错误",
+} as const;
+
 /** TTL option metadata. Keys are the literal ttlSeconds values that the
  *  server's Zod schema accepts — anything outside this list rejects at
  *  the boundary, so we hardcode the (value, label) pairs here. */
@@ -52,9 +83,9 @@ const TTL_OPTIONS: ReadonlyArray<{
   label: string;
   description: string;
 }> = [
-  { value: 3600, label: "1 hour", description: "Short-lived" },
-  { value: 86400, label: "1 day", description: "Typical handoff" },
-  { value: 604800, label: "7 days", description: "Maximum window" },
+  { value: 3600, label: T.ttl1h, description: T.ttl1hHint },
+  { value: 86400, label: T.ttl1d, description: T.ttl1dHint },
+  { value: 604800, label: T.ttl7d, description: T.ttl7dHint },
 ] as const;
 
 export interface ShareDialogProps {
@@ -108,7 +139,7 @@ function ShareForm({
       });
       setResult({ url: res.url, expiresAt: res.expiresAt });
     } catch (err) {
-      toast.error("Couldn’t create share link", {
+      toast.error(T.toastCreateFailed, {
         description: describeError(err),
       });
     }
@@ -133,18 +164,18 @@ function ShareForm({
           <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/10 text-primary">
             <Share2 className="h-3.5 w-3.5" />
           </span>
-          <DialogTitle>Share object</DialogTitle>
+          <DialogTitle>{T.shareTitle}</DialogTitle>
         </div>
         <DialogDescription>
-          Mint a presigned link that anyone with the URL can use to download{" "}
-          <span className="font-mono text-foreground">{objectKey}</span>. The
-          link cannot be revoked before its expiry.
+          {T.shareDescBefore}
+          <span className="font-mono text-foreground">{objectKey}</span>
+          {T.shareDescAfter}
         </DialogDescription>
       </DialogHeader>
 
       <fieldset className="space-y-2">
         <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Link lifetime
+          {T.ttlLabel}
         </Label>
         <div className="grid grid-cols-3 gap-2">
           {TTL_OPTIONS.map((opt) => {
@@ -164,10 +195,10 @@ function ShareForm({
                     : "border-border hover:border-foreground/30",
                 )}
               >
-                <span className="font-mono text-sm text-foreground">
+                <span className="text-sm text-foreground">
                   {opt.label}
                 </span>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   {opt.description}
                 </span>
               </button>
@@ -183,7 +214,7 @@ function ShareForm({
           onClick={onClose}
           disabled={mutation.isPending}
         >
-          Cancel
+          {T.cancel}
         </Button>
         <Button
           type="button"
@@ -193,10 +224,10 @@ function ShareForm({
           {mutation.isPending ? (
             <>
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Creating…
+              {T.creating}
             </>
           ) : (
-            "Create link"
+            T.create
           )}
         </Button>
       </DialogFooter>
@@ -229,7 +260,7 @@ export function PostMintView({
       // Reset the affordance after 2s so the user can copy again if needed.
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Couldn’t copy — copy the URL manually from the field.");
+      toast.error(T.toastCopyFailed);
     }
   }
 
@@ -240,18 +271,18 @@ export function PostMintView({
           <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/10 text-primary">
             <CheckCircle2 className="h-3.5 w-3.5" />
           </span>
-          <DialogTitle>Share link ready</DialogTitle>
+          <DialogTitle>{T.readyTitle}</DialogTitle>
         </div>
         <DialogDescription>
-          Anyone with this link can download{" "}
-          <span className="font-mono text-foreground">{objectKey}</span> until
-          it expires. The URL is only shown here — copy it now.
+          {T.readyDescBefore}
+          <span className="font-mono text-foreground">{objectKey}</span>
+          {T.readyDescAfter}
         </DialogDescription>
       </DialogHeader>
 
       <div className="space-y-2">
         <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Presigned URL
+          {T.presignedUrl}
         </Label>
         <div className="flex items-stretch gap-1.5">
           <input
@@ -260,14 +291,14 @@ export function PostMintView({
             // Select-all on focus is the standard affordance for one-shot
             // copy fields — saves a triple-click for a long URL.
             onFocus={(e) => e.currentTarget.select()}
-            aria-label="Presigned share URL"
+            aria-label={T.urlAria}
             className="flex-1 truncate rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-foreground outline-none focus:border-foreground/40"
           />
           <Button
             type="button"
             variant="outline"
             onClick={handleCopy}
-            aria-label="Copy URL"
+            aria-label={T.copyAria}
             className="px-3"
           >
             {copied ? (
@@ -283,7 +314,7 @@ export function PostMintView({
 
       <DialogFooter>
         <Button type="button" onClick={onClose}>
-          Done
+          {T.done}
         </Button>
       </DialogFooter>
     </>
@@ -322,7 +353,7 @@ export function ExpiryCountdown({ expiresAt }: { expiresAt: number }) {
       aria-live="polite"
     >
       <span className="uppercase tracking-wider text-[10px]">
-        {expired ? "Expired" : "Expires in"}
+        {expired ? T.expired : T.expiresIn}
       </span>
       <span className="text-foreground" data-testid="share-countdown">
         {label}
@@ -346,17 +377,17 @@ function describeError(err: unknown): string {
       case ApiErrorCode.AuthUnauthorized:
         return `${err.message} (request ${err.requestId})`;
       case ApiErrorCode.RateLimited:
-        return "Too many share links. Wait a moment and try again.";
+        return T.errTooMany;
       case ApiErrorCode.NotFound:
-        return "Connection not found. Re-add it from Settings → Connections.";
+        return T.errNotFound;
       case ApiErrorCode.ValidationInvalid:
-        return "Pick one of 1h / 1d / 7d.";
+        return T.errValidation;
       default:
         return `${err.code} — ${err.message} (request ${err.requestId})`;
     }
   }
   if (err instanceof Error) return err.message;
-  return "Unknown error";
+  return T.errUnknown;
 }
 
 // Reference SHARE_TTL_SECONDS so an accidental drift between the schema's

@@ -1,2 +1,9 @@
 allowBuilds:
-  better-sqlite3: false
+  better-sqlite3: true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+  workerd: true
+
+patchedDependencies:
+  "@aws-sdk/xml-builder@3.972.24": "patches/@aws-sdk__xml-builder@3.972.24.patch"

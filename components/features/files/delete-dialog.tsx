@@ -46,6 +46,40 @@ import { useDeleteObjects } from "@/hooks/use-delete-objects";
 import { ApiClientError } from "@/lib/api/client";
 import { ApiErrorCode } from "@/lib/api/errors";
 
+const T = {
+  titleSingle: "删除对象",
+  titleMany: (n: number) => `删除 ${n} 个对象`,
+  description: (bucket: string) => (
+    <>
+      该操作将永久从{" "}
+      <span className="font-mono text-foreground">{bucket}</span>{" "}
+      移除选中的对象。R2 不保留版本，数据无法恢复。
+    </>
+  ),
+  listLabel: "待删除对象列表",
+  overflow: (n: number) => `…及 ${n} 个其他`,
+  typeBucket: (bucket: string) => (
+    <>
+      输入 bucket 名{" "}
+      <span className="font-mono text-foreground">{bucket}</span>{" "}
+      以确认
+    </>
+  ),
+  cancel: "取消",
+  deleting: "正在删除…",
+  deleteSingle: "删除对象",
+  deleteMany: (n: number) => `删除 ${n} 个对象`,
+  partialToast: (ok: number, fail: number) => `已删除 ${ok} 个，${fail} 个失败`,
+  deletedSingle: "已删除 1 个对象",
+  deletedMany: (n: number) => `已删除 ${n} 个对象`,
+  failTitle: "无法删除对象",
+  errConfirmExpired: "确认已过期，请重新确认。",
+  errTooMany: "删除请求过多。请稍候再试。",
+  errNotFound: "找不到连接。请到「连接管理」重新添加。",
+  errUnknown: "未知错误",
+  errorCodePlaceholder: "错误",
+} as const;
+
 /** Max keys rendered in the dialog body. Anything beyond this collapses
  *  into a "…及 N 个其他" trailer. Exported so unit tests can assert the
  *  truncation logic without coupling to a magic number. */
@@ -118,13 +152,13 @@ function DeleteForm({
         const successCount = result.deleted.length;
         const failCount = result.errors.length;
         toast.warning(
-          `Deleted ${successCount}, ${failCount} failed`,
+          T.partialToast(successCount, failCount),
           {
             description: result.errors
               .slice(0, 3)
               .map(
                 (e) =>
-                  `${e.key ?? "?"}: ${e.code ?? "Error"}${e.message ? ` — ${e.message}` : ""}`,
+                  `${e.key ?? "?"}: ${e.code ?? T.errorCodePlaceholder}${e.message ? ` — ${e.message}` : ""}`,
               )
               .join("\n"),
           },
@@ -132,14 +166,14 @@ function DeleteForm({
       } else {
         toast.success(
           result.deleted.length === 1
-            ? "1 object deleted"
-            : `${result.deleted.length} objects deleted`,
+            ? T.deletedSingle
+            : T.deletedMany(result.deleted.length),
         );
       }
       onDeleted?.(result.deleted);
       onClose();
     } catch (err) {
-      toast.error("Couldn’t delete objects", {
+      toast.error(T.failTitle, {
         description: describeError(err),
       });
     }
@@ -154,14 +188,12 @@ function DeleteForm({
           </span>
           <DialogTitle>
             {keys.length === 1
-              ? "Delete object"
-              : `Delete ${keys.length} objects`}
+              ? T.titleSingle
+              : T.titleMany(keys.length)}
           </DialogTitle>
         </div>
         <DialogDescription>
-          This permanently removes the selected objects from{" "}
-          <span className="font-mono text-foreground">{bucket}</span>. R2
-          does not version, so the data cannot be recovered.
+          {T.description(bucket)}
         </DialogDescription>
       </DialogHeader>
 
@@ -171,7 +203,7 @@ function DeleteForm({
         // screen readers a hook so the list isn't lost in the visual
         // hierarchy.
         role="region"
-        aria-label="Objects to delete"
+        aria-label={T.listLabel}
       >
         <ul className="space-y-0.5">
           {visibleKeys.map((k) => (
@@ -186,7 +218,7 @@ function DeleteForm({
         </ul>
         {overflow > 0 ? (
           <p className="mt-1 text-[11px] italic text-muted-foreground">
-            …及 {overflow} 个其他
+            {T.overflow(overflow)}
           </p>
         ) : null}
       </div>
@@ -194,9 +226,7 @@ function DeleteForm({
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <div className="space-y-1.5">
           <Label htmlFor={confirmId}>
-            Type bucket name{" "}
-            <span className="font-mono text-foreground">{bucket}</span>{" "}
-            to confirm
+            {T.typeBucket(bucket)}
           </Label>
           <Input
             id={confirmId}
@@ -220,7 +250,7 @@ function DeleteForm({
             onClick={onClose}
             disabled={mutation.isPending}
           >
-            Cancel
+            {T.cancel}
           </Button>
           <Button
             type="submit"
@@ -230,12 +260,12 @@ function DeleteForm({
             {mutation.isPending ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Deleting…
+                {T.deleting}
               </>
             ) : keys.length === 1 ? (
-              "Delete object"
+              T.deleteSingle
             ) : (
-              `Delete ${keys.length} objects`
+              T.deleteMany(keys.length)
             )}
           </Button>
         </DialogFooter>
@@ -250,17 +280,17 @@ function describeError(err: unknown): string {
   if (err instanceof ApiClientError) {
     switch (err.code) {
       case ApiErrorCode.ConfirmationRequired:
-        return "Confirmation expired. Please confirm again.";
+        return T.errConfirmExpired;
       case ApiErrorCode.AuthUnauthorized:
         return `${err.message} (request ${err.requestId})`;
       case ApiErrorCode.RateLimited:
-        return "Too many delete requests. Wait a moment and try again.";
+        return T.errTooMany;
       case ApiErrorCode.NotFound:
-        return "Connection not found. Re-add it from Settings → Connections.";
+        return T.errNotFound;
       default:
         return `${err.code} — ${err.message} (request ${err.requestId})`;
     }
   }
   if (err instanceof Error) return err.message;
-  return "Unknown error";
+  return T.errUnknown;
 }

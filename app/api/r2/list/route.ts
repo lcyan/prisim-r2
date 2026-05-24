@@ -44,6 +44,7 @@ import {
   R2_LIST_DEFAULT_MAX_KEYS,
 } from "@/lib/api/schemas";
 import type { R2ListObject, R2ListResponse } from "@/lib/api/types";
+import { asU8 } from "@/lib/db/blob";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import {
   CryptoIntegrityError,
@@ -58,21 +59,6 @@ import { logAudit } from "@/lib/audit/log";
 export const runtime = "edge";
 
 type ListEnv = DbEnv & CryptoEnv;
-
-/**
- * Normalize a blob column to Uint8Array. Drizzle's `blob({ mode: "buffer" })`
- * returns a Node Buffer locally but an ArrayBuffer under D1; Web Crypto needs
- * a real Uint8Array. Identical helper to `app/api/r2/buckets/route.ts` and
- * `app/api/r2/presign/route.ts` — if a fourth route needs this, lift it
- * into `lib/db/blob.ts` rather than copying.
- */
-function asU8(value: unknown): Uint8Array {
-  if (value instanceof Uint8Array) return value;
-  if (value instanceof ArrayBuffer) return new Uint8Array(value);
-  throw new TypeError(
-    "list: stored credential blob is neither Uint8Array nor ArrayBuffer",
-  );
-}
 
 export const GET = withApi(async (req, ctx) => {
   const input = await parseQuery(req, R2ListQuerySchema);
@@ -105,14 +91,14 @@ export const GET = withApi(async (req, ctx) => {
   try {
     [accessKeyId, secretAccessKey] = await Promise.all([
       decryptCredential(
-        asU8(connection.accessKeyCiphertext),
-        asU8(connection.accessKeyIv),
+        asU8(connection.accessKeyCiphertext, "list"),
+        asU8(connection.accessKeyIv, "list"),
         connection.id,
         env,
       ),
       decryptCredential(
-        asU8(connection.secretKeyCiphertext),
-        asU8(connection.secretKeyIv),
+        asU8(connection.secretKeyCiphertext, "list"),
+        asU8(connection.secretKeyIv, "list"),
         connection.id,
         env,
       ),

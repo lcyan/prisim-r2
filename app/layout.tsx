@@ -6,12 +6,12 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Prisim R2",
-  description: "Cloudflare R2 bucket manager",
+  description: "Cloudflare R2 存储桶管理控制台",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="zh-CN" suppressHydrationWarning>
       <body>
         <Providers>{children}</Providers>
       </body>

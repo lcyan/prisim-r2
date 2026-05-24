@@ -41,6 +41,43 @@ import { formatRemaining } from "@/components/features/share/format-remaining";
 import { PostMintView } from "@/components/features/share/share-dialog";
 import type { ShareSummary } from "@/lib/api/types";
 
+const T = {
+  pageTitle: "分享链接",
+  pageDesc: "通过 presigned URL 共享对象。链接到期后自动失效。",
+  warning: "删除分享记录不会让 URL 立即失效。URL 会在 TTL 到期后自然失效。",
+  thBucket: "Bucket",
+  thKey: "Key",
+  thCreated: "创建时间",
+  thExpires: "剩余有效期",
+  thActions: "操作",
+  refresh: "刷新",
+  loadError: "无法加载分享列表",
+  retry: "重试",
+  emptyTitle: "暂无分享链接",
+  emptyHint: "在文件浏览页选中文件，点击「分享」即可创建链接。",
+  loading: "加载中…",
+  loadMore: "加载更多",
+  loadingMore: "正在加载…",
+  showLink: "查看链接",
+  delete: "删除记录",
+  deleting: "正在删除…",
+  copyLink: "复制链接",
+  copied: "已复制",
+  close: "关闭",
+  deleteConfirmTitle: "删除分享记录",
+  deleteConfirmDesc: (key: string) =>
+    `删除「${key}」的分享记录。提醒：删除不会让 URL 立即失效，请等到 TTL 自然到期。`,
+  cancel: "取消",
+  deleteFailed: "删除失败",
+  revealFailed: "无法获取链接",
+  expired: "已过期",
+  deleteSuccess: "记录已删除",
+  deleteSuccessDesc: "URL 在 TTL 到期前仍可访问。",
+  errAlreadyRemoved: "记录已被删除。",
+  errRateLimited: "请求过于频繁，请稍后再试。",
+  errUnknown: "未知错误",
+} as const;
+
 export default function SharesPage() {
   const {
     data,
@@ -85,7 +122,7 @@ export default function SharesPage() {
         objectKey: row.key,
       });
     } catch (err) {
-      toast.error("Couldn’t reveal link", { description: describeError(err) });
+      toast.error(T.revealFailed, { description: describeError(err) });
       // If the row 404'd, the listing is stale (expired or deleted out of
       // band) — refresh so the user can re-orient.
       if (err instanceof ApiClientError && err.code === ApiErrorCode.NotFound) {
@@ -105,10 +142,10 @@ export default function SharesPage() {
         <table className="w-full table-fixed border-collapse text-sm">
           <thead className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
             <tr className="h-9">
-              <Th className="pl-4">Object</Th>
-              <Th className="w-32">Created</Th>
-              <Th className="w-40">Expires in</Th>
-              <Th className="w-44 pr-4 text-right">Actions</Th>
+              <Th className="pl-4">{T.thKey}</Th>
+              <Th className="w-32">{T.thCreated}</Th>
+              <Th className="w-40">{T.thExpires}</Th>
+              <Th className="w-52 pr-4 text-right">{T.thActions}</Th>
             </tr>
           </thead>
           <tbody>
@@ -136,10 +173,10 @@ export default function SharesPage() {
               {isFetchingNextPage ? (
                 <>
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  Loading…
+                  {T.loadingMore}
                 </>
               ) : (
-                "Load more"
+                T.loadMore
               )}
             </button>
           </div>
@@ -169,9 +206,9 @@ function Header() {
   return (
     <div className="flex items-baseline justify-between">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Shares</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{T.pageTitle}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Active presigned download links you’ve generated.
+          {T.pageDesc}
         </p>
       </div>
     </div>
@@ -190,12 +227,7 @@ function WarningBanner() {
       <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
       <div>
         <p className="font-medium text-foreground">
-          Deleting a record does NOT invalidate the URL.
-        </p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          URL 实际仍可用直到过期时间。Removing the row only hides it from this
-          list — anyone who already has the URL can keep using it until it
-          expires upstream.
+          {T.warning}
         </p>
       </div>
     </div>
@@ -230,14 +262,14 @@ function Body({
             strokeWidth={1.5}
           />
           <p className="mt-3 text-sm text-destructive">
-            {errorMessage ?? "Couldn’t load shares."}
+            {errorMessage ?? T.loadError}
           </p>
           <button
             type="button"
             onClick={onRetry}
-            className="mt-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+            className="mt-3 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
-            Retry
+            {T.retry}
           </button>
         </td>
       </tr>
@@ -252,8 +284,8 @@ function Body({
             className="mx-auto h-5 w-5 animate-spin text-muted-foreground"
             strokeWidth={1.5}
           />
-          <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            Loading…
+          <p className="mt-3 text-xs text-muted-foreground">
+            {T.loading}
           </p>
         </td>
       </tr>
@@ -265,10 +297,10 @@ function Body({
       <tr>
         <td colSpan={4} className="px-6 py-20 text-center">
           <p className="font-display text-lg italic text-muted-foreground">
-            No active share links.
+            {T.emptyTitle}
           </p>
-          <p className="mt-2 font-mono text-xs text-muted-foreground">
-            Open a bucket and click the Share button on a file to mint one.
+          <p className="mt-2 text-xs text-muted-foreground">
+            {T.emptyHint}
           </p>
         </td>
       </tr>
@@ -308,15 +340,15 @@ function Row({
           <span className="truncate font-mono text-xs text-foreground" title={row.key}>
             {row.key}
           </span>
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {row.bucket}
           </span>
         </div>
       </td>
-      <td className="px-2 font-mono text-xs text-muted-foreground">
+      <td className="px-2 text-xs text-muted-foreground">
         {formatRelative(new Date(row.createdAt))}
       </td>
-      <td className="px-2 font-mono text-xs">
+      <td className="px-2 text-xs">
         <ExpiryCell expiresAt={row.expiresAt} />
       </td>
       <td className="pr-4 text-right">
@@ -325,26 +357,26 @@ function Row({
             type="button"
             onClick={() => onReveal(row)}
             disabled={isRevealing}
-            aria-label="Show link"
-            title="Re-mint a presigned URL valid until this share's expiry"
-            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label={T.showLink}
+            title={T.showLink}
+            className="inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isRevealing ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <Eye className="h-3.5 w-3.5" />
             )}
-            Show link
+            {T.showLink}
           </button>
           <button
             type="button"
             onClick={() => onDelete(row)}
-            aria-label="Delete share record"
-            title="Delete record (URL remains valid until expiry)"
-            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+            aria-label={T.delete}
+            title={T.delete}
+            className="inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
           >
             <Trash2 className="h-3.5 w-3.5" />
-            Delete
+            {T.delete}
           </button>
         </div>
       </td>
@@ -377,7 +409,7 @@ function ExpiryCell({ expiresAt }: { expiresAt: number }) {
       }
     >
       <Clock className="mr-1 inline h-3 w-3 align-text-bottom" />
-      {expired ? "Expired" : formatRemaining(remaining)}
+      {expired ? T.expired : formatRemaining(remaining)}
     </span>
   );
 }
@@ -392,7 +424,7 @@ function Th({
   return (
     <th
       className={
-        "px-2 text-left font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground " +
+        "px-2 text-left text-xs font-medium text-muted-foreground " +
         (className ?? "")
       }
     >
@@ -447,12 +479,12 @@ function DeleteShareDialog({
     if (!share || mutation.isPending) return;
     try {
       await mutation.mutateAsync(share.id);
-      toast.success("Record deleted", {
-        description: "URL remains valid until expiry.",
+      toast.success(T.deleteSuccess, {
+        description: T.deleteSuccessDesc,
       });
       onOpenChange(false);
     } catch (err) {
-      toast.error("Couldn’t delete record", {
+      toast.error(T.deleteFailed, {
         description: describeError(err),
       });
     }
@@ -473,17 +505,10 @@ function DeleteShareDialog({
                 <span className="grid h-7 w-7 place-items-center rounded-full bg-amber-500/10 text-amber-600">
                   <ShieldAlert className="h-3.5 w-3.5" />
                 </span>
-                <DialogTitle>Remove share record?</DialogTitle>
+                <DialogTitle>{T.deleteConfirmTitle}</DialogTitle>
               </div>
               <DialogDescription>
-                This drops the bookkeeping row for{" "}
-                <span className="font-mono text-foreground">{share.key}</span>{" "}
-                in{" "}
-                <span className="font-mono text-foreground">
-                  {share.bucket}
-                </span>
-                . The presigned URL itself is NOT revoked — it stays usable
-                until {new Date(share.expiresAt).toLocaleString()}.
+                {T.deleteConfirmDesc(share.key)}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -493,7 +518,7 @@ function DeleteShareDialog({
                 onClick={() => onOpenChange(false)}
                 disabled={mutation.isPending}
               >
-                Cancel
+                {T.cancel}
               </Button>
               <Button
                 type="button"
@@ -504,10 +529,10 @@ function DeleteShareDialog({
                 {mutation.isPending ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Deleting…
+                    {T.deleting}
                   </>
                 ) : (
-                  "Delete record"
+                  T.delete
                 )}
               </Button>
             </DialogFooter>
@@ -524,13 +549,13 @@ function describeError(err: unknown): string {
       case ApiErrorCode.AuthUnauthorized:
         return `${err.message} (request ${err.requestId})`;
       case ApiErrorCode.NotFound:
-        return "Already removed.";
+        return T.errAlreadyRemoved;
       case ApiErrorCode.RateLimited:
-        return "Too many requests. Wait a moment and try again.";
+        return T.errRateLimited;
       default:
         return `${err.code} — ${err.message} (request ${err.requestId})`;
     }
   }
   if (err instanceof Error) return err.message;
-  return "Unknown error";
+  return T.errUnknown;
 }

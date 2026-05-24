@@ -92,7 +92,7 @@ describe("lib/uploads/dropzone-utils", () => {
         { file: fakeFile("a", MAX_UPLOAD_BYTES + 1), reason: "too-large" },
         { file: fakeFile("b", MAX_UPLOAD_BYTES + 2), reason: "too-large" },
       ]);
-      expect(desc).toContain("2 files");
+      expect(desc).toContain("2 个文件");
     });
 
     it("combines too-large and empty reasons with a separator", () => {
@@ -101,7 +101,7 @@ describe("lib/uploads/dropzone-utils", () => {
         { file: fakeFile("zero", 0), reason: "empty" },
       ]);
       expect(desc).toContain("5 GB");
-      expect(desc).toContain("empty");
+      expect(desc).toContain("为空");
       // Sanity: both fragments present implies the combiner worked.
       expect(desc?.split(" · ").length).toBeGreaterThanOrEqual(2);
     });
@@ -123,7 +123,7 @@ describe("lib/uploads/dropzone-utils", () => {
         fakeFile("b", 2),
         fakeFile("c", 3),
       ]);
-      expect(desc).toBe("Queued 3 files");
+      expect(desc).toBe("已加入队列 3 个文件");
     });
   });
 

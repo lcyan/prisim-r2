@@ -4,6 +4,24 @@ import { type ReactNode, useState } from "react";
 import { ChevronDown, ChevronUp, RotateCcw, X } from "lucide-react";
 import { cn, formatBytes, formatSpeed } from "@/lib/utils";
 
+const T = {
+  region: "上传队列",
+  uploads: "上传",
+  active: (n: number) => `${n} 个进行中`,
+  queued: (n: number) => `${n} 个等待中`,
+  failed: (n: number) => `${n} 个失败`,
+  done: (n: number) => `${n} 个完成`,
+  clearCompleted: "清除已完成",
+  cancelLabel: "取消上传",
+  retryLabel: "重试上传",
+  dismissLabel: "关闭",
+  statQueued: "等待中",
+  statFinalizing: "正在完成",
+  statComplete: "已完成",
+  statFailed: "失败",
+  statCanceled: "已取消",
+} as const;
+
 /**
  * UploadDrawer — fixed bottom-right tray that shows the in-flight upload queue.
  * Reads from the `useUploadQueue` Zustand store (defined in stores/upload-queue.ts,
@@ -68,7 +86,7 @@ export function UploadDrawer({
   return (
     <aside
       role="region"
-      aria-label="Upload queue"
+      aria-label={T.region}
       className="fixed right-4 bottom-4 z-50 w-[420px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-border bg-card"
       style={{ boxShadow: "var(--shadow-lg)" }}
     >
@@ -98,9 +116,9 @@ export function UploadDrawer({
               <button
                 type="button"
                 onClick={onClearDone}
-                className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground"
+                className="text-xs text-muted-foreground transition-colors hover:text-foreground"
               >
-                Clear completed
+                {T.clearCompleted}
               </button>
             </div>
           ) : null}
@@ -129,24 +147,24 @@ function DrawerHeader({
       className="flex w-full items-center justify-between gap-3 border-b border-border bg-secondary/50 px-3.5 py-2.5 text-left transition-colors hover:bg-secondary"
     >
       <div className="flex items-center gap-3">
-        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          Uploads
+        <p className="text-xs text-muted-foreground">
+          {T.uploads}
         </p>
         <div className="flex items-center gap-2.5 text-xs">
           {counts.uploading > 0 ? (
             <StatChip tone="active">
               <PulseDot />
-              {counts.uploading} active
+              {T.active(counts.uploading)}
             </StatChip>
           ) : null}
           {counts.queued > 0 ? (
-            <StatChip tone="muted">{counts.queued} queued</StatChip>
+            <StatChip tone="muted">{T.queued(counts.queued)}</StatChip>
           ) : null}
           {counts.failed > 0 ? (
-            <StatChip tone="destructive">{counts.failed} failed</StatChip>
+            <StatChip tone="destructive">{T.failed(counts.failed)}</StatChip>
           ) : null}
           {counts.done > 0 && counts.uploading === 0 && counts.queued === 0 ? (
-            <StatChip tone="success">{counts.done} done</StatChip>
+            <StatChip tone="success">{T.done(counts.done)}</StatChip>
           ) : null}
         </div>
       </div>
@@ -169,7 +187,7 @@ function StatChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 font-mono",
+        "inline-flex items-center gap-1",
         tone === "active" && "text-foreground",
         tone === "muted" && "text-muted-foreground",
         tone === "success" && "text-success",
@@ -236,7 +254,7 @@ function UploadRow({
 
         <p
           className={cn(
-            "mt-1 font-mono text-[10px] tabular-nums",
+            "mt-1 text-xs tabular-nums",
             statusToneClass(task.status),
           )}
         >
@@ -274,17 +292,17 @@ function statusToneClass(status: UploadStatus): string {
 function statusLabel(task: UploadTask): string {
   switch (task.status) {
     case "queued":
-      return "queued";
+      return T.statQueued;
     case "uploading":
       return `${formatSpeed(task.speed)} · ${formatBytes(task.uploaded)} / ${formatBytes(task.bytes)}`;
     case "completing":
-      return "finalizing";
+      return T.statFinalizing;
     case "done":
-      return `${formatBytes(task.bytes)} · complete`;
+      return `${formatBytes(task.bytes)} · ${T.statComplete}`;
     case "failed":
-      return task.errorMsg ?? "failed";
+      return task.errorMsg ?? T.statFailed;
     case "canceled":
-      return "canceled";
+      return T.statCanceled;
   }
 }
 
@@ -300,7 +318,7 @@ function ProgressLabel({
     case "done":
       return <span className={cn(base, "text-success")}>100%</span>;
     case "failed":
-      return <span className={cn(base, "text-destructive")}>err</span>;
+      return <span className={cn(base, "text-destructive")}>错</span>;
     case "canceled":
       return <span className={cn(base, "text-muted-foreground")}>—</span>;
     case "queued":
@@ -334,7 +352,7 @@ function RowControl({
     return (
       <ControlButton
         onClick={() => onCancel(task.id)}
-        label="Cancel upload"
+        label={T.cancelLabel}
         destructive
       >
         <X className="h-3.5 w-3.5" />
@@ -343,13 +361,13 @@ function RowControl({
   }
   if (task.status === "failed") {
     return (
-      <ControlButton onClick={() => onRetry(task.id)} label="Retry upload">
+      <ControlButton onClick={() => onRetry(task.id)} label={T.retryLabel}>
         <RotateCcw className="h-3.5 w-3.5" />
       </ControlButton>
     );
   }
   return (
-    <ControlButton onClick={() => onDismiss(task.id)} label="Dismiss">
+    <ControlButton onClick={() => onDismiss(task.id)} label={T.dismissLabel}>
       <X className="h-3.5 w-3.5" />
     </ControlButton>
   );

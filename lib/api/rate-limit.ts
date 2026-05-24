@@ -155,6 +155,11 @@ export const RateLimitPolicies = {
     limit: 600,
     windowMs: MIN_MS,
   }),
+  dashboardSummaryByUser: (userId: string) => ({
+    key: `dashboard:summary:${userId}`,
+    limit: 60,
+    windowMs: MIN_MS,
+  }),
 } as const;
 
 export type RateLimitPolicy = ReturnType<
@@ -193,6 +198,12 @@ export const RateLimitBundles = {
    *  user's 600/min mutating budget. */
   writeOnlyByUser: (userId: string): RateLimitPolicy[] => [
     RateLimitPolicies.writeAggregateByUser(userId),
+  ],
+  /** GET /api/dashboard/summary fan-outs 6 D1 queries + one R2 listBuckets
+   *  per call. Read-only, so no writeAggregate companion — the 60/min cap
+   *  alone bounds cost without throttling normal interactive use. */
+  dashboardSummaryByUser: (userId: string): RateLimitPolicy[] => [
+    RateLimitPolicies.dashboardSummaryByUser(userId),
   ],
 } as const;
 

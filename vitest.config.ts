@@ -1,10 +1,13 @@
 import { defineConfig } from "vitest/config";
 import path from "node:path";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
+  plugins: [react()],
   test: {
-    environment: "node",
-    include: ["tests/unit/**/*.test.ts"],
+    environment: "jsdom",
+    include: ["tests/unit/**/*.test.{ts,tsx}"],
+    setupFiles: ["./tests/setup.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
@@ -15,8 +18,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "."),
-      // server-only's real index.js throws when not imported from RSC build;
-      // tests run in plain Node, so swap it for a no-op stub.
       "server-only": path.resolve(__dirname, "tests/stubs/server-only.ts"),
     },
   },

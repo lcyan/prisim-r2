@@ -314,3 +314,26 @@ export interface AuditListResponse {
   items: AuditEntry[];
   nextCursor: string | null;
 }
+
+/**
+ * Public projection of GET /api/dashboard/summary.
+ *
+ *   - `bucketsCount` — number of R2 buckets in the active connection.
+ *   - `shares` — active share count + 7d-expiring subcount.
+ *   - `ops` — total audit ops within range + previous equal-length window count
+ *     (raw counts; the client calls formatDelta to derive the percentage so
+ *     we don't double-round through floating-point).
+ *   - `failures` — count of failed ops within range + failure rate %.
+ *   - `opsByDay` — daily aggregate, YYYY-MM-DD keys, length matches range (7 or 30).
+ *   - `opsByType` — 7d op breakdown, descending by count.
+ *   - `recentActivity` — last 10 audit rows.
+ */
+export interface DashboardSummary {
+  bucketsCount: number;
+  shares: { active: number; expiring7d: number };
+  ops: { count: number; previousCount: number };
+  failures: { count: number; ratePct: number };
+  opsByDay: Array<{ date: string; count: number }>;
+  opsByType: Array<{ op: string; count: number }>;
+  recentActivity: AuditEntry[];
+}

@@ -32,6 +32,7 @@ import { ApiErrors } from "@/lib/api/errors";
 import { RateLimitBundles } from "@/lib/api/rate-limit";
 import { parseJson, R2MultipartCompleteSchema } from "@/lib/api/schemas";
 import type { R2MultipartCompleteResponse } from "@/lib/api/types";
+import { asU8 } from "@/lib/db/blob";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import {
   CryptoIntegrityError,
@@ -46,14 +47,6 @@ import { logAudit } from "@/lib/audit/log";
 export const runtime = "edge";
 
 type MultipartCompleteEnv = DbEnv & CryptoEnv;
-
-function asU8(value: unknown): Uint8Array {
-  if (value instanceof Uint8Array) return value;
-  if (value instanceof ArrayBuffer) return new Uint8Array(value);
-  throw new TypeError(
-    "multipart/complete: stored credential blob is neither Uint8Array nor ArrayBuffer",
-  );
-}
 
 export const POST = withApi<R2MultipartCompleteResponse>(
   async (req, ctx) => {
@@ -80,14 +73,14 @@ export const POST = withApi<R2MultipartCompleteResponse>(
     try {
       [accessKeyId, secretAccessKey] = await Promise.all([
         decryptCredential(
-          asU8(connection.accessKeyCiphertext),
-          asU8(connection.accessKeyIv),
+          asU8(connection.accessKeyCiphertext, "multipart/complete"),
+          asU8(connection.accessKeyIv, "multipart/complete"),
           connection.id,
           env,
         ),
         decryptCredential(
-          asU8(connection.secretKeyCiphertext),
-          asU8(connection.secretKeyIv),
+          asU8(connection.secretKeyCiphertext, "multipart/complete"),
+          asU8(connection.secretKeyIv, "multipart/complete"),
           connection.id,
           env,
         ),

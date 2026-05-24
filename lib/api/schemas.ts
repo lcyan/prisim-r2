@@ -500,3 +500,11 @@ export async function parseJson<T extends z.ZodTypeAny>(
   }
   return schema.parse(raw);
 }
+
+/* ─── dashboard summary ─────────────────────────────────────── */
+
+export const DashboardSummaryQuerySchema = z.object({
+  connectionId: UlidSchema,
+  range: z.enum(["7d", "30d"]).default("30d"),
+});
+export type DashboardSummaryQuery = z.infer<typeof DashboardSummaryQuerySchema>;

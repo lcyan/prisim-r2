@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { AlertTriangle, ArrowRight, Lock, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { describeError } from "@/lib/i18n/error-messages";
 
 /**
  * Login page — single-user app. No registration UI by design (admin is seeded
@@ -13,6 +14,24 @@ import { cn } from "@/lib/utils";
  * Aesthetic: editorial-spec-sheet. Letterhead at top, centered form, technical
  * footer with build metadata. Amber signal line spans the full top edge.
  */
+
+const T = {
+  brandSubtitle: "R2 · 边缘控制台",
+  buildBadge: "v1.0 · 本地构建",
+  emailLabel: "邮箱",
+  emailPlaceholder: "请输入邮箱",
+  passwordLabel: "密码",
+  authenticating: "正在认证…",
+  signIn: "登录",
+  signInFailedTitle: "登录失败",
+  letterheadTitle: "登录",
+  letterheadCenter: "加密",
+  loadingFallback: "正在跳转…",
+  singleUser1: "单用户实例。可通过",
+  singleUser2: "添加账号。",
+  footerLeft: "凭据 AES-GCM 加密 · 对象直传 R2",
+  footerRight: "cloudflare pages",
+} as const;
 
 export default function LoginPage() {
   // useSearchParams must live inside a Suspense boundary so Next.js can
@@ -27,7 +46,12 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/settings/connections";
+  // Default to "/" so the post-login bounce runs through HomeRedirector,
+  // which respects the persisted activeBucket and routes the user back
+  // to the bucket they were last browsing. An explicit callbackUrl from
+  // an interrupted navigation (Auth.js sets one when middleware blocks a
+  // gated path) still wins so deep links keep working.
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -68,12 +92,12 @@ function LoginForm() {
           <span className="font-display text-lg font-semibold tracking-tight">
             Prisim
           </span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            R2 · edge console
+          <span className="text-xs text-muted-foreground">
+            {T.brandSubtitle}
           </span>
         </div>
-        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          v1.0 · build local
+        <p className="text-xs text-muted-foreground">
+          {T.buildBadge}
         </p>
       </header>
 
@@ -83,7 +107,7 @@ function LoginForm() {
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
             <Field
-              label="Email"
+              label={T.emailLabel}
               icon={Mail}
               input={
                 <input
@@ -95,13 +119,13 @@ function LoginForm() {
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={pending}
                   className={cn(inputClass, error && "border-destructive/60")}
-                  placeholder="me@example.com"
+                  placeholder={T.emailPlaceholder}
                 />
               }
             />
 
             <Field
-              label="Password"
+              label={T.passwordLabel}
               icon={Lock}
               input={
                 <input
@@ -128,29 +152,29 @@ function LoginForm() {
                 "disabled:cursor-not-allowed disabled:opacity-50",
               )}
             >
-              {pending ? "Authenticating…" : "Sign in"}
+              {pending ? T.authenticating : T.signIn}
               {!pending ? (
                 <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               ) : null}
             </button>
           </form>
 
-          <p className="mt-8 text-center font-mono text-[10px] leading-relaxed text-muted-foreground">
-            Single-user instance. Add accounts via{" "}
-            <code className="rounded bg-secondary px-1 py-0.5">
+          <p className="mt-8 text-center text-xs leading-relaxed text-muted-foreground">
+            {T.singleUser1}{" "}
+            <code className="rounded bg-secondary px-1 py-0.5 font-mono">
               scripts/seed-admin.ts
-            </code>
-            .
+            </code>{" "}
+            {T.singleUser2}
           </p>
         </div>
       </main>
 
       <footer className="flex items-center justify-between border-t border-border px-6 py-3">
-        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          AES-GCM at rest · presigned direct I/O
+        <p className="text-xs text-muted-foreground">
+          {T.footerLeft}
         </p>
         <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          cloudflare pages
+          {T.footerRight}
         </p>
       </footer>
     </div>
@@ -194,7 +218,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+      <span className="mb-1.5 block text-xs text-muted-foreground">
         {label}
       </span>
       <div className="relative">
@@ -219,8 +243,13 @@ function ErrorBanner({ code }: { code: string }) {
         strokeWidth={2}
       />
       <div className="min-w-0">
-        <p className="text-xs font-medium text-destructive">Sign-in failed</p>
-        <p className="mt-0.5 font-mono text-[10px] text-destructive/80">
+        <p className="text-xs font-medium text-destructive">
+          {T.signInFailedTitle}
+        </p>
+        <p className="mt-0.5 text-xs text-destructive/80">
+          {describeError(code)}
+        </p>
+        <p className="mt-0.5 font-mono text-xs text-destructive/60">
           {code}
         </p>
       </div>
@@ -232,12 +261,12 @@ function Letterhead() {
   return (
     <div className="text-center">
       <h1 className="font-display text-3xl font-semibold tracking-tight">
-        Sign in
+        {T.letterheadTitle}
       </h1>
       <div className="mx-auto mt-3 flex items-center justify-center gap-2">
         <span className="h-px w-12 bg-border" aria-hidden />
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-          encrypted
+        <span className="text-xs text-muted-foreground">
+          {T.letterheadCenter}
         </span>
         <span className="h-px w-12 bg-border" aria-hidden />
       </div>

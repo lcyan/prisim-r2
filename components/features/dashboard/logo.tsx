@@ -11,8 +11,8 @@ export function Logo() {
       <span className="font-display text-lg font-semibold tracking-tight">
         Prisim
       </span>
-      <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-        R2 · edge console
+      <span className="text-xs text-muted-foreground">
+        R2 · 边缘控制台
       </span>
     </Link>
   );

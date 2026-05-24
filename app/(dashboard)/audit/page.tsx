@@ -22,6 +22,31 @@ import { AUDIT_OP_VALUES, type AuditOpValue } from "@/lib/api/schemas";
 import { formatRelative } from "@/lib/utils";
 import type { AuditEntry } from "@/lib/api/types";
 
+const T = {
+  pageTitle: "审计日志",
+  pageDesc: "账户内的状态变更操作记录。只读。",
+  thTime: "时间",
+  thOp: "操作",
+  thBucket: "Bucket",
+  thKey: "Key",
+  thStatus: "状态",
+  thIp: "IP",
+  opLabel: "操作类型",
+  bucketLabel: "存储桶",
+  opAll: "全部",
+  bucketPlaceholder: "精确 bucket 名…",
+  loadMore: "加载更多",
+  loading: "加载中…",
+  loadError: "无法加载审计日志",
+  retry: "重试",
+  emptyTitle: "暂无审计记录",
+  emptyHint: "随着你使用本应用，操作会被记录在这里。试试移除筛选条件。",
+  arOpAria: "按操作类型筛选",
+  arBucketAria: "按 bucket 名筛选",
+  statusSuccess: "成功",
+  statusFailure: "失败",
+} as const;
+
 export default function AuditPage() {
   // The op input is "" when the user picks "All" — translate to undefined
   // at the boundary so the query key normalizes the same way regardless
@@ -67,12 +92,12 @@ export default function AuditPage() {
         <table className="w-full table-fixed border-collapse text-sm">
           <thead className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
             <tr className="h-9">
-              <Th className="w-36 pl-4">Time</Th>
-              <Th className="w-44">Op</Th>
-              <Th className="w-40">Bucket</Th>
-              <Th>Key</Th>
-              <Th className="w-24">Status</Th>
-              <Th className="w-32 pr-4">IP</Th>
+              <Th className="w-36 pl-4">{T.thTime}</Th>
+              <Th className="w-44">{T.thOp}</Th>
+              <Th className="w-40">{T.thBucket}</Th>
+              <Th>{T.thKey}</Th>
+              <Th className="w-24">{T.thStatus}</Th>
+              <Th className="w-32 pr-4">{T.thIp}</Th>
             </tr>
           </thead>
           <tbody>
@@ -97,10 +122,10 @@ export default function AuditPage() {
               {isFetchingNextPage ? (
                 <>
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  Loading…
+                  {T.loading}
                 </>
               ) : (
-                "Load more"
+                T.loadMore
               )}
             </button>
           </div>
@@ -116,9 +141,9 @@ function Header() {
   return (
     <div className="flex items-baseline justify-between">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Audit log</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{T.pageTitle}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          State-changing operations recorded against your account. Read-only.
+          {T.pageDesc}
         </p>
       </div>
     </div>
@@ -139,14 +164,14 @@ function FilterBar({
   return (
     <div className="flex flex-wrap items-center gap-3">
       <label className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span className="font-mono uppercase tracking-wider">Op</span>
+        <span>{T.opLabel}</span>
         <select
           value={op}
           onChange={(e) => onOpChange(e.target.value as "" | AuditOpValue)}
-          className="h-9 rounded-md border border-input bg-transparent px-2 font-mono text-xs text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          aria-label="Filter by operation"
+          className="h-9 rounded-md border border-input bg-transparent px-2 text-xs text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          aria-label={T.arOpAria}
         >
-          <option value="">All</option>
+          <option value="">{T.opAll}</option>
           {AUDIT_OP_VALUES.map((v) => (
             <option key={v} value={v}>
               {v}
@@ -156,16 +181,16 @@ function FilterBar({
       </label>
 
       <label className="flex flex-1 items-center gap-2 text-xs text-muted-foreground sm:max-w-xs">
-        <span className="font-mono uppercase tracking-wider">Bucket</span>
+        <span>{T.bucketLabel}</span>
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="text"
             value={bucket}
             onChange={(e) => onBucketChange(e.target.value)}
-            placeholder="exact bucket name…"
-            className="pl-7 font-mono text-xs"
-            aria-label="Filter by bucket name"
+            placeholder={T.bucketPlaceholder}
+            className="pl-7 text-xs"
+            aria-label={T.arBucketAria}
           />
         </div>
       </label>
@@ -195,14 +220,14 @@ function Body({
             strokeWidth={1.5}
           />
           <p className="mt-3 text-sm text-destructive">
-            {errorMessage ?? "Couldn’t load audit log."}
+            {errorMessage ?? T.loadError}
           </p>
           <button
             type="button"
             onClick={onRetry}
-            className="mt-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+            className="mt-3 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
-            Retry
+            {T.retry}
           </button>
         </td>
       </tr>
@@ -217,8 +242,8 @@ function Body({
             className="mx-auto h-5 w-5 animate-spin text-muted-foreground"
             strokeWidth={1.5}
           />
-          <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            Loading…
+          <p className="mt-3 text-xs text-muted-foreground">
+            {T.loading}
           </p>
         </td>
       </tr>
@@ -230,10 +255,10 @@ function Body({
       <tr>
         <td colSpan={6} className="px-6 py-20 text-center">
           <p className="font-display text-lg italic text-muted-foreground">
-            No audit entries.
+            {T.emptyTitle}
           </p>
-          <p className="mt-2 font-mono text-xs text-muted-foreground">
-            Operations are recorded as you use the app. Try removing filters.
+          <p className="mt-2 text-xs text-muted-foreground">
+            {T.emptyHint}
           </p>
         </td>
       </tr>
@@ -253,13 +278,13 @@ function Row({ row }: { row: AuditEntry }) {
   return (
     <tr className="group h-11 border-b border-border/60 transition-colors hover:bg-accent/40">
       <td
-        className="pl-4 font-mono text-xs text-muted-foreground"
+        className="pl-4 text-xs text-muted-foreground"
         title={new Date(row.createdAt).toISOString()}
       >
         {formatRelative(new Date(row.createdAt))}
       </td>
       <td className="px-2">
-        <Badge variant="outline" className="font-mono text-[10px]">
+        <Badge variant="outline" className="font-mono text-xs">
           {row.op}
         </Badge>
       </td>
@@ -275,7 +300,7 @@ function Row({ row }: { row: AuditEntry }) {
         </span>
         {row.errorMsg ? (
           <span
-            className="block truncate font-mono text-[10px] text-destructive"
+            className="block truncate font-mono text-xs text-destructive"
             title={row.errorMsg}
           >
             {row.errorMsg}
@@ -285,13 +310,13 @@ function Row({ row }: { row: AuditEntry }) {
       <td className="px-2">
         <Badge
           variant={row.status === "success" ? "secondary" : "destructive"}
-          className="font-mono text-[10px]"
+          className="text-xs"
         >
-          {row.status}
+          {row.status === "success" ? T.statusSuccess : T.statusFailure}
         </Badge>
       </td>
       <td
-        className="pr-4 truncate font-mono text-[11px] text-muted-foreground"
+        className="pr-4 truncate font-mono text-xs text-muted-foreground"
         title={row.ua ?? row.ip ?? ""}
       >
         {row.ip ?? "—"}
@@ -309,7 +334,7 @@ function Th({
 }) {
   return (
     <th
-      className={`text-left font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground ${className ?? ""}`}
+      className={`text-left text-xs font-medium text-muted-foreground ${className ?? ""}`}
     >
       {children}
     </th>

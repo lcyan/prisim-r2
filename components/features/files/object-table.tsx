@@ -35,6 +35,28 @@ import {
 import { useSelectedKeysStore } from "@/stores/selected-keys";
 import { cn, formatBytes, formatRelative } from "@/lib/utils";
 
+const T = {
+  selectAll: "选中本页所有行",
+  selectRow: (name: string) => `选中 ${name}`,
+  thName: "名称",
+  thSize: "大小",
+  thModified: "修改时间",
+  thActions: "操作",
+  loading: "加载中…",
+  loadMore: "加载更多",
+  loadFailed: "无法加载对象列表",
+  retry: "重试",
+  emptyTitle: "此前缀下没有对象",
+  emptyHint: "点击上传按钮把文件放进来。",
+  selectedN: (n: number) => `已选 ${n} 项`,
+  delete: "删除",
+  clear: "清除",
+  preview: "预览",
+  download: "下载",
+  share: "分享",
+  more: "更多",
+} as const;
+
 /**
  * One row in the table. Folders come from `prefixes` (key already ends with
  * "/"); files come from `objects` (size + lastModified populated).
@@ -164,13 +186,13 @@ export function ObjectTable({
                   onChange={(e) => onSelectAll(e.target.checked)}
                   disabled={items.length === 0}
                   className="h-3.5 w-3.5 cursor-pointer accent-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-50"
-                  aria-label="Select all rows on this page"
+                  aria-label={T.selectAll}
                 />
               </Th>
-              <Th>Name</Th>
-              <Th className="w-32 text-right">Size</Th>
-              <Th className="w-44">Modified</Th>
-              <Th className="w-28 pr-4 text-right">Actions</Th>
+              <Th>{T.thName}</Th>
+              <Th className="w-32 text-right">{T.thSize}</Th>
+              <Th className="w-44">{T.thModified}</Th>
+              <Th className="w-28 pr-4 text-right">{T.thActions}</Th>
             </tr>
           </thead>
 
@@ -195,15 +217,15 @@ export function ObjectTable({
               type="button"
               onClick={onLoadMore}
               disabled={isFetchingNextPage}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-4 font-mono text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-4 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isFetchingNextPage ? (
                 <>
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  Loading…
+                  {T.loading}
                 </>
               ) : (
-                "Load more"
+                T.loadMore
               )}
             </button>
           </div>
@@ -230,8 +252,8 @@ function SelectionBanner({
   if (selectedCount === 0) return null;
   return (
     <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-primary/[0.04] px-4 py-2">
-      <span className="font-mono text-xs text-foreground">
-        {selectedCount} selected
+      <span className="text-xs text-foreground">
+        {T.selectedN(selectedCount)}
       </span>
       <div className="flex items-center gap-2">
         <button
@@ -240,14 +262,14 @@ function SelectionBanner({
           className="inline-flex h-7 items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
         >
           <Trash2 className="h-3.5 w-3.5" />
-          Delete
+          {T.delete}
         </button>
         <button
           type="button"
           onClick={onClearSelection}
-          className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+          className="text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
-          Clear
+          {T.clear}
         </button>
       </div>
     </div>
@@ -286,14 +308,14 @@ function TableBody({
             strokeWidth={1.5}
           />
           <p className="mt-3 text-sm text-destructive">
-            {errorMessage ?? "Couldn’t load objects."}
+            {errorMessage ?? T.loadFailed}
           </p>
           <button
             type="button"
             onClick={onRetry}
-            className="mt-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+            className="mt-3 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
-            Retry
+            {T.retry}
           </button>
         </td>
       </tr>
@@ -308,8 +330,8 @@ function TableBody({
             className="mx-auto h-5 w-5 animate-spin text-muted-foreground"
             strokeWidth={1.5}
           />
-          <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            Loading…
+          <p className="mt-3 text-xs text-muted-foreground">
+            {T.loading}
           </p>
         </td>
       </tr>
@@ -321,10 +343,10 @@ function TableBody({
       <tr>
         <td colSpan={5} className="px-6 py-20 text-center">
           <p className="font-display text-lg italic text-muted-foreground">
-            This prefix is empty.
+            {T.emptyTitle}
           </p>
-          <p className="mt-2 font-mono text-xs text-muted-foreground">
-            Use the Upload button to drop files here.
+          <p className="mt-2 text-xs text-muted-foreground">
+            {T.emptyHint}
           </p>
         </td>
       </tr>
@@ -357,7 +379,7 @@ function Th({
   return (
     <th
       className={cn(
-        "px-2 text-left font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground",
+        "px-2 text-left text-xs font-medium text-muted-foreground",
         className,
       )}
     >
@@ -400,7 +422,7 @@ function Row({
           checked={selected}
           onChange={() => onToggle(row.key)}
           className="h-3.5 w-3.5 cursor-pointer accent-[var(--primary)]"
-          aria-label={`Select ${displayName}`}
+          aria-label={T.selectRow(displayName)}
         />
       </td>
       <td className="px-2">
@@ -428,7 +450,7 @@ function Row({
       <td className="px-2 text-right font-mono text-xs tabular-nums text-muted-foreground">
         {row.kind === "file" ? formatBytes(row.size ?? 0) : "—"}
       </td>
-      <td className="px-2 font-mono text-xs text-muted-foreground">
+      <td className="px-2 text-xs text-muted-foreground">
         {row.kind === "file" && row.lastModified
           ? formatRelative(new Date(row.lastModified))
           : "—"}
@@ -480,23 +502,23 @@ function RowActions({
   const handle = (action: RowAction) => onAction?.(action, row);
   return (
     <div className="flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-      <ActionButton label="Preview" onClick={() => handle("preview")}>
+      <ActionButton label={T.preview} onClick={() => handle("preview")}>
         <Eye className="h-3.5 w-3.5" />
       </ActionButton>
-      <ActionButton label="Download" onClick={() => handle("download")}>
+      <ActionButton label={T.download} onClick={() => handle("download")}>
         <Download className="h-3.5 w-3.5" />
       </ActionButton>
-      <ActionButton label="Share" onClick={() => handle("share")}>
+      <ActionButton label={T.share} onClick={() => handle("share")}>
         <Share2 className="h-3.5 w-3.5" />
       </ActionButton>
       <ActionButton
-        label="Delete"
+        label={T.delete}
         onClick={() => handle("delete")}
         destructive
       >
         <Trash2 className="h-3.5 w-3.5" />
       </ActionButton>
-      <ActionButton label="More" onClick={() => {}}>
+      <ActionButton label={T.more} onClick={() => {}}>
         <MoreHorizontal className="h-3.5 w-3.5" />
       </ActionButton>
     </div>
