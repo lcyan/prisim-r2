@@ -211,6 +211,14 @@ describe("replay guard", () => {
       .get(userId) as { c: number };
     expect(rows.c).toBe(1);
   });
+
+  it("upsertReplayGuard: concurrent writes with lower step do not overwrite higher value", async () => {
+    const userId = seedUser();
+    await upsertReplayGuard(db, { userId, step: 200 });
+    // Simulate a stale write that arrives after — must NOT clobber.
+    await upsertReplayGuard(db, { userId, step: 100 });
+    expect(await getReplayGuardStep(db, userId)).toBe(200);
+  });
 });
 
 describe("sign-in grants", () => {

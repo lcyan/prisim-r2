@@ -58,17 +58,21 @@ export async function consumeEnrollment(
   input: { userId: string; grant: string },
 ): Promise<ConsumedEnrollment | null> {
   const grantHash = await sha256Hex(input.grant);
-  const row = await db.query.totpEnrollments.findFirst({
-    where: and(
-      eq(schema.totpEnrollments.userId, input.userId),
-      eq(schema.totpEnrollments.grantHash, grantHash),
-      gt(schema.totpEnrollments.expiresAt, new Date()),
-    ),
-  });
-  if (!row) return null;
-  await db
+  const deleted = await db
     .delete(schema.totpEnrollments)
-    .where(eq(schema.totpEnrollments.id, row.id));
+    .where(
+      and(
+        eq(schema.totpEnrollments.userId, input.userId),
+        eq(schema.totpEnrollments.grantHash, grantHash),
+        gt(schema.totpEnrollments.expiresAt, new Date()),
+      ),
+    )
+    .returning({
+      secretCiphertext: schema.totpEnrollments.secretCiphertext,
+      secretIv: schema.totpEnrollments.secretIv,
+    });
+  const row = deleted[0];
+  if (!row) return null;
   return {
     secretCiphertext: new Uint8Array(row.secretCiphertext),
     secretIv: new Uint8Array(row.secretIv),
@@ -186,21 +190,20 @@ export async function upsertReplayGuard(
   db: Db,
   input: { userId: string; step: number },
 ): Promise<void> {
-  const existing = await db.query.totpReplayGuard.findFirst({
-    where: eq(schema.totpReplayGuard.userId, input.userId),
-  });
-  if (existing) {
-    await db
-      .update(schema.totpReplayGuard)
-      .set({ lastStep: input.step, updatedAt: new Date() })
-      .where(eq(schema.totpReplayGuard.userId, input.userId));
-  } else {
-    await db.insert(schema.totpReplayGuard).values({
+  await db
+    .insert(schema.totpReplayGuard)
+    .values({
       userId: input.userId,
       lastStep: input.step,
       updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: schema.totpReplayGuard.userId,
+      set: {
+        lastStep: sql`MAX(${schema.totpReplayGuard.lastStep}, excluded.last_step)`,
+        updatedAt: new Date(),
+      },
     });
-  }
 }
 
 /* ─── sign-in grants ───────────────────────────────────────── */
