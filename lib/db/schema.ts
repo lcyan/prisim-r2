@@ -36,6 +36,14 @@ export const users = sqliteTable("users", {
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
+  // TOTP 二次验证。totp_enabled=false 且 ciphertext IS NULL ⇒ 未绑定。
+  // 与 connections 同样使用 AES-GCM,AAD = users.id ULID。
+  totpSecretCiphertext: blob("totp_secret_ciphertext", { mode: "buffer" }),
+  totpSecretIv: blob("totp_secret_iv", { mode: "buffer" }),
+  totpEnabled: integer("totp_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  totpConfirmedAt: integer("totp_confirmed_at", { mode: "timestamp" }),
 });
 
 /* ─── connections ────────────────────────────────────────────── */
@@ -156,6 +164,93 @@ export const sessions = sqliteTable("sessions", {
     .$defaultFn(() => new Date()),
 });
 
+/* ─── totp_enrollments ──────────────────────────────────────────
+ *
+ * 短期绑定 grant。/api/auth/totp/enroll/begin 在此插入候选 secret + grant
+ * 哈希,/api/auth/totp/enroll/complete 验证后删除该行。
+ * `expires_at` 由 begin 设为 now + 10 min。每次 begin 前 DELETE WHERE
+ * user_id = ? 清旧。
+ */
+export const totpEnrollments = sqliteTable(
+  "totp_enrollments",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    grantHash: text("grant_hash").notNull(),
+    secretCiphertext: blob("secret_ciphertext", { mode: "buffer" }).notNull(),
+    secretIv: blob("secret_iv", { mode: "buffer" }).notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [index("idx_totp_enroll_user").on(t.userId)],
+);
+
+/* ─── recovery_codes ────────────────────────────────────────────
+ *
+ * 10 行/用户。consumedAt IS NULL 才有效。原始 base32 码 仅在 enroll/complete
+ * 返回响应中展示一次,DB 只存 sha256(code)。
+ */
+export const recoveryCodes = sqliteTable(
+  "recovery_codes",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    consumedAt: integer("consumed_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [
+    index("idx_recovery_user_active").on(t.userId, t.consumedAt),
+    // sha256 比对走 codeHash;userId+codeHash 唯一,避免极小概率碰撞
+    // 时 UPDATE consumedAt 影响别人。
+    index("idx_recovery_user_hash").on(t.userId, t.codeHash),
+  ],
+);
+
+/* ─── totp_replay_guard ─────────────────────────────────────────
+ *
+ * 单行/用户。`last_step` = 已消费的最大 step (unix_seconds / 30)。
+ * authorize() 在 OTP 验证成功时 UPSERT 更新,使同一 code 即便在 ±1 step
+ * 容差内也无法被重放。
+ */
+export const totpReplayGuard = sqliteTable("totp_replay_guard", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  lastStep: integer("last_step").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+/* ─── sign_in_grants ────────────────────────────────────────────
+ *
+ * 一次性入会票据。/api/auth/totp/enroll/complete 写入,authorize() 通过
+ * { signInGrant } 路径消费。consumedAt IS NULL 才有效。TTL 5 min。
+ */
+export const signInGrants = sqliteTable(
+  "sign_in_grants",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    grantHash: text("grant_hash").notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+    consumedAt: integer("consumed_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [index("idx_signin_grant_hash").on(t.grantHash)],
+);
+
 /* ─── inferred types ─────────────────────────────────────────── */
 
 export type User = typeof users.$inferSelect;
@@ -170,6 +265,14 @@ export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type RateLimitBucket = typeof rateLimitBuckets.$inferSelect;
 export type NewRateLimitBucket = typeof rateLimitBuckets.$inferInsert;
+export type TotpEnrollment = typeof totpEnrollments.$inferSelect;
+export type NewTotpEnrollment = typeof totpEnrollments.$inferInsert;
+export type RecoveryCode = typeof recoveryCodes.$inferSelect;
+export type NewRecoveryCode = typeof recoveryCodes.$inferInsert;
+export type TotpReplayGuard = typeof totpReplayGuard.$inferSelect;
+export type NewTotpReplayGuard = typeof totpReplayGuard.$inferInsert;
+export type SignInGrant = typeof signInGrants.$inferSelect;
+export type NewSignInGrant = typeof signInGrants.$inferInsert;
 
 /* ─── re-export for drizzle client (schema bag) ──────────────── */
 
@@ -180,4 +283,8 @@ export const schema = {
   auditLog,
   sessions,
   rateLimitBuckets,
+  totpEnrollments,
+  recoveryCodes,
+  totpReplayGuard,
+  signInGrants,
 };
