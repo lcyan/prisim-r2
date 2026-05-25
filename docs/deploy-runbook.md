@@ -1,3 +1,5 @@
+English | [中文](./deploy-runbook.zh-CN.md)
+
 # Deployment runbook
 
 Step-by-step for taking Prisim R2 from a clean clone to a live

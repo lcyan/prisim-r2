@@ -1,3 +1,5 @@
+English | [中文](./README.zh-CN.md)
+
 # Prisim R2
 
 Web dashboard for managing one or more Cloudflare R2 buckets — browse,

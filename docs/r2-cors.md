@@ -1,3 +1,5 @@
+English | [中文](./r2-cors.zh-CN.md)
+
 # R2 CORS configuration
 
 The browser uploads and downloads object bytes directly to R2 via presigned
