@@ -39,6 +39,14 @@ describe("describeError", () => {
       // 前端自定义
       "auth.invalid_credentials",
       "auth.upstream_error",
+      // TOTP 二次验证
+      "auth.totp.enrollment_required",
+      "auth.totp.invalid_code",
+      "auth.totp.replay",
+      "auth.totp.grant_expired",
+      "auth.totp.already_enrolled",
+      "auth.recovery_code.invalid",
+      "auth.otp.required",
     ];
     for (const code of required) {
       expect(ERROR_MESSAGES[code]).toBeDefined();

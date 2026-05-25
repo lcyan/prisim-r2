@@ -21,6 +21,15 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // login 页把它映射为以下两个 code 用于显示）
   "auth.invalid_credentials": "邮箱或密码错误",
   "auth.upstream_error": "认证服务暂时不可用，请稍后再试",
+  // TOTP 二次验证
+  "auth.totp.enrollment_required": "首次登录需要绑定 Authenticator",
+  "auth.totp.invalid_code": "验证码错误或已过期",
+  "auth.totp.replay": "该验证码已被使用过",
+  "auth.totp.grant_expired": "绑定流程已超时,请重新开始",
+  "auth.totp.already_enrolled": "该账号已绑定 TOTP",
+  "auth.recovery_code.invalid": "恢复码无效或已使用",
+  // 表单本地校验
+  "auth.otp.required": "请输入验证码",
 };
 
 export function describeError(code: string | undefined | null): string {
