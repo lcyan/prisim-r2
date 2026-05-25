@@ -162,6 +162,21 @@ export const RateLimitPolicies = {
     limit: 60,
     windowMs: MIN_MS,
   }),
+  totpPreflightByIp: (ip: string) => ({
+    key: `totp-preflight:ip:${ip}`,
+    limit: 10,
+    windowMs: 5 * MIN_MS,
+  }),
+  totpEnrollByIp: (ip: string) => ({
+    key: `totp-enroll:ip:${ip}`,
+    limit: 5,
+    windowMs: 15 * MIN_MS,
+  }),
+  totpVerifyByUser: (userId: string) => ({
+    key: `totp-verify:user:${userId}`,
+    limit: 10,
+    windowMs: 15 * MIN_MS,
+  }),
 } as const;
 
 export type RateLimitPolicy = ReturnType<
@@ -207,6 +222,15 @@ export const RateLimitBundles = {
   dashboardSummaryByUser: (userId: string): RateLimitPolicy[] => [
     RateLimitPolicies.dashboardSummaryByUser(userId),
   ],
+  authTotpPreflightByIp: (ip: string): RateLimitPolicy[] => [
+    RateLimitPolicies.totpPreflightByIp(ip),
+  ],
+  authTotpEnrollByIp: (ip: string): RateLimitPolicy[] => [
+    RateLimitPolicies.totpEnrollByIp(ip),
+  ],
+  authTotpVerifyByUser: (userId: string): RateLimitPolicy[] => [
+    RateLimitPolicies.totpVerifyByUser(userId),
+  ],
 } as const;
 
 /**
@@ -218,4 +242,31 @@ export const RateLimitBundles = {
  */
 export function getClientIp(req: Request): string {
   return parseClientIp(req.headers) ?? "unknown";
+}
+
+/**
+ * Throw ApiErrors.rateLimitedWithRetry when any of `policies` is exceeded.
+ * Used by callsites that aren't wrapped by withApi (e.g. Auth.js's
+ * authorize callback). Returns silently on success.
+ */
+export async function enforceLimit(
+  db: RateLimitDb,
+  policies: RateLimitPolicy[],
+): Promise<void> {
+  // Import inline to avoid a circular dependency between errors.ts and
+  // rate-limit.ts at top-level.
+  const { ApiErrors } = await import("./errors");
+  for (const policy of policies) {
+    const result = await checkLimit({
+      db,
+      key: policy.key,
+      limit: policy.limit,
+      windowMs: policy.windowMs,
+    });
+    if (!result.ok) {
+      throw ApiErrors.rateLimitedWithRetry(result.retryAfter ?? 1, {
+        policy: policy.key,
+      });
+    }
+  }
 }
