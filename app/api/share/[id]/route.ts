@@ -37,6 +37,7 @@ import { ApiErrors } from "@/lib/api/errors";
 import { RateLimitBundles } from "@/lib/api/rate-limit";
 import { ShareIdParamSchema } from "@/lib/api/schemas";
 import type { ShareDeleteResponse } from "@/lib/api/types";
+import { pathSegmentFromEnd } from "@/lib/api/path-id";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import { logAudit } from "@/lib/audit/log";
 
@@ -44,21 +45,9 @@ export const runtime = "edge";
 
 type ShareDeleteEnv = DbEnv;
 
-/**
- * Extract `[id]` from `/api/share/<id>`. Same pattern as
- * app/api/connections/[id]/route.ts — withApi narrows the handler to a
- * single Request arg, so we re-derive the id from the URL rather than
- * threading Next 15's params context through the wrapper.
- */
-function pathIdFrom(url: string): string {
-  const u = new URL(url);
-  const parts = u.pathname.split("/").filter(Boolean);
-  return parts[parts.length - 1] ?? "";
-}
-
 export const DELETE = withApi(
   async (req, ctx) => {
-    const id = pathIdFrom(req.url);
+    const id = pathSegmentFromEnd(req.url, 0);
     ShareIdParamSchema.parse({ id });
 
     const env = getRequestContext().env as unknown as ShareDeleteEnv;

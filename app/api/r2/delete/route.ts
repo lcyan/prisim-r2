@@ -7,10 +7,10 @@
 //
 //   1. validate input              → R2DeleteConfirmSchema (Zod)
 //   2. verify confirmToken         → verifyDeleteToken (lib/api/delete-token)
-//   3. fetch & user-scope the row  → connections.id = cid AND userId = ctx
-//   4. decrypt access/secret keys  → AES-GCM with AAD = connection.id
-//   5. deleteObjects               → batches at 1000 internally
-//   6. audit + return              → object.delete success/failure
+//   3. resolve connection          → user-scoped row + AAD-bound decrypt
+//                                    (lib/r2/route-helpers.ts)
+//   4. deleteObjects               → batches at 1000 internally
+//   5. audit + return              → object.delete success/failure
 //
 // Notes worth knowing before touching this file:
 //
@@ -32,11 +32,12 @@
 //   that succeed are reported in Deleted, keys that don't in Errors,
 //   and the HTTP call still returns 200. We surface both arrays
 //   verbatim to the caller. Status of the audit row is "success" iff
-//   errors is empty.
+//   errors is empty. THIS bespoke success/failure decision is why this
+//   route doesn't use runR2WithAudit — a single audit row covers both
+//   the success and partial-failure branches with a count payload.
 
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 
 import { withApi } from "@/lib/api/middleware";
@@ -49,16 +50,11 @@ import {
   verifyDeleteToken,
   type DeleteTokenEnv,
 } from "@/lib/api/delete-token";
-import { asU8 } from "@/lib/db/blob";
-import { getDb, schema, type DbEnv } from "@/lib/db/client";
-import {
-  CryptoIntegrityError,
-  decryptCredential,
-  type CryptoEnv,
-} from "@/lib/crypto/aes-gcm";
-import { makeS3Client } from "@/lib/r2/client";
+import { type DbEnv } from "@/lib/db/client";
+import { type CryptoEnv } from "@/lib/crypto/aes-gcm";
 import { deleteObjects } from "@/lib/r2/control";
 import { R2CredentialError } from "@/lib/r2/errors";
+import { resolveConnectionForR2 } from "@/lib/r2/route-helpers";
 import { logAudit } from "@/lib/audit/log";
 
 export const runtime = "edge";
@@ -69,7 +65,6 @@ export const POST = withApi(
   async (req, ctx) => {
     const input = await parseJson(req, R2DeleteConfirmSchema);
     const env = getRequestContext().env as unknown as DeleteEnv;
-    const db = getDb(env);
 
     // Verify the confirm token FIRST — before any DB query or decrypt.
     // The token binds (user, bucket, sort(keys)+sha256), so a forged or
@@ -95,62 +90,13 @@ export const POST = withApi(
       throw err;
     }
 
-    // Scope by user_id — same pattern as buckets/list/presign/multipart.
-    // A token forged with another user's userId would have failed verify
-    // above; the WHERE clause is the second line of defense.
-    const connection = await db
-      .select()
-      .from(schema.connections)
-      .where(
-        and(
-          eq(schema.connections.id, input.cid),
-          eq(schema.connections.userId, ctx.userId),
-        ),
-      )
-      .get();
-    if (!connection) {
-      // 404 (not 403): same "don't disclose cross-user existence" rule
-      // as the other R2 routes.
-      throw ApiErrors.notFound("Connection not found");
-    }
-
-    let accessKeyId: string;
-    let secretAccessKey: string;
-    try {
-      [accessKeyId, secretAccessKey] = await Promise.all([
-        decryptCredential(
-          asU8(connection.accessKeyCiphertext, "delete"),
-          asU8(connection.accessKeyIv, "delete"),
-          connection.id,
-          env,
-        ),
-        decryptCredential(
-          asU8(connection.secretKeyCiphertext, "delete"),
-          asU8(connection.secretKeyIv, "delete"),
-          connection.id,
-          env,
-        ),
-      ]);
-    } catch (err) {
-      await logAudit({
-        userId: ctx.userId,
-        connectionId: connection.id,
-        op: "security.decrypt_failed",
-        bucket: input.bucket,
-        status: "failure",
-        errorMsg:
-          err instanceof CryptoIntegrityError
-            ? "credential integrity check failed"
-            : "credential decrypt failed",
-        req,
-      });
-      throw ApiErrors.internal("Failed to decrypt connection credentials");
-    }
-
-    const client = makeS3Client({
-      accountId: connection.accountId,
-      accessKeyId,
-      secretAccessKey,
+    const { connection, client } = await resolveConnectionForR2({
+      cid: input.cid,
+      userId: ctx.userId,
+      env,
+      req,
+      purpose: "delete",
+      auditBucket: input.bucket,
     });
 
     let result: Awaited<ReturnType<typeof deleteObjects>>;

@@ -9,7 +9,8 @@
 // + listBuckets prefix because both share the "scope by user, decrypt,
 // hit R2" pattern — see app/api/r2/buckets/route.ts for the comments on
 // the security choices (404 not 403, AAD = connection.id, audit on
-// decrypt failure).
+// decrypt failure). That shared prefix now lives in
+// lib/r2/route-helpers.ts (resolveConnectionForR2).
 //
 // Read-only → no CSRF, no audit row on success; failure to decrypt is
 // audited under `security.decrypt_failed` the same way as the buckets
@@ -18,7 +19,6 @@
 
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 
 import { withApi } from "@/lib/api/middleware";
@@ -28,17 +28,11 @@ import {
   DashboardSummaryQuerySchema,
 } from "@/lib/api/schemas";
 import { RateLimitBundles } from "@/lib/api/rate-limit";
-import { asU8 } from "@/lib/db/blob";
-import { getDb, schema, type DbEnv } from "@/lib/db/client";
-import {
-  CryptoIntegrityError,
-  decryptCredential,
-  type CryptoEnv,
-} from "@/lib/crypto/aes-gcm";
-import { makeS3Client } from "@/lib/r2/client";
+import { type DbEnv } from "@/lib/db/client";
+import { type CryptoEnv } from "@/lib/crypto/aes-gcm";
 import { listBuckets } from "@/lib/r2/control";
 import { R2CredentialError } from "@/lib/r2/errors";
-import { logAudit } from "@/lib/audit/log";
+import { resolveConnectionForR2 } from "@/lib/r2/route-helpers";
 import { getDashboardSummary } from "@/lib/dashboard/summary";
 
 export const runtime = "edge";
@@ -49,58 +43,13 @@ export const GET = withApi(
   async (req, ctx) => {
     const input = await parseQuery(req, DashboardSummaryQuerySchema);
     const env = getRequestContext().env as unknown as SummaryEnv;
-    const db = getDb(env);
 
-    const connection = await db
-      .select()
-      .from(schema.connections)
-      .where(
-        and(
-          eq(schema.connections.id, input.connectionId),
-          eq(schema.connections.userId, ctx.userId),
-        ),
-      )
-      .get();
-    if (!connection) {
-      throw ApiErrors.notFound("Connection not found");
-    }
-
-    let accessKeyId: string;
-    let secretAccessKey: string;
-    try {
-      [accessKeyId, secretAccessKey] = await Promise.all([
-        decryptCredential(
-          asU8(connection.accessKeyCiphertext, "dashboard/summary"),
-          asU8(connection.accessKeyIv, "dashboard/summary"),
-          connection.id,
-          env,
-        ),
-        decryptCredential(
-          asU8(connection.secretKeyCiphertext, "dashboard/summary"),
-          asU8(connection.secretKeyIv, "dashboard/summary"),
-          connection.id,
-          env,
-        ),
-      ]);
-    } catch (err) {
-      await logAudit({
-        userId: ctx.userId,
-        connectionId: connection.id,
-        op: "security.decrypt_failed",
-        status: "failure",
-        errorMsg:
-          err instanceof CryptoIntegrityError
-            ? "credential integrity check failed"
-            : "credential decrypt failed",
-        req,
-      });
-      throw ApiErrors.internal("Failed to decrypt connection credentials");
-    }
-
-    const client = makeS3Client({
-      accountId: connection.accountId,
-      accessKeyId,
-      secretAccessKey,
+    const { db, client } = await resolveConnectionForR2({
+      cid: input.connectionId,
+      userId: ctx.userId,
+      env,
+      req,
+      purpose: "dashboard/summary",
     });
 
     let buckets: Awaited<ReturnType<typeof listBuckets>>;
