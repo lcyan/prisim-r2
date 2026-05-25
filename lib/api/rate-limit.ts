@@ -17,6 +17,8 @@
 
 import "server-only";
 
+import { parseClientIp } from "@/lib/api/client-ip";
+
 /**
  * Minimal subset of D1Database used by checkLimit. Carving out this
  * interface (instead of importing D1Database) lets tests pass a
@@ -208,20 +210,12 @@ export const RateLimitBundles = {
 } as const;
 
 /**
- * Best-effort client IP extraction. On Cloudflare Pages we always have
- * `cf-connecting-ip` (set by the edge); the `x-forwarded-for` fallback is
- * for local dev / preview behind a reverse proxy. Returns "unknown" rather
- * than throwing so the limiter still buckets unauthenticated traffic — the
- * worst case is that all anon clients share a bucket, which is the safer
- * failure mode (over-limit, not under-limit).
+ * Best-effort client IP extraction. Returns "unknown" rather than null so
+ * the limiter still buckets unauthenticated traffic — the worst case is
+ * that all anon clients share a bucket, which is the safer failure mode
+ * (over-limit, not under-limit). Header parsing is shared with the audit
+ * logger via parseClientIp.
  */
 export function getClientIp(req: Request): string {
-  const cf = req.headers.get("cf-connecting-ip");
-  if (cf) return cf.trim();
-  const xff = req.headers.get("x-forwarded-for");
-  if (xff) {
-    const first = xff.split(",")[0];
-    if (first) return first.trim();
-  }
-  return "unknown";
+  return parseClientIp(req.headers) ?? "unknown";
 }

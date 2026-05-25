@@ -27,6 +27,7 @@ import "server-only";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { ulid } from "ulid";
 
+import { parseClientIp } from "@/lib/api/client-ip";
 import { AUDIT_OP_VALUES, type AuditOpValue } from "@/lib/api/schemas";
 import { getDb, schema, type Db, type DbEnv } from "@/lib/db/client";
 
@@ -76,36 +77,16 @@ interface RequestMeta {
 /**
  * Pull IP and UA out of the request headers.
  *
- *   * IP: prefer `cf-connecting-ip` (the only header Cloudflare's edge
- *     trusts on Pages). Fall back to the first entry in
- *     `x-forwarded-for` for local dev / preview behind a reverse proxy.
- *   * UA: plain `user-agent` header.
- *
- * Returns nulls when the header is missing rather than a sentinel string
- * — auditors querying the table will SQL-filter on `IS NULL`, which is
- * unambiguous; a "unknown" sentinel would collide with a real value the
- * day someone sets `User-Agent: unknown`.
+ * IP extraction is shared with the rate limiter via parseClientIp — see
+ * lib/api/client-ip.ts. UA is the plain `user-agent` header. Both return
+ * null when the header is missing rather than a sentinel string so the
+ * audit table can SQL-filter on `IS NULL` unambiguously.
  */
 export function extractAuditMeta(req: Request | null | undefined): RequestMeta {
   if (!req) return { ip: null, ua: null };
-  const headers = req.headers;
-
-  let ip: string | null = null;
-  const cf = headers.get("cf-connecting-ip");
-  if (cf && cf.trim().length > 0) {
-    ip = cf.trim();
-  } else {
-    const xff = headers.get("x-forwarded-for");
-    if (xff) {
-      const first = xff.split(",")[0];
-      const trimmed = first?.trim();
-      if (trimmed) ip = trimmed;
-    }
-  }
-
-  const uaHeader = headers.get("user-agent");
+  const ip = parseClientIp(req.headers);
+  const uaHeader = req.headers.get("user-agent");
   const ua = uaHeader && uaHeader.trim().length > 0 ? uaHeader.trim() : null;
-
   return { ip, ua };
 }
 
