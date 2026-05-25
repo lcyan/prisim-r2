@@ -5,12 +5,12 @@
 // Folder-style listing for the file browser. The handler:
 //
 //   1. validate query             → R2ListQuerySchema (Zod)
-//   2. fetch & user-scope the row → connections.id = cid AND user_id = ctx
-//   3. decrypt access/secret keys → AES-GCM with AAD = connection.id
-//   4. listObjects via R2 SDK     → Delimiter='/' to fold deeper keys
+//   2. resolve connection         → user-scoped row + AAD-bound decrypt
+//                                   (lib/r2/route-helpers.ts)
+//   3. listObjects via R2 SDK     → Delimiter='/' to fold deeper keys
 //                                   into CommonPrefixes (folder listing)
-//   5. update last_used_at        → fire-and-forget after the body lands
-//   6. return R2ListResponse
+//   4. update last_used_at        → fire-and-forget after the body lands
+//   5. return R2ListResponse
 //
 // Notes worth knowing before touching this file:
 //
@@ -20,8 +20,8 @@
 //   already tight; one round-trip costs us one decrypt + one R2 hit,
 //   not object bytes (CLAUDE.md security invariant #3).
 // * No audit on success (high-volume read, matches GET /api/connections
-//   + GET /api/r2/buckets policy). Decryption failures ARE audited under
-//   `security.decrypt_failed` because they're a security event.
+//   + GET /api/r2/buckets policy). Decryption failures ARE audited
+//   inside resolveConnectionForR2 under `security.decrypt_failed`.
 // * Page size is fixed server-side via R2_LIST_DEFAULT_MAX_KEYS (200) —
 //   the client cannot override. This bounds per-request work regardless
 //   of caller behavior. Pagination is cursor-based (NextContinuationToken)
@@ -33,7 +33,6 @@
 
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 
 import { withApi } from "@/lib/api/middleware";
@@ -44,17 +43,14 @@ import {
   R2_LIST_DEFAULT_MAX_KEYS,
 } from "@/lib/api/schemas";
 import type { R2ListObject, R2ListResponse } from "@/lib/api/types";
-import { asU8 } from "@/lib/db/blob";
-import { getDb, schema, type DbEnv } from "@/lib/db/client";
-import {
-  CryptoIntegrityError,
-  decryptCredential,
-  type CryptoEnv,
-} from "@/lib/crypto/aes-gcm";
-import { makeS3Client } from "@/lib/r2/client";
+import { type DbEnv } from "@/lib/db/client";
+import { type CryptoEnv } from "@/lib/crypto/aes-gcm";
 import { listObjects } from "@/lib/r2/control";
 import { R2CredentialError } from "@/lib/r2/errors";
-import { logAudit } from "@/lib/audit/log";
+import {
+  resolveConnectionForR2,
+  touchConnectionLastUsed,
+} from "@/lib/r2/route-helpers";
 
 export const runtime = "edge";
 
@@ -63,66 +59,14 @@ type ListEnv = DbEnv & CryptoEnv;
 export const GET = withApi(async (req, ctx) => {
   const input = await parseQuery(req, R2ListQuerySchema);
   const env = getRequestContext().env as unknown as ListEnv;
-  const db = getDb(env);
 
-  // Scope by user_id — selecting on cid alone would let user A enumerate
-  // user B's buckets/objects by guessing a ULID. Same pattern as buckets
-  // and presign routes.
-  const connection = await db
-    .select()
-    .from(schema.connections)
-    .where(
-      and(
-        eq(schema.connections.id, input.cid),
-        eq(schema.connections.userId, ctx.userId),
-      ),
-    )
-    .get();
-  if (!connection) {
-    // 404 (not 403) deliberately: we don't disclose whether a connection
-    // exists under another user — prevents enumeration of cid ULIDs.
-    throw ApiErrors.notFound("Connection not found");
-  }
-
-  // Decrypt both halves in parallel. AAD = connection.id binds each
-  // ciphertext to its row.
-  let accessKeyId: string;
-  let secretAccessKey: string;
-  try {
-    [accessKeyId, secretAccessKey] = await Promise.all([
-      decryptCredential(
-        asU8(connection.accessKeyCiphertext, "list"),
-        asU8(connection.accessKeyIv, "list"),
-        connection.id,
-        env,
-      ),
-      decryptCredential(
-        asU8(connection.secretKeyCiphertext, "list"),
-        asU8(connection.secretKeyIv, "list"),
-        connection.id,
-        env,
-      ),
-    ]);
-  } catch (err) {
-    await logAudit({
-      userId: ctx.userId,
-      connectionId: connection.id,
-      op: "security.decrypt_failed",
-      bucket: input.bucket,
-      status: "failure",
-      errorMsg:
-        err instanceof CryptoIntegrityError
-          ? "credential integrity check failed"
-          : "credential decrypt failed",
-      req,
-    });
-    throw ApiErrors.internal("Failed to decrypt connection credentials");
-  }
-
-  const client = makeS3Client({
-    accountId: connection.accountId,
-    accessKeyId,
-    secretAccessKey,
+  const { db, connection, client } = await resolveConnectionForR2({
+    cid: input.cid,
+    userId: ctx.userId,
+    env,
+    req,
+    purpose: "list",
+    auditBucket: input.bucket,
   });
 
   let raw: Awaited<ReturnType<typeof listObjects>>;
@@ -141,9 +85,6 @@ export const GET = withApi(async (req, ctx) => {
     });
   } catch (err) {
     if (err instanceof R2CredentialError) {
-      // The user's R2 keys (not OUR session) are wrong/expired — surface
-      // a 401 so the client can prompt for re-entry. Same convention as
-      // buckets / presign routes.
       throw ApiErrors.unauthorized("R2 credentials rejected");
     }
     throw err;
@@ -167,26 +108,12 @@ export const GET = withApi(async (req, ctx) => {
     nextCursor: raw.continuationToken ?? null,
   };
 
-  // Touch last_used_at — same rationale as the buckets route. Failure
-  // is non-fatal; the body is already prepared and only telemetry is
-  // lost if the write fails.
-  try {
-    await db
-      .update(schema.connections)
-      .set({ lastUsedAt: new Date() })
-      .where(
-        and(
-          eq(schema.connections.id, connection.id),
-          eq(schema.connections.userId, ctx.userId),
-        ),
-      )
-      .run();
-  } catch (err) {
-    console.error(
-      `[list ${ctx.requestId}] last_used_at update failed for cid=${connection.id}`,
-      err,
-    );
-  }
+  await touchConnectionLastUsed(db, {
+    connectionId: connection.id,
+    userId: ctx.userId,
+    requestId: ctx.requestId,
+    tag: "list",
+  });
 
   return body;
 });

@@ -17,38 +17,29 @@
 // exactly one call.
 //
 // Notes that mirror the presign route (read those first if you haven't):
-//   * User-scoped connection lookup: connections.id = cid AND user_id = ctx.
-//     Selecting on cid alone would let user A start an upload under user B's
-//     credentials by guessing a ULID.
-//   * AES-GCM decrypt with AAD = connection.id — see lib/crypto/aes-gcm.ts.
-//     A ciphertext copied into another row fails the tag check.
-//   * Audit `upload.create` on both success and failure paths. Awaited so
-//     the row is flushed before Pages spins down the worker.
+//   * Connection lookup + AES-GCM decrypt + S3Client live in
+//     resolveConnectionForR2 (lib/r2/route-helpers.ts).
+//   * `upload.create` audit on both success and failure paths is delegated
+//     to runR2WithAudit so the audit-before-throw ordering is uniform.
 //   * Rate limit: write-aggregate only (600/min/user). There is no narrower
 //     "multipart.create" cap because we already cap the per-part presign
 //     calls at 60/min, which is the real throttle in practice.
 
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 
 import { withApi } from "@/lib/api/middleware";
-import { ApiErrors } from "@/lib/api/errors";
 import { RateLimitBundles } from "@/lib/api/rate-limit";
 import { parseJson, R2MultipartCreateSchema } from "@/lib/api/schemas";
 import type { R2MultipartCreateResponse } from "@/lib/api/types";
-import { asU8 } from "@/lib/db/blob";
-import { getDb, schema, type DbEnv } from "@/lib/db/client";
-import {
-  CryptoIntegrityError,
-  decryptCredential,
-  type CryptoEnv,
-} from "@/lib/crypto/aes-gcm";
-import { makeS3Client } from "@/lib/r2/client";
+import { type DbEnv } from "@/lib/db/client";
+import { type CryptoEnv } from "@/lib/crypto/aes-gcm";
 import { createMultipartUpload } from "@/lib/r2/control";
-import { R2CredentialError } from "@/lib/r2/errors";
-import { logAudit } from "@/lib/audit/log";
+import {
+  resolveConnectionForR2,
+  runR2WithAudit,
+} from "@/lib/r2/route-helpers";
 
 export const runtime = "edge";
 
@@ -58,101 +49,35 @@ export const POST = withApi<R2MultipartCreateResponse>(
   async (req, ctx) => {
     const input = await parseJson(req, R2MultipartCreateSchema);
     const env = getRequestContext().env as unknown as MultipartCreateEnv;
-    const db = getDb(env);
 
-    const connection = await db
-      .select()
-      .from(schema.connections)
-      .where(
-        and(
-          eq(schema.connections.id, input.cid),
-          eq(schema.connections.userId, ctx.userId),
-        ),
-      )
-      .get();
-    if (!connection) {
-      // 404 not 403: don't disclose existence of another user's cid.
-      throw ApiErrors.notFound("Connection not found");
-    }
-
-    let accessKeyId: string;
-    let secretAccessKey: string;
-    try {
-      [accessKeyId, secretAccessKey] = await Promise.all([
-        decryptCredential(
-          asU8(connection.accessKeyCiphertext, "multipart/create"),
-          asU8(connection.accessKeyIv, "multipart/create"),
-          connection.id,
-          env,
-        ),
-        decryptCredential(
-          asU8(connection.secretKeyCiphertext, "multipart/create"),
-          asU8(connection.secretKeyIv, "multipart/create"),
-          connection.id,
-          env,
-        ),
-      ]);
-    } catch (err) {
-      // Distinct security event vs. an R2 rejection — record it under its
-      // own op so the audit table makes the difference greppable.
-      await logAudit({
-        userId: ctx.userId,
-        connectionId: connection.id,
-        op: "security.decrypt_failed",
-        bucket: input.bucket,
-        key: input.key,
-        status: "failure",
-        errorMsg:
-          err instanceof CryptoIntegrityError
-            ? "credential integrity check failed"
-            : "credential decrypt failed",
-        req,
-      });
-      throw ApiErrors.internal("Failed to decrypt connection credentials");
-    }
-
-    const client = makeS3Client({
-      accountId: connection.accountId,
-      accessKeyId,
-      secretAccessKey,
+    const { connection, client } = await resolveConnectionForR2({
+      cid: input.cid,
+      userId: ctx.userId,
+      env,
+      req,
+      purpose: "multipart/create",
+      auditBucket: input.bucket,
+      auditKey: input.key,
     });
 
-    let uploadId: string;
-    try {
-      const res = await createMultipartUpload({
-        client,
-        bucket: input.bucket,
-        key: input.key,
-        contentType: input.contentType,
-      });
-      uploadId = res.uploadId;
-    } catch (err) {
-      // Audit before mapping so we always have a row for this attempt.
-      await logAudit({
+    const { uploadId } = await runR2WithAudit(
+      () =>
+        createMultipartUpload({
+          client,
+          bucket: input.bucket,
+          key: input.key,
+          contentType: input.contentType,
+        }),
+      {
         userId: ctx.userId,
         connectionId: connection.id,
         op: "upload.create",
         bucket: input.bucket,
         key: input.key,
-        status: "failure",
-        errorMsg: err instanceof Error ? err.name : "createMultipartUpload failed",
         req,
-      });
-      if (err instanceof R2CredentialError) {
-        throw ApiErrors.unauthorized("R2 credentials rejected");
-      }
-      throw err;
-    }
-
-    await logAudit({
-      userId: ctx.userId,
-      connectionId: connection.id,
-      op: "upload.create",
-      bucket: input.bucket,
-      key: input.key,
-      status: "success",
-      req,
-    });
+        failureLabel: "createMultipartUpload failed",
+      },
+    );
 
     return { uploadId };
   },

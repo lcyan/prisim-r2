@@ -6,11 +6,11 @@
 // connections. The handler:
 //
 //   1. validate query             → R2BucketsQuerySchema (Zod)
-//   2. fetch & user-scope the row → connections.id = cid AND user_id = ctx
-//   3. decrypt access/secret keys → AES-GCM with AAD = connection.id
-//   4. listBuckets via R2 SDK     → control-plane only, no body I/O
-//   5. update last_used_at        → fire-and-forget after the body lands
-//   6. return BucketSummary[]
+//   2. resolve connection         → user-scoped row + AAD-bound decrypt
+//                                   (lib/r2/route-helpers.ts)
+//   3. listBuckets via R2 SDK     → control-plane only, no body I/O
+//   4. update last_used_at        → fire-and-forget after the body lands
+//   5. return BucketSummary[]
 //
 // Notes worth knowing before touching this file:
 //
@@ -27,16 +27,14 @@
 //   trigger) so the dashboard's "last used X ago" indicator reflects the
 //   real usage timestamp. We update it after listBuckets succeeds but
 //   before returning — failure to write the timestamp is non-fatal and
-//   does not roll back the response (see catch around the update).
+//   does not roll back the response.
 // * Audit logging: success listings are NOT audited (high-volume read,
 //   no security-relevant info — matches the GET /api/connections policy
-//   in CLAUDE.md). Decryption failures ARE audited under
-//   `security.decrypt_failed` because they signal either credential rot
-//   at rest or a master-key mismatch — both worth investigating.
+//   in CLAUDE.md). Decryption failures ARE audited inside
+//   resolveConnectionForR2 under `security.decrypt_failed`.
 
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 
 import { withApi } from "@/lib/api/middleware";
@@ -46,17 +44,14 @@ import {
   R2BucketsQuerySchema,
 } from "@/lib/api/schemas";
 import type { BucketSummary } from "@/lib/api/types";
-import { asU8 } from "@/lib/db/blob";
-import { getDb, schema, type DbEnv } from "@/lib/db/client";
-import {
-  CryptoIntegrityError,
-  decryptCredential,
-  type CryptoEnv,
-} from "@/lib/crypto/aes-gcm";
-import { makeS3Client } from "@/lib/r2/client";
+import { type DbEnv } from "@/lib/db/client";
+import { type CryptoEnv } from "@/lib/crypto/aes-gcm";
 import { listBuckets } from "@/lib/r2/control";
 import { R2CredentialError } from "@/lib/r2/errors";
-import { logAudit } from "@/lib/audit/log";
+import {
+  resolveConnectionForR2,
+  touchConnectionLastUsed,
+} from "@/lib/r2/route-helpers";
 
 export const runtime = "edge";
 
@@ -65,70 +60,13 @@ type BucketsEnv = DbEnv & CryptoEnv;
 export const GET = withApi(async (req, ctx) => {
   const input = await parseQuery(req, R2BucketsQuerySchema);
   const env = getRequestContext().env as unknown as BucketsEnv;
-  const db = getDb(env);
 
-  // Look up the connection scoped to the authenticated user. We MUST
-  // include user_id in the WHERE clause — selecting by id alone would let
-  // user A enumerate user B's buckets by guessing a ULID.
-  const connection = await db
-    .select()
-    .from(schema.connections)
-    .where(
-      and(
-        eq(schema.connections.id, input.cid),
-        eq(schema.connections.userId, ctx.userId),
-      ),
-    )
-    .get();
-  if (!connection) {
-    // 404 (not 403) deliberately: we don't disclose whether a connection
-    // exists under another user (prevents enumeration of cid ULIDs). Same
-    // pattern as the presign route.
-    throw ApiErrors.notFound("Connection not found");
-  }
-
-  // Decrypt both halves in parallel. AAD = connection.id binds each
-  // ciphertext to its row — a ciphertext copied into another row would
-  // fail GCM tag verification and throw CryptoIntegrityError.
-  let accessKeyId: string;
-  let secretAccessKey: string;
-  try {
-    [accessKeyId, secretAccessKey] = await Promise.all([
-      decryptCredential(
-        asU8(connection.accessKeyCiphertext, "buckets"),
-        asU8(connection.accessKeyIv, "buckets"),
-        connection.id,
-        env,
-      ),
-      decryptCredential(
-        asU8(connection.secretKeyCiphertext, "buckets"),
-        asU8(connection.secretKeyIv, "buckets"),
-        connection.id,
-        env,
-      ),
-    ]);
-  } catch (err) {
-    // Distinct from "R2 rejected the signature" — record under its own op
-    // so the audit table makes the difference greppable. Generic 500 — we
-    // never leak the inner CryptoIntegrityError detail to the client.
-    await logAudit({
-      userId: ctx.userId,
-      connectionId: connection.id,
-      op: "security.decrypt_failed",
-      status: "failure",
-      errorMsg:
-        err instanceof CryptoIntegrityError
-          ? "credential integrity check failed"
-          : "credential decrypt failed",
-      req,
-    });
-    throw ApiErrors.internal("Failed to decrypt connection credentials");
-  }
-
-  const client = makeS3Client({
-    accountId: connection.accountId,
-    accessKeyId,
-    secretAccessKey,
+  const { db, connection, client } = await resolveConnectionForR2({
+    cid: input.cid,
+    userId: ctx.userId,
+    env,
+    req,
+    purpose: "buckets",
   });
 
   let raw: Awaited<ReturnType<typeof listBuckets>>;
@@ -157,27 +95,12 @@ export const GET = withApi(async (req, ctx) => {
     });
   }
 
-  // Touch last_used_at so the connections table can show "used Xm ago".
-  // Wrapped in try/catch because a failure to write the timestamp is non-
-  // fatal to the user-facing request — the data is back already, we're
-  // just losing one telemetry datum if the write fails.
-  try {
-    await db
-      .update(schema.connections)
-      .set({ lastUsedAt: new Date() })
-      .where(
-        and(
-          eq(schema.connections.id, connection.id),
-          eq(schema.connections.userId, ctx.userId),
-        ),
-      )
-      .run();
-  } catch (err) {
-    console.error(
-      `[buckets ${ctx.requestId}] last_used_at update failed for cid=${connection.id}`,
-      err,
-    );
-  }
+  await touchConnectionLastUsed(db, {
+    connectionId: connection.id,
+    userId: ctx.userId,
+    requestId: ctx.requestId,
+    tag: "buckets",
+  });
 
   return buckets;
 });
