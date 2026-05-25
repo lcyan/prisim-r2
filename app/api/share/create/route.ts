@@ -8,11 +8,11 @@
 // without persisting a bearer credential.
 //
 //   1. validate input              → ShareCreateSchema (Zod)
-//   2. fetch & user-scope the row  → connections.id = cid AND userId = ctx
-//   3. decrypt access/secret keys  → AES-GCM with AAD = connection.id
-//   4. presignGet(ttlSeconds)      → URL valid for the chosen window
-//   5. INSERT shares row           → with url_hash = sha256(url)
-//   6. audit share.create + return → { id, url, expiresAt }
+//   2. resolve connection          → user-scoped row + AAD-bound decrypt
+//                                    (lib/r2/route-helpers.ts)
+//   3. presignGet(ttlSeconds)      → URL valid for the chosen window
+//   4. INSERT shares row           → with url_hash = sha256(url)
+//   5. audit share.create + return → { id, url, expiresAt }
 //
 // Notes worth knowing before touching this file:
 //
@@ -25,6 +25,7 @@
 //   exists only in this handler's frame), but we DO log a failure audit
 //   row so an operator can see "presign succeeded, row insert didn't" —
 //   that pattern would point at a corrupted shares index or D1 outage.
+//   THIS extra audit branch is why we don't use runR2WithAudit here.
 // * The presign goes through the SAME `presignGet` helper as the download
 //   route (15-min TTL there, longer here). That's intentional — the
 //   signature semantics are identical; only the TTL differs.
@@ -37,7 +38,6 @@
 
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { ulid } from "ulid";
 
@@ -46,16 +46,11 @@ import { ApiErrors } from "@/lib/api/errors";
 import { RateLimitBundles } from "@/lib/api/rate-limit";
 import { parseJson, ShareCreateSchema } from "@/lib/api/schemas";
 import type { ShareCreateResponse } from "@/lib/api/types";
-import { asU8 } from "@/lib/db/blob";
-import { getDb, schema, type DbEnv } from "@/lib/db/client";
-import {
-  CryptoIntegrityError,
-  decryptCredential,
-  type CryptoEnv,
-} from "@/lib/crypto/aes-gcm";
-import { makeS3Client } from "@/lib/r2/client";
+import { schema, type DbEnv } from "@/lib/db/client";
+import { type CryptoEnv } from "@/lib/crypto/aes-gcm";
 import { presignGet } from "@/lib/r2/presign";
 import { R2CredentialError } from "@/lib/r2/errors";
+import { resolveConnectionForR2 } from "@/lib/r2/route-helpers";
 import { logAudit } from "@/lib/audit/log";
 
 export const runtime = "edge";
@@ -77,62 +72,15 @@ export const POST = withApi(
   async (req, ctx) => {
     const input = await parseJson(req, ShareCreateSchema);
     const env = getRequestContext().env as unknown as ShareEnv;
-    const db = getDb(env);
 
-    // Scope the connection lookup by user_id — same enumeration-defense
-    // pattern as every other R2 route.
-    const connection = await db
-      .select()
-      .from(schema.connections)
-      .where(
-        and(
-          eq(schema.connections.id, input.cid),
-          eq(schema.connections.userId, ctx.userId),
-        ),
-      )
-      .get();
-    if (!connection) {
-      throw ApiErrors.notFound("Connection not found");
-    }
-
-    let accessKeyId: string;
-    let secretAccessKey: string;
-    try {
-      [accessKeyId, secretAccessKey] = await Promise.all([
-        decryptCredential(
-          asU8(connection.accessKeyCiphertext, "share"),
-          asU8(connection.accessKeyIv, "share"),
-          connection.id,
-          env,
-        ),
-        decryptCredential(
-          asU8(connection.secretKeyCiphertext, "share"),
-          asU8(connection.secretKeyIv, "share"),
-          connection.id,
-          env,
-        ),
-      ]);
-    } catch (err) {
-      await logAudit({
-        userId: ctx.userId,
-        connectionId: connection.id,
-        op: "security.decrypt_failed",
-        bucket: input.bucket,
-        key: input.key,
-        status: "failure",
-        errorMsg:
-          err instanceof CryptoIntegrityError
-            ? "credential integrity check failed"
-            : "credential decrypt failed",
-        req,
-      });
-      throw ApiErrors.internal("Failed to decrypt connection credentials");
-    }
-
-    const client = makeS3Client({
-      accountId: connection.accountId,
-      accessKeyId,
-      secretAccessKey,
+    const { db, connection, client } = await resolveConnectionForR2({
+      cid: input.cid,
+      userId: ctx.userId,
+      env,
+      req,
+      purpose: "share",
+      auditBucket: input.bucket,
+      auditKey: input.key,
     });
 
     let url: string;

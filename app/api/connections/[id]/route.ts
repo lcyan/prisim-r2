@@ -30,6 +30,7 @@ import {
   ConnectionIdParamSchema,
   ConnectionsPatchSchema,
 } from "@/lib/api/schemas";
+import { pathSegmentFromEnd } from "@/lib/api/path-id";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import { logAudit } from "@/lib/audit/log";
 import type { ConnectionSummary } from "@/lib/api/types";
@@ -41,7 +42,7 @@ type ConnectionsEnv = DbEnv;
 /** Next.js 15 wraps dynamic route params in a Promise. We don't consume the
  *  params context directly because withApi narrows the handler signature to
  *  `(req) => Response`; instead we re-derive the id from req.url via
- *  pathIdFrom() below. */
+ *  pathSegmentFromEnd() (lib/api/path-id.ts). */
 
 // ─── PATCH /api/connections/[id] — rename only ──────────────────────────
 
@@ -51,7 +52,7 @@ export const PATCH = withApi<ConnectionSummary>(
     // as the second argument to the original handler. We re-derive id by
     // peeking at the request URL — withApi doesn't intercept the second
     // arg, so we keep things simple by parsing it from the path.
-    const id = pathIdFrom(req.url);
+    const id = pathSegmentFromEnd(req.url, 0);
     ConnectionIdParamSchema.parse({ id });
 
     const input = await parseJson(req, ConnectionsPatchSchema);
@@ -127,7 +128,7 @@ export const PATCH = withApi<ConnectionSummary>(
 
 export const DELETE = withApi(
   async (req, ctx) => {
-    const id = pathIdFrom(req.url);
+    const id = pathSegmentFromEnd(req.url, 0);
     ConnectionIdParamSchema.parse({ id });
 
     const env = getRequestContext().env as unknown as ConnectionsEnv;
@@ -219,21 +220,3 @@ export const DELETE = withApi(
     rateLimit: ({ ctx }) => RateLimitBundles.writeOnlyByUser(ctx.userId),
   },
 );
-
-/**
- * Extract `[id]` from `/api/connections/<id>` (with optional querystring).
- *
- * withApi wraps the handler with a single-arg signature `(req) => Response`,
- * which hides Next.js's params context. Re-deriving the id from the URL
- * keeps the wrapper generic and matches what middleware sees. We Zod-parse
- * the result downstream, so a missing/garbled id fails as validation.invalid
- * rather than throwing a raw TypeError here.
- */
-function pathIdFrom(url: string): string {
-  // Path: …/api/connections/<id>[?query…]
-  // Pull the last segment of the pathname so a trailing slash or query
-  // string doesn't leak in.
-  const u = new URL(url);
-  const parts = u.pathname.split("/").filter(Boolean);
-  return parts[parts.length - 1] ?? "";
-}
