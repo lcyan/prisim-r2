@@ -38,7 +38,7 @@ describe("D1 migration 0000_init", () => {
     applyMigrations(db);
   });
 
-  it("creates all six tables", () => {
+  it("creates all ten tables", () => {
     const rows = db
       .prepare(
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
@@ -49,8 +49,12 @@ describe("D1 migration 0000_init", () => {
       "audit_log",
       "connections",
       "rate_limit_buckets",
+      "recovery_codes",
       "sessions",
       "shares",
+      "sign_in_grants",
+      "totp_enrollments",
+      "totp_replay_guard",
       "users",
     ]);
   });
