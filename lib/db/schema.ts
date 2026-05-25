@@ -24,6 +24,7 @@ import {
   integer,
   blob,
   index,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
 /* ─── users ──────────────────────────────────────────────────── */
@@ -209,9 +210,9 @@ export const recoveryCodes = sqliteTable(
   },
   (t) => [
     index("idx_recovery_user_active").on(t.userId, t.consumedAt),
-    // sha256 比对走 codeHash;userId+codeHash 唯一,避免极小概率碰撞
-    // 时 UPDATE consumedAt 影响别人。
-    index("idx_recovery_user_hash").on(t.userId, t.codeHash),
+    // 强制 (userId, codeHash) 唯一,避免极小概率 sha256 碰撞时 UPDATE
+    // 误命中他人的码。表上限 10 行/用户,该索引代价可忽略。
+    uniqueIndex("uniq_recovery_user_hash").on(t.userId, t.codeHash),
   ],
 );
 
@@ -226,7 +227,9 @@ export const totpReplayGuard = sqliteTable("totp_replay_guard", {
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
   lastStep: integer("last_step").notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 /* ─── sign_in_grants ────────────────────────────────────────────
