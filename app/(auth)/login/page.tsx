@@ -13,6 +13,7 @@ import {
 } from "@/lib/api/client";
 import { useAuthEnrollStore } from "@/stores/auth-enroll";
 import { TotpField } from "@/components/features/auth/TotpField";
+import { PrismMark } from "@/components/brand/logo";
 
 /**
  * Login page — single-user app. No registration UI by design (admin is seeded
@@ -136,7 +137,8 @@ function LoginForm() {
       <SignalLine />
 
       <header className="flex items-center justify-between border-b border-border px-6 py-3">
-        <div className="flex items-baseline gap-2">
+        <div className="flex items-center gap-2">
+          <PrismMark size={22} />
           <span className="font-display text-lg font-semibold tracking-tight">
             Prisim
           </span>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="7" fill="url(#prisim-bg)"/>
+  <path d="M11 6.5 L22.2 24 L3.8 24 Z" fill="#FFFFFF"/>
+  <path d="M21 13.4 L29 10.4" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round"/>
+  <path d="M21 17 L29 17" stroke="#FFB061" stroke-width="1.9" stroke-linecap="round"/>
+  <path d="M21 20.6 L29 23.6" stroke="#85F4C2" stroke-width="1.9" stroke-linecap="round"/>
+  <defs>
+    <linearGradient id="prisim-bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1F86FF"/>
+      <stop offset="1" stop-color="#0E5FD8"/>
+    </linearGradient>
+  </defs>
+</svg>

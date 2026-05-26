@@ -5,14 +5,19 @@
 
 import Link from "next/link";
 
+import { PrismMark } from "@/components/brand/logo";
+
 export function Logo() {
   return (
-    <Link href="/" className="flex items-baseline gap-2">
-      <span className="font-display text-lg font-semibold tracking-tight">
-        Prisim
-      </span>
-      <span className="text-xs text-muted-foreground">
-        R2 · 边缘控制台
+    <Link href="/" className="flex items-center gap-2">
+      <PrismMark size={24} />
+      <span className="flex items-baseline gap-2">
+        <span className="font-display text-lg font-semibold tracking-tight">
+          Prisim
+        </span>
+        <span className="text-xs text-muted-foreground">
+          R2 · 边缘控制台
+        </span>
       </span>
     </Link>
   );

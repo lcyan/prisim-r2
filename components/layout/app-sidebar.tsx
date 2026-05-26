@@ -16,6 +16,7 @@ import {
   Settings,
 } from "lucide-react";
 
+import { PrismMark } from "@/components/brand/logo";
 import {
   Sidebar,
   SidebarContent,
@@ -70,9 +71,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-1.5">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary font-semibold text-primary-foreground">
-            P
-          </div>
+          <PrismMark size={28} className="shrink-0" />
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <p className="truncate text-sm font-semibold">{T.brand}</p>
             <p className="truncate text-[11px] text-muted-foreground">{T.brandSub}</p>
