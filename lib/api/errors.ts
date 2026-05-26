@@ -35,6 +35,16 @@ export const ApiErrorCode = {
   // Domain-specific: blocked because deleting the resource would orphan
   // related rows (e.g. DELETE /connections/[id] with active shares).
   ConnectionInUse: "connection.in_use",
+  // TOTP 二次验证流程
+  TotpEnrollmentRequired: "auth.totp.enrollment_required",
+  TotpInvalidCode: "auth.totp.invalid_code",
+  TotpReplay: "auth.totp.replay",
+  TotpGrantExpired: "auth.totp.grant_expired",
+  TotpAlreadyEnrolled: "auth.totp.already_enrolled",
+  RecoveryCodeInvalid: "auth.recovery_code.invalid",
+  // 凭据错(密码错或用户不存在,统一文案防 enumeration)。前端展示同
+  // CredentialsSignin 的现行 "auth.invalid_credentials" key。
+  InvalidCredentials: "auth.invalid_credentials",
   InternalUnexpected: "internal.unexpected",
 } as const;
 
@@ -112,6 +122,20 @@ export const ApiErrors = {
     details?: unknown,
     message = "Connection has active shares; remove them first",
   ) => new ApiError(ApiErrorCode.ConnectionInUse, message, 409, details),
+  totpEnrollmentRequired: (message = "需要先绑定 TOTP") =>
+    new ApiError(ApiErrorCode.TotpEnrollmentRequired, message, 401),
+  totpInvalidCode: (message = "验证码错误或已过期") =>
+    new ApiError(ApiErrorCode.TotpInvalidCode, message, 400),
+  totpReplay: (message = "验证码已使用") =>
+    new ApiError(ApiErrorCode.TotpReplay, message, 400),
+  totpGrantExpired: (message = "绑定流程已超时") =>
+    new ApiError(ApiErrorCode.TotpGrantExpired, message, 410),
+  totpAlreadyEnrolled: (message = "已绑定 TOTP") =>
+    new ApiError(ApiErrorCode.TotpAlreadyEnrolled, message, 409),
+  recoveryCodeInvalid: (message = "恢复码无效或已使用") =>
+    new ApiError(ApiErrorCode.RecoveryCodeInvalid, message, 401),
+  invalidCredentials: (message = "邮箱或密码错误") =>
+    new ApiError(ApiErrorCode.InvalidCredentials, message, 401),
   internal: (message = "Unexpected server error") =>
     new ApiError(ApiErrorCode.InternalUnexpected, message, 500),
 };

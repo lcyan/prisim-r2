@@ -31,6 +31,7 @@ const T = {
   chartArea: (range: DashboardRange) =>
     `操作量 · ${range === "7d" ? "7" : "30"} 天`,
   chartBars: "操作类型 · 7 天",
+  lowRecoveryCodes: (n: number) => `你的恢复码仅剩 ${n} 个，建议重新生成一批。`,
 } as const;
 
 export default function DashboardPage() {
@@ -73,6 +74,11 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-full flex-col gap-4 p-6">
+      {data.totp.recoveryCodesRemaining <= 3 && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
+          {T.lowRecoveryCodes(data.totp.recoveryCodesRemaining)}
+        </div>
+      )}
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{T.title}</h1>

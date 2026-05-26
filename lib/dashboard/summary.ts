@@ -1,6 +1,6 @@
 // lib/dashboard/summary.ts
 //
-// Pure server-side aggregator for the dashboard page. Six (+1 recent rows)
+// Pure server-side aggregator for the dashboard page. Seven (+1 recent rows)
 // parallel D1 queries collected through Promise.all → DashboardSummary.
 //
 // bucketsCount is NOT computed here — the caller (route handler) lists
@@ -17,6 +17,7 @@ import { and, count, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { schema } from "@/lib/db/schema";
 import type { Db } from "@/lib/db/client";
 import type { AuditEntry, DashboardSummary } from "@/lib/api/types";
+import { countActiveRecoveryCodes } from "@/lib/auth/totp-store";
 
 interface SummaryDeps {
   db: Db;
@@ -62,6 +63,7 @@ export async function getDashboardSummary(
     opsByTypeRows,
     opsByDayRows,
     recentRows,
+    recoveryCodesRemaining,
   ] = await Promise.all([
     // 1. current-window op count
     db
@@ -143,6 +145,8 @@ export async function getDashboardSummary(
       .where(eq(schema.auditLog.userId, userId))
       .orderBy(desc(schema.auditLog.createdAt))
       .limit(10),
+    // 8. unconsumed recovery codes count for the low-codes banner
+    countActiveRecoveryCodes(db, userId),
   ]);
 
   const currentOps = opsTotal[0]?.n ?? 0;
@@ -197,5 +201,6 @@ export async function getDashboardSummary(
     opsByDay,
     opsByType,
     recentActivity,
+    totp: { recoveryCodesRemaining },
   };
 }

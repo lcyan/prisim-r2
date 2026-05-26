@@ -445,6 +445,11 @@ export const AUDIT_OP_VALUES = [
   "security.decrypt_failed",
   "auth.login",
   "auth.logout",
+  "auth.totp.enroll.begin",
+  "auth.totp.enroll.complete",
+  "auth.totp.verify",
+  "auth.recovery_code.consume",
+  "auth.signin_grant.consume",
 ] as const;
 export type AuditOpValue = (typeof AUDIT_OP_VALUES)[number];
 
@@ -508,3 +513,23 @@ export const DashboardSummaryQuerySchema = z.object({
   range: z.enum(["7d", "30d"]).default("30d"),
 });
 export type DashboardSummaryQuery = z.infer<typeof DashboardSummaryQuerySchema>;
+
+/* ─── TOTP / 二次验证 ─────────────────────────────────────── */
+
+export const TotpPreflightSchema = z.object({
+  email: z.string().email().max(254).transform((s) => s.toLowerCase().trim()),
+});
+export type TotpPreflightInput = z.infer<typeof TotpPreflightSchema>;
+
+export const TotpEnrollBeginSchema = z.object({
+  email: z.string().email().max(254).transform((s) => s.toLowerCase().trim()),
+  password: z.string().min(1).max(256),
+});
+export type TotpEnrollBeginInput = z.infer<typeof TotpEnrollBeginSchema>;
+
+export const TotpEnrollCompleteSchema = z.object({
+  email: z.string().email().max(254).transform((s) => s.toLowerCase().trim()),
+  grant: z.string().min(16).max(64),
+  code: z.string().regex(/^\d{6}$/, "code 必须是 6 位数字"),
+});
+export type TotpEnrollCompleteInput = z.infer<typeof TotpEnrollCompleteSchema>;

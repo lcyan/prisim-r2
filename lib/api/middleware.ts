@@ -31,7 +31,7 @@ import { CSRF_HEADER_NAME, hashCsrfToken, timingSafeEqual } from "@/lib/auth/csr
 import { getDb, type DbEnv } from "@/lib/db/client";
 
 import { ApiErrors, toErrorResponse } from "./errors";
-import { checkLimit, type RateLimitPolicy } from "./rate-limit";
+import { checkLimit, getClientIp, type RateLimitPolicy } from "./rate-limit";
 
 /** Methods that mutate state — all require a valid X-CSRF-Token header.
  * GET/HEAD/OPTIONS are read-only and CSRF-exempt (browser doesn't preflight
@@ -235,6 +235,74 @@ export function withApi<T = unknown>(
     } catch (err) {
       // Log just enough to correlate the user-visible requestId with server
       // logs — never log the err.stack to telemetry that's user-visible.
+      if (!(err instanceof ZodError)) {
+        console.error(`[api ${requestId}] ${req.method} ${req.url}`, err);
+      }
+      return toErrorResponse(err, requestId);
+    }
+  };
+}
+
+/* ─── 无 session 的路由包装器 ─────────────────────────────────
+ *
+ * 与 withApi 的区别:
+ *   * 不调用 requireSession / requireCsrf — 适用于登录前的 endpoint
+ *     (/api/auth/totp/*)。
+ *   * rateLimit 解析器收到 { req, ip } 而非 ctx,因为没有 userId 可用。
+ *   * 与 withApi 共用 toErrorResponse 和 requestId 协议。
+ */
+
+export type PublicRateLimitResolver = (args: {
+  req: Request;
+  ip: string;
+}) => RateLimitPolicy[] | Promise<RateLimitPolicy[]>;
+
+export interface WithPublicApiOptions {
+  rateLimit?: PublicRateLimitResolver;
+}
+
+export type PublicApiHandler<T = unknown> = (
+  req: Request,
+  ctx: { requestId: string; ip: string },
+) => Promise<T | Response>;
+
+export function withPublicApi<T = unknown>(
+  handler: PublicApiHandler<T>,
+  options: WithPublicApiOptions = {},
+) {
+  return async (req: Request): Promise<Response> => {
+    const requestId = crypto.randomUUID();
+    const ip = getClientIp(req);
+    try {
+      if (options.rateLimit) {
+        const policies = await options.rateLimit({ req, ip });
+        const env = getEnv();
+        for (const policy of policies) {
+          const result = await checkLimit({
+            db: env.DB,
+            key: policy.key,
+            limit: policy.limit,
+            windowMs: policy.windowMs,
+          });
+          if (!result.ok) {
+            throw ApiErrors.rateLimitedWithRetry(result.retryAfter ?? 1, {
+              policy: policy.key,
+            });
+          }
+        }
+      }
+      const result = await handler(req, { requestId, ip });
+      if (result instanceof Response) {
+        if (!result.headers.has("x-request-id")) {
+          result.headers.set("x-request-id", requestId);
+        }
+        return result;
+      }
+      return Response.json(result ?? null, {
+        status: 200,
+        headers: { "x-request-id": requestId },
+      });
+    } catch (err) {
       if (!(err instanceof ZodError)) {
         console.error(`[api ${requestId}] ${req.method} ${req.url}`, err);
       }

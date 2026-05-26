@@ -6,6 +6,13 @@ import { signIn } from "next-auth/react";
 import { AlertTriangle, ArrowRight, Lock, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { describeError } from "@/lib/i18n/error-messages";
+import {
+  preflightTotp,
+  enrollBegin,
+  ApiClientError,
+} from "@/lib/api/client";
+import { useAuthEnrollStore } from "@/stores/auth-enroll";
+import { TotpField } from "@/components/features/auth/TotpField";
 
 /**
  * Login page — single-user app. No registration UI by design (admin is seeded
@@ -57,26 +64,67 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [otp, setOtp] = useState("");
+  const enrollDraft = useAuthEnrollStore();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setPending(true);
     try {
+      // 1. preflight
+      const { enrolled } = await preflightTotp(email);
+
+      // 2. enrolled === false → 调 enroll/begin → push /setup/totp
+      if (!enrolled) {
+        try {
+          const begin = await enrollBegin(email, password);
+          enrollDraft.set({
+            email,
+            grant: begin.grant,
+            otpauthUri: begin.otpauthUri,
+            qrSvg: begin.qrSvg,
+            secretBase32: begin.secretBase32,
+          });
+          router.push("/setup/totp");
+          return;
+        } catch (err) {
+          if (err instanceof ApiClientError && err.code === "auth.totp.already_enrolled") {
+            // 罕见竞态:其它会话已绑定 — 回退到三因素流程
+            setError("auth.invalid_credentials");
+            return;
+          }
+          if (err instanceof ApiClientError) {
+            setError(err.code);
+            return;
+          }
+          setError("auth.upstream_error");
+          return;
+        }
+      }
+
+      // 3. enrolled === true → OTP 必填 + 调 signIn
+      if (!otp || otp.trim().length === 0) {
+        setError("auth.otp.required");
+        return;
+      }
       const res = await signIn("credentials", {
         email,
         password,
+        otp,
         redirect: false,
       });
       if (!res || res.error) {
-        // next-auth v5 buckets all Credentials failures into "CredentialsSignin"
-        // — do not differentiate "user not found" vs "wrong password" client-side.
         setError("auth.invalid_credentials");
         return;
       }
       router.replace(callbackUrl);
       router.refresh();
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.code === "rate_limited" ? "rate_limited" : err.code);
+        return;
+      }
       setError("auth.upstream_error");
     } finally {
       setPending(false);
@@ -139,6 +187,13 @@ function LoginForm() {
                   placeholder="••••••••••••"
                 />
               }
+            />
+
+            <TotpField
+              value={otp}
+              onChange={setOtp}
+              disabled={pending}
+              label="验证码(首次登录可留空)"
             />
 
             {error ? <ErrorBanner code={error} /> : null}

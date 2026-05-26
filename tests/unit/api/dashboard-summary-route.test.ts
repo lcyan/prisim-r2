@@ -274,4 +274,40 @@ describe("GET /api/dashboard/summary", () => {
     );
     expect(res.status).toBe(404);
   });
+
+  it("returns totp.recoveryCodesRemaining = 3 when 3 active + 1 consumed code exist", async () => {
+    const { userId, cid } = await seedUserAndConnection();
+    const nowSec = Math.floor(Date.now() / 1000);
+
+    // Insert 4 recovery codes: 3 active (consumedAt IS NULL), 1 consumed
+    sqlite
+      .prepare(
+        `INSERT INTO recovery_codes (id, user_id, code_hash, consumed_at, created_at)
+         VALUES (?, ?, ?, NULL, ?)`,
+      )
+      .run(ulid(), userId, "hash-active-1", nowSec);
+    sqlite
+      .prepare(
+        `INSERT INTO recovery_codes (id, user_id, code_hash, consumed_at, created_at)
+         VALUES (?, ?, ?, NULL, ?)`,
+      )
+      .run(ulid(), userId, "hash-active-2", nowSec);
+    sqlite
+      .prepare(
+        `INSERT INTO recovery_codes (id, user_id, code_hash, consumed_at, created_at)
+         VALUES (?, ?, ?, NULL, ?)`,
+      )
+      .run(ulid(), userId, "hash-active-3", nowSec);
+    sqlite
+      .prepare(
+        `INSERT INTO recovery_codes (id, user_id, code_hash, consumed_at, created_at)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(ulid(), userId, "hash-consumed-1", nowSec - 3600, nowSec);
+
+    const res = await summaryGET(summaryReq({ connectionId: cid, range: "7d" }));
+    expect(res.status).toBe(200);
+    const body = await readJson<{ totp: { recoveryCodesRemaining: number } }>(res);
+    expect(body.totp.recoveryCodesRemaining).toBe(3);
+  });
 });

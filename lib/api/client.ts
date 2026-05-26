@@ -13,6 +13,7 @@
 // This file is browser-only — never imported by route handlers.
 
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from "@/lib/auth/csrf-constants";
+import type { TotpEnrollCompleteInput } from "@/lib/api/schemas";
 import type { ApiErrorCode, ApiErrorPayload } from "./errors";
 
 const MUTATING_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
@@ -31,6 +32,33 @@ export class ApiClientError extends Error {
     super(message);
     this.name = "ApiClientError";
   }
+}
+
+/** Internal helper for pre-auth (CSRF-less) routes: parse the unified
+ * { error: { code, message, requestId } } shape on non-2xx, otherwise
+ * return the JSON body. Used by the TOTP enrollment helpers below —
+ * those routes run *before* the user has a session, so apiFetch's
+ * CSRF auto-fetch would 401. */
+async function parseApiResponse<T>(res: Response): Promise<T> {
+  if (res.status === 204) return undefined as T;
+  const contentType = res.headers.get("content-type") ?? "";
+  const isJson = contentType.includes("application/json");
+  if (!res.ok) {
+    if (isJson) {
+      const payload = (await res.json()) as ApiErrorPayload;
+      const requestId =
+        res.headers.get("x-request-id") ?? payload.error?.requestId ?? "unknown";
+      throw new ApiClientError(
+        payload.error.code,
+        payload.error.message,
+        res.status,
+        requestId,
+        payload.error.details,
+      );
+    }
+    throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  }
+  return (isJson ? await res.json() : ((await res.text()) as unknown)) as T;
 }
 
 /** Read a cookie value from `document.cookie`. Returns null if not present.
@@ -166,4 +194,64 @@ async function performFetch<T>(
   }
 
   return (isJson ? await res.json() : ((await res.text()) as unknown)) as T;
+}
+
+/* ─── TOTP 二次验证(pre-auth,不带 CSRF) ─────────────────── */
+
+export interface PreflightResponse {
+  enrolled: boolean;
+}
+
+/** Pre-auth preflight: query whether the user needs TOTP enrollment.
+ * Does NOT carry CSRF — there's no session yet. */
+export async function preflightTotp(email: string): Promise<PreflightResponse> {
+  const res = await fetch("/api/auth/totp/preflight", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  return parseApiResponse<PreflightResponse>(res);
+}
+
+export interface EnrollBeginResponse {
+  grant: string;
+  otpauthUri: string;
+  qrSvg: string;
+  secretBase32: string;
+}
+
+/** Pre-auth enroll/begin: verify password, generate TOTP secret + grant,
+ * return otpauth URI and SVG QR. The grant is good for 10 minutes. */
+export async function enrollBegin(
+  email: string,
+  password: string,
+): Promise<EnrollBeginResponse> {
+  const res = await fetch("/api/auth/totp/enroll/begin", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  return parseApiResponse<EnrollBeginResponse>(res);
+}
+
+export interface EnrollCompleteResponse {
+  recoveryCodes: string[];
+  signInGrant: string;
+}
+
+/** Pre-auth enroll/complete: verify the user-entered 6-digit code against
+ * the freshly generated secret, persist TOTP secret + recovery codes,
+ * return recovery codes (only this once) and a 5-minute signInGrant for
+ * the post-enrollment signIn() call. Input shape is sourced from the
+ * Zod schema in lib/api/schemas.ts so the wire contract has a single
+ * authoritative definition. */
+export async function enrollComplete(
+  input: TotpEnrollCompleteInput,
+): Promise<EnrollCompleteResponse> {
+  const res = await fetch("/api/auth/totp/enroll/complete", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseApiResponse<EnrollCompleteResponse>(res);
 }

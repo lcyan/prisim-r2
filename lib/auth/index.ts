@@ -18,9 +18,14 @@ import { getRequestContext } from "@cloudflare/next-on-pages";
 
 import { logAudit } from "@/lib/audit/log";
 import { getDb, type DbEnv } from "@/lib/db/client";
+import { getClientIp } from "@/lib/api/rate-limit";
 import { createD1Adapter } from "./adapter";
 import { authConfig } from "./config";
-import { verifyPassword } from "./password";
+import { verifyCredentials } from "./verify-credentials";
+
+// Re-export so callers (and tests, when not constrained by the next-auth
+// import side-effect) can keep importing the verifier from "@/lib/auth".
+export { verifyCredentials } from "./verify-credentials";
 
 const SESSION_TTL_MS = 60 * 60 * 24 * 7 * 1000; // 7 days, matches authConfig
 
@@ -57,20 +62,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        otp: { label: "OTP", type: "text" },
+        signInGrant: { label: "SignIn Grant", type: "text" },
       },
-      async authorize(creds) {
-        const email = typeof creds?.email === "string" ? creds.email : null;
+      async authorize(creds, request) {
+        // Coerce inputs to typed shapes; everything beyond this point lives
+        // in verifyCredentials so the unit tests can exercise it without
+        // standing up the full NextAuth runtime.
+        const email = typeof creds?.email === "string" ? creds.email : "";
         const password =
-          typeof creds?.password === "string" ? creds.password : null;
-        if (!email || !password) return null;
-
-        const adapter = getAdapter();
-        const row = await adapter.getUserWithPassword(email);
-        if (!row) return null;
-
-        const ok = await verifyPassword(password, row.passwordHash);
-        if (!ok) return null;
-        return { id: row.id, email: row.email };
+          typeof creds?.password === "string" ? creds.password : undefined;
+        const otp =
+          typeof creds?.otp === "string" && creds.otp.length > 0
+            ? creds.otp
+            : undefined;
+        const signInGrant =
+          typeof creds?.signInGrant === "string" && creds.signInGrant.length > 0
+            ? creds.signInGrant
+            : undefined;
+        // IP feeds the early loginByIp gate inside verifyCredentials. We
+        // tolerate the v5 typing where `request` may be undefined under some
+        // call shapes — fall back to "unknown" so the bucket still applies.
+        const ip =
+          request instanceof Request ? getClientIp(request) : "unknown";
+        return verifyCredentials({ email, password, otp, signInGrant, ip });
       },
     }),
   ],

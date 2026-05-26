@@ -327,6 +327,7 @@ export interface AuditListResponse {
  *   - `opsByDay` — daily aggregate, YYYY-MM-DD keys, length matches range (7 or 30).
  *   - `opsByType` — 7d op breakdown, descending by count.
  *   - `recentActivity` — last 10 audit rows.
+ *   - `totp.recoveryCodesRemaining` — unconsumed recovery codes count; ≤ 3 triggers the low-codes banner.
  */
 export interface DashboardSummary {
   bucketsCount: number;
@@ -336,4 +337,5 @@ export interface DashboardSummary {
   opsByDay: Array<{ date: string; count: number }>;
   opsByType: Array<{ op: string; count: number }>;
   recentActivity: AuditEntry[];
+  totp: { recoveryCodesRemaining: number };
 }

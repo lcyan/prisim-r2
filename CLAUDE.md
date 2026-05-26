@@ -56,6 +56,16 @@ ADMIN_EMAIL=me@x.com ADMIN_PASSWORD='at-least-12-chars' pnpm tsx scripts/seed-ad
 wrangler d1 execute prisim-r2-db --local --file=/tmp/seed.sql
 ```
 
+**重置 TOTP**（用于本地测试 / 忘记 Authenticator）:
+
+```bash
+wrangler d1 execute prisim-r2-db --local --command "UPDATE users SET totp_enabled = 0, totp_secret_ciphertext = NULL, totp_secret_iv = NULL, totp_confirmed_at = NULL"
+wrangler d1 execute prisim-r2-db --local --command "DELETE FROM recovery_codes"
+wrangler d1 execute prisim-r2-db --local --command "DELETE FROM totp_replay_guard"
+```
+
+下次登录将再次走 `/setup/totp` 重新绑定。
+
 ## Security Invariants (non-negotiable)
 
 These rules override any other suggestion. If a request conflicts with them, push back.
