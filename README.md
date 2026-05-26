@@ -40,9 +40,13 @@ pnpm preview     # http://localhost:8788
 Plain `pnpm dev` (next dev) intentionally lacks the D1 binding and will
 500 on `/api/*`. Always use `pnpm preview` for full-stack work.
 
-Full deployment walkthrough — env vars, Cloudflare Pages setup, prod
-admin seed, remote D1 migration, key rotation:
-[`docs/deploy-runbook.md`](./docs/deploy-runbook.md).
+Step-by-step runbooks:
+
+- **Local development** (`.dev.vars`, local D1, seed admin, `pnpm preview`,
+  TOTP reset): [`docs/local-dev.md`](./docs/local-dev.md).
+- **Cloudflare deployment** (Pages project setup, prod env vars, remote
+  D1 migration, prod admin seed, `pnpm deploy`, `ENCRYPTION_KEY`
+  rotation): [`docs/deploy-cloudflare.md`](./docs/deploy-cloudflare.md).
 
 ## Required per-bucket configuration
 
@@ -69,5 +73,5 @@ pnpm test:e2e            # full Playwright suite against `pnpm preview`
 ```
 
 The E2E suite needs real R2 credentials. See
-[`docs/deploy-runbook.md`](./docs/deploy-runbook.md#11-optional-run-the-e2e-suite-against-this-deployment)
+[`docs/deploy-cloudflare.md`](./docs/deploy-cloudflare.md#optional-run-the-e2e-suite-against-a-deployment)
 for the required `E2E_*` env vars.

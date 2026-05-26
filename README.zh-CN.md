@@ -39,9 +39,13 @@ pnpm preview     # http://localhost:8788
 裸 `pnpm dev` (next dev) 故意不带 D1 binding,因此 `/api/*` 会返回 500。
 做全栈开发时请始终使用 `pnpm preview`。
 
-完整的部署流程 —— 环境变量、Cloudflare Pages 配置、生产管理员种入、
-远程 D1 迁移、密钥轮换 ——
-见 [`docs/deploy-runbook.zh-CN.md`](./docs/deploy-runbook.zh-CN.md)。
+分步骤 runbook:
+
+- **本地开发** (`.dev.vars`、本地 D1、种 admin、`pnpm preview`、TOTP
+  重置): [`docs/local-dev.zh-CN.md`](./docs/local-dev.zh-CN.md)。
+- **Cloudflare 部署** (Pages 项目配置、生产环境变量、远程 D1 迁移、
+  生产管理员种入、`pnpm deploy`、`ENCRYPTION_KEY` 轮换):
+  [`docs/deploy-cloudflare.zh-CN.md`](./docs/deploy-cloudflare.zh-CN.md)。
 
 ## 每个存储桶必须的配置
 
@@ -66,4 +70,4 @@ pnpm test:e2e            # 在 `pnpm preview` 上跑完整 Playwright 套件
 ```
 
 E2E 套件需要真实的 R2 凭据。所需的 `E2E_*` 环境变量见
-[`docs/deploy-runbook.zh-CN.md`](./docs/deploy-runbook.zh-CN.md#11-可选在本次部署上运行-e2e-套件)。
+[`docs/deploy-cloudflare.zh-CN.md`](./docs/deploy-cloudflare.zh-CN.md#可选在部署上运行-e2e-套件)。

@@ -15,7 +15,7 @@
 //      and we avoid hammering the login route. The file is gitignored.
 //
 // Browser binaries are NOT installed by `pnpm install` — see
-// docs/deploy-runbook.md and the test:e2e script for the install step.
+// docs/local-dev.md and the test:e2e script for the install step.
 
 import { defineConfig, devices } from "@playwright/test";
 

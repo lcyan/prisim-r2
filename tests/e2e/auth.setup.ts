@@ -31,7 +31,7 @@ setup("authenticate as admin", async ({ page }) => {
   if (!email || !password) {
     throw new Error(
       "E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD must be set before running E2E specs. " +
-        "Seed the admin row first (see docs/deploy-runbook.md) and export the same " +
+        "Seed the admin row first (see docs/local-dev.md) and export the same " +
         "values in your shell or CI environment.",
     );
   }
