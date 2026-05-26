@@ -27,7 +27,7 @@
 
 import "server-only";
 
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { withApi } from "@/lib/api/middleware";
 import { RateLimitBundles } from "@/lib/api/rate-limit";
@@ -48,7 +48,7 @@ type MultipartCreateEnv = DbEnv & CryptoEnv;
 export const POST = withApi<R2MultipartCreateResponse>(
   async (req, ctx) => {
     const input = await parseJson(req, R2MultipartCreateSchema);
-    const env = getRequestContext().env as unknown as MultipartCreateEnv;
+    const env = getCloudflareContext().env as unknown as MultipartCreateEnv;
 
     const { connection, client } = await resolveConnectionForR2({
       cid: input.cid,

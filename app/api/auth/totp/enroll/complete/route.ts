@@ -55,7 +55,7 @@ import {
   getReplayGuardStep,
 } from "@/lib/auth/totp-store";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 export const runtime = "edge";
 
@@ -69,7 +69,7 @@ export const POST = withPublicApi(
       req,
       TotpEnrollCompleteSchema,
     );
-    const env = getRequestContext().env as unknown as CompleteEnv;
+    const env = getCloudflareContext().env as unknown as CompleteEnv;
     const db = getDb(env);
 
     const user = await db.query.users.findFirst({

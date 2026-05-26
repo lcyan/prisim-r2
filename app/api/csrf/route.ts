@@ -11,7 +11,7 @@
 // The endpoint's job is to *seed* the CSRF cookie, not to mutate state, so
 // requiring a CSRF header here would create a chicken/egg problem.
 //
-// Edge runtime so we can reach D1 / getRequestContext().
+// Edge runtime so we can reach D1 / getCloudflareContext().
 
 import { requireSession } from "@/lib/api/middleware";
 import { toErrorResponse } from "@/lib/api/errors";

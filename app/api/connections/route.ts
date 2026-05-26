@@ -20,7 +20,7 @@
 import "server-only";
 
 import { eq } from "drizzle-orm";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { ulid } from "ulid";
 
 import { withApi } from "@/lib/api/middleware";
@@ -82,7 +82,7 @@ function rowToSummary(row: {
 // would NOT leak, because the projection is explicit (not `select()` star).
 
 export const GET = withApi(async (_req, ctx) => {
-  const env = getRequestContext().env as unknown as ConnectionsEnv;
+  const env = getCloudflareContext().env as unknown as ConnectionsEnv;
   const db = getDb(env);
 
   const rows = await db
@@ -119,7 +119,7 @@ export const GET = withApi(async (_req, ctx) => {
 export const POST = withApi(
   async (req, ctx) => {
     const input = await parseJson(req, ConnectionsCreateSchema);
-    const env = getRequestContext().env as unknown as ConnectionsEnv;
+    const env = getCloudflareContext().env as unknown as ConnectionsEnv;
     const db = getDb(env);
     const id = ulid();
 

@@ -36,7 +36,7 @@
 import "server-only";
 
 import { and, eq } from "drizzle-orm";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { withApi } from "@/lib/api/middleware";
 import { ApiErrors } from "@/lib/api/errors";
@@ -63,7 +63,7 @@ export const POST = withApi(
     const id = pathSegmentFromEnd(req.url, 1);
     ShareIdParamSchema.parse({ id });
 
-    const env = getRequestContext().env as unknown as ShareRevealEnv;
+    const env = getCloudflareContext().env as unknown as ShareRevealEnv;
     const db = getDb(env);
 
     // Load the share row scoped by user_id. We compute "expired?" in

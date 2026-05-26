@@ -20,7 +20,7 @@
 import "server-only";
 
 import { and, count, eq, gt } from "drizzle-orm";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { withApi } from "@/lib/api/middleware";
 import { ApiErrors } from "@/lib/api/errors";
@@ -56,7 +56,7 @@ export const PATCH = withApi<ConnectionSummary>(
     ConnectionIdParamSchema.parse({ id });
 
     const input = await parseJson(req, ConnectionsPatchSchema);
-    const env = getRequestContext().env as unknown as ConnectionsEnv;
+    const env = getCloudflareContext().env as unknown as ConnectionsEnv;
     const db = getDb(env);
 
     // Single statement: UPDATE … WHERE id = ? AND user_id = ? RETURNING …
@@ -131,7 +131,7 @@ export const DELETE = withApi(
     const id = pathSegmentFromEnd(req.url, 0);
     ConnectionIdParamSchema.parse({ id });
 
-    const env = getRequestContext().env as unknown as ConnectionsEnv;
+    const env = getCloudflareContext().env as unknown as ConnectionsEnv;
     const db = getDb(env);
     const now = new Date();
 

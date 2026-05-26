@@ -32,7 +32,7 @@
 import "server-only";
 
 import { and, eq } from "drizzle-orm";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { withApi } from "@/lib/api/middleware";
 import { ApiErrors } from "@/lib/api/errors";
@@ -55,7 +55,7 @@ type PrepareEnv = DbEnv & DeleteTokenEnv;
 export const POST = withApi(
   async (req, ctx) => {
     const input = await parseJson(req, R2DeletePrepareSchema);
-    const env = getRequestContext().env as unknown as PrepareEnv;
+    const env = getCloudflareContext().env as unknown as PrepareEnv;
     const db = getDb(env);
 
     // Scope by user_id — selecting on cid alone would let user A probe

@@ -27,7 +27,7 @@
 
 import "server-only";
 
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { withApi } from "@/lib/api/middleware";
 import { RateLimitBundles } from "@/lib/api/rate-limit";
@@ -49,7 +49,7 @@ import {
 } from "@/lib/r2/route-helpers";
 import type { AuditOp } from "@/lib/audit/log";
 
-// Edge runtime is mandatory on Pages for routes touching D1 / getRequestContext.
+// Edge runtime is mandatory on Pages for routes touching D1 / getCloudflareContext.
 export const runtime = "edge";
 
 // Combined env shape — DB binding (for connection lookup + audit insert) +
@@ -62,7 +62,7 @@ export const POST = withApi(
   async (req, ctx) => {
     const input = await parseJson(req, R2PresignSchema);
     const ttl = input.ttl ?? R2_PRESIGN_DEFAULT_TTL_SECONDS;
-    const env = getRequestContext().env as unknown as PresignEnv;
+    const env = getCloudflareContext().env as unknown as PresignEnv;
 
     const { connection, client } = await resolveConnectionForR2({
       cid: input.cid,

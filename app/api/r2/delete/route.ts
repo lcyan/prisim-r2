@@ -38,7 +38,7 @@
 
 import "server-only";
 
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { withApi } from "@/lib/api/middleware";
 import { ApiErrors } from "@/lib/api/errors";
@@ -64,7 +64,7 @@ type DeleteEnv = DbEnv & CryptoEnv & DeleteTokenEnv;
 export const POST = withApi(
   async (req, ctx) => {
     const input = await parseJson(req, R2DeleteConfirmSchema);
-    const env = getRequestContext().env as unknown as DeleteEnv;
+    const env = getCloudflareContext().env as unknown as DeleteEnv;
 
     // Verify the confirm token FIRST — before any DB query or decrypt.
     // The token binds (user, bucket, sort(keys)+sha256), so a forged or

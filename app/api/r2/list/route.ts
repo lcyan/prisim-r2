@@ -33,7 +33,7 @@
 
 import "server-only";
 
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { withApi } from "@/lib/api/middleware";
 import { ApiErrors } from "@/lib/api/errors";
@@ -58,7 +58,7 @@ type ListEnv = DbEnv & CryptoEnv;
 
 export const GET = withApi(async (req, ctx) => {
   const input = await parseQuery(req, R2ListQuerySchema);
-  const env = getRequestContext().env as unknown as ListEnv;
+  const env = getCloudflareContext().env as unknown as ListEnv;
 
   const { db, connection, client } = await resolveConnectionForR2({
     cid: input.cid,

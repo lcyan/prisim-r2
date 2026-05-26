@@ -10,10 +10,10 @@
 // for the request — events.signIn (lib/auth/index.ts) only fires on
 // *success* and has no req to read.
 //
-// Edge runtime is required because the full config uses getRequestContext()
+// Edge runtime is required because the full config uses getCloudflareContext()
 // to reach the D1 binding, which only exists inside the Pages worker.
 
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { ApiErrors, toErrorResponse } from "@/lib/api/errors";
 import {
@@ -48,7 +48,7 @@ export async function POST(req: Request): Promise<Response> {
   const isLogin = LOGIN_PATH_RE.test(new URL(req.url).pathname);
 
   if (isLogin) {
-    const env = getRequestContext().env as unknown as DbEnv;
+    const env = getCloudflareContext().env as unknown as DbEnv;
     const policy = RateLimitPolicies.loginByIp(getClientIp(req));
     const result = await checkLimit({
       db: env.DB,

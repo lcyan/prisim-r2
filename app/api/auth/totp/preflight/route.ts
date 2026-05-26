@@ -23,14 +23,14 @@ import { withPublicApi } from "@/lib/api/middleware";
 import { RateLimitBundles } from "@/lib/api/rate-limit";
 import { parseJson, TotpPreflightSchema } from "@/lib/api/schemas";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 export const runtime = "edge";
 
 export const POST = withPublicApi(
   async (req) => {
     const { email } = await parseJson(req, TotpPreflightSchema);
-    const env = getRequestContext().env as unknown as DbEnv;
+    const env = getCloudflareContext().env as unknown as DbEnv;
     const db = getDb(env);
     const user = await db.query.users.findFirst({
       where: eq(schema.users.email, email),

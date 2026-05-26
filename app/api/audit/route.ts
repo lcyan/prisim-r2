@@ -37,7 +37,7 @@
 import "server-only";
 
 import { and, desc, eq, lt, or } from "drizzle-orm";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { z } from "zod";
 
 import { withApi } from "@/lib/api/middleware";
@@ -76,7 +76,7 @@ function decodeCursor(raw: string): DecodedCursor | null {
 
 export const GET = withApi(async (req, ctx) => {
   const input = await parseQuery(req, AuditListQuerySchema);
-  const env = getRequestContext().env as unknown as AuditListEnv;
+  const env = getCloudflareContext().env as unknown as AuditListEnv;
   const db = getDb(env);
 
   let cursor: DecodedCursor | null = null;

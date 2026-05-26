@@ -24,7 +24,7 @@
 
 import "server-only";
 
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { withApi } from "@/lib/api/middleware";
 import { RateLimitBundles } from "@/lib/api/rate-limit";
@@ -44,7 +44,7 @@ type MultipartAbortEnv = DbEnv & CryptoEnv;
 export const POST = withApi(
   async (req, ctx) => {
     const input = await parseJson(req, R2MultipartAbortSchema);
-    const env = getRequestContext().env as unknown as MultipartAbortEnv;
+    const env = getCloudflareContext().env as unknown as MultipartAbortEnv;
 
     const { connection, client } = await resolveConnectionForR2({
       cid: input.cid,

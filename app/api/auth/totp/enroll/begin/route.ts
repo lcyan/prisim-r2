@@ -30,7 +30,7 @@ import {
 } from "@/lib/auth/totp";
 import { createEnrollment } from "@/lib/auth/totp-store";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 export const runtime = "edge";
 
@@ -42,7 +42,7 @@ type BeginEnv = DbEnv & CryptoEnv;
 export const POST = withPublicApi(
   async (req) => {
     const { email, password } = await parseJson(req, TotpEnrollBeginSchema);
-    const env = getRequestContext().env as unknown as BeginEnv;
+    const env = getCloudflareContext().env as unknown as BeginEnv;
     const db = getDb(env);
 
     const row = await db.query.users.findFirst({

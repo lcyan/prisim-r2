@@ -30,7 +30,7 @@
 import "server-only";
 
 import { and, eq } from "drizzle-orm";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { withApi } from "@/lib/api/middleware";
 import { ApiErrors } from "@/lib/api/errors";
@@ -50,7 +50,7 @@ export const DELETE = withApi(
     const id = pathSegmentFromEnd(req.url, 0);
     ShareIdParamSchema.parse({ id });
 
-    const env = getRequestContext().env as unknown as ShareDeleteEnv;
+    const env = getCloudflareContext().env as unknown as ShareDeleteEnv;
     const db = getDb(env);
 
     // Single DELETE … RETURNING — atomic. The .returning() projection

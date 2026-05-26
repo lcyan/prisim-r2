@@ -38,7 +38,7 @@
 
 import "server-only";
 
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { ulid } from "ulid";
 
 import { withApi } from "@/lib/api/middleware";
@@ -71,7 +71,7 @@ async function sha256Hex(input: string): Promise<string> {
 export const POST = withApi(
   async (req, ctx) => {
     const input = await parseJson(req, ShareCreateSchema);
-    const env = getRequestContext().env as unknown as ShareEnv;
+    const env = getCloudflareContext().env as unknown as ShareEnv;
 
     const { db, connection, client } = await resolveConnectionForR2({
       cid: input.cid,
