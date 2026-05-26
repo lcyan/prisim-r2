@@ -8,7 +8,7 @@
 //     trip and can drive success / R2CredentialError / generic-upstream
 //     branches and assert on the exact SDK call shape (Delimiter,
 //     MaxKeys, ContinuationToken, Prefix).
-//   - JWT + next-on-pages + auth adapter — standard middleware fixtures.
+//   - JWT + @opennextjs/cloudflare + auth adapter — standard middleware fixtures.
 //
 // What this suite proves end-to-end:
 //   - happy path: returns R2ListResponse with the wire-shape `objects`,
@@ -86,8 +86,8 @@ vi.mock("next-auth/jwt", () => ({
   getToken: vi.fn(async () => fakeJwt.token),
 }));
 
-vi.mock("@cloudflare/next-on-pages", () => ({
-  getRequestContext: () => ({
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: () => ({
     env: {
       DB: d1Facade,
       AUTH_SECRET: "test-secret",

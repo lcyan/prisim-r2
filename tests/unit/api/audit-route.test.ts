@@ -51,8 +51,8 @@ vi.mock("next-auth/jwt", () => ({
   getToken: vi.fn(async () => fakeJwt.token),
 }));
 
-vi.mock("@cloudflare/next-on-pages", () => ({
-  getRequestContext: () => ({
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: () => ({
     env: {
       DB: d1Facade,
       AUTH_SECRET,

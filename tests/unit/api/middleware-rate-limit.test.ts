@@ -72,10 +72,10 @@ vi.mock("next-auth/jwt", () => ({
   getToken: vi.fn(async () => fakeJwt.token),
 }));
 
-vi.mock("@cloudflare/next-on-pages", () => ({
+vi.mock("@opennextjs/cloudflare", () => ({
   // checkLimit reaches into env.DB — return our RateLimitDb facade so the
   // real UPSERT SQL is exercised against an in-memory SQLite.
-  getRequestContext: () => ({
+  getCloudflareContext: () => ({
     env: { DB: fakeDb, AUTH_SECRET: "test-secret" },
   }),
 }));

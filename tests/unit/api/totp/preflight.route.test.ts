@@ -36,8 +36,8 @@ let sqlite: SqliteDb;
 let drizzleDb: ReturnType<typeof drizzleSqlite>;
 let d1Facade: RateLimitDb;
 
-vi.mock("@cloudflare/next-on-pages", () => ({
-  getRequestContext: () => ({ env: { DB: d1Facade } }),
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: () => ({ env: { DB: d1Facade } }),
 }));
 
 vi.mock("@/lib/db/client", async () => {

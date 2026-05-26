@@ -7,20 +7,20 @@
 //      x-forwarded-for > null) is unambiguous.
 //
 //   2) logAudit — the nofail writer. We inject a stub `Db` so we don't
-//      need to mock @cloudflare/next-on-pages or stand up a real D1
+//      need to mock @opennextjs/cloudflare or stand up a real D1
 //      binding; the stub captures the insert payload, and a separate test
 //      makes it throw to verify the swallow-and-console.error behavior.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// @cloudflare/next-on-pages re-exports the real `server-only` package which
-// throws on import outside an RSC build. We never call getRequestContext in
+// @opennextjs/cloudflare re-exports the real `server-only` package which
+// throws on import outside an RSC build. We never call getCloudflareContext in
 // these tests (we inject a stub Db), so a no-op mock is enough to break the
 // transitive server-only import.
-vi.mock("@cloudflare/next-on-pages", () => ({
-  getRequestContext: () => {
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: () => {
     throw new Error(
-      "getRequestContext should not be called when a Db stub is injected",
+      "getCloudflareContext should not be called when a Db stub is injected",
     );
   },
 }));

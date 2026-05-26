@@ -40,8 +40,8 @@ const ENCRYPTION_KEY_B64 = Buffer.from(new Uint8Array(32).fill(7)).toString(
   "base64",
 );
 
-vi.mock("@cloudflare/next-on-pages", () => ({
-  getRequestContext: () => ({
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: () => ({
     env: { DB: d1Facade, ENCRYPTION_KEY: ENCRYPTION_KEY_B64 },
   }),
 }));

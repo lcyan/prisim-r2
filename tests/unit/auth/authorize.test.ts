@@ -54,8 +54,8 @@ let d1Facade: RateLimitDb;
 let userId: string;
 let totpSecret: Uint8Array;
 
-vi.mock("@cloudflare/next-on-pages", () => ({
-  getRequestContext: () => ({
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: () => ({
     env: { DB: d1Facade, ENCRYPTION_KEY: ENCRYPTION_KEY_B64 },
   }),
 }));

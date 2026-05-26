@@ -3,7 +3,7 @@
 // Integration spec for /api/connections (root) and /api/connections/[id].
 // Same "fat test" pattern as r2-presign-route.test.ts:
 //   * real D1-shaped SQLite + real drizzle schema + real AES-GCM
-//   * mocks at the outer boundaries — JWT, next-on-pages env, R2 control plane
+//   * mocks at the outer boundaries — JWT, @opennextjs/cloudflare env, R2 control plane
 //
 // What this suite proves end-to-end:
 //   - POST: creds rejected by R2 → 400 connection.invalid_credentials, no
@@ -72,8 +72,8 @@ vi.mock("next-auth/jwt", () => ({
   getToken: vi.fn(async () => fakeJwt.token),
 }));
 
-vi.mock("@cloudflare/next-on-pages", () => ({
-  getRequestContext: () => ({
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: () => ({
     env: {
       DB: d1Facade,
       AUTH_SECRET: "test-secret",

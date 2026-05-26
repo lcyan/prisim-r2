@@ -17,7 +17,7 @@
 // What IS stubbed:
 //   - @aws-sdk/s3-request-presigner.getSignedUrl  → so we don't make a
 //     real SigV4 round-trip and so we can simulate upstream errors.
-//   - getRequestContext + auth adapter + JWT     → standard middleware
+//   - getCloudflareContext + auth adapter + JWT     → standard middleware
 //     fixtures, identical pattern to middleware-rate-limit.test.ts.
 //   - @/lib/db/client.getDb                       → returns a drizzle
 //     instance wrapping the same in-memory SQLite that backs env.DB, so
@@ -71,8 +71,8 @@ vi.mock("next-auth/jwt", () => ({
   getToken: vi.fn(async () => fakeJwt.token),
 }));
 
-vi.mock("@cloudflare/next-on-pages", () => ({
-  getRequestContext: () => ({
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: () => ({
     env: {
       DB: d1Facade,
       AUTH_SECRET: "test-secret",

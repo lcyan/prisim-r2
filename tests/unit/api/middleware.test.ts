@@ -32,7 +32,7 @@ import {
 // ---- mocks ────────────────────────────────────────────────────────────
 //
 // getToken: we control what the JWT looks like per test.
-// getRequestContext + adapter: simulate the D1 lookup.
+// getCloudflareContext + adapter: simulate the D1 lookup.
 
 const fakeJwt: { token: Record<string, unknown> | null } = { token: null };
 
@@ -42,8 +42,8 @@ vi.mock("next-auth/jwt", () => ({
 
 const fakeSessionStore = new Map<string, { csrfTokenHash: string | null; userId: string; email: string }>();
 
-vi.mock("@cloudflare/next-on-pages", () => ({
-  getRequestContext: () => ({ env: { DB: {}, AUTH_SECRET: "test-secret" } }),
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: () => ({ env: { DB: {}, AUTH_SECRET: "test-secret" } }),
 }));
 
 vi.mock("@/lib/db/client", () => ({

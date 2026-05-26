@@ -8,9 +8,9 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@cloudflare/next-on-pages", () => ({
-  getRequestContext: () => {
-    throw new Error("getRequestContext should not be called in helper tests");
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: () => {
+    throw new Error("getCloudflareContext should not be called in helper tests");
   },
 }));
 

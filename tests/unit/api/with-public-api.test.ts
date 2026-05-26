@@ -32,8 +32,8 @@ function applyMigrations(sqlite: InstanceType<typeof Database>) {
 
 let d1Facade: RateLimitDb;
 
-vi.mock("@cloudflare/next-on-pages", () => ({
-  getRequestContext: () => ({ env: { DB: d1Facade } }),
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: () => ({ env: { DB: d1Facade } }),
 }));
 
 beforeEach(() => {
