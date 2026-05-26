@@ -2,6 +2,7 @@
 
 import { forwardRef, useId } from "react";
 import { cn } from "@/lib/utils";
+import { authInputBaseClass } from "./AuthField";
 
 interface Props {
   value: string;
@@ -20,8 +21,8 @@ export const TotpField = forwardRef<HTMLInputElement, Props>(function TotpField(
 ) {
   const errorId = useId();
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-xs uppercase tracking-wide text-muted-foreground">
+    <label className="block">
+      <span className="mb-1.5 block text-xs text-muted-foreground">
         {label}
       </span>
       <input
@@ -38,13 +39,13 @@ export const TotpField = forwardRef<HTMLInputElement, Props>(function TotpField(
         aria-invalid={!!error}
         aria-describedby={error ? errorId : undefined}
         className={cn(
-          "h-11 rounded-md border border-input bg-background px-3 text-base tracking-widest font-mono",
-          "focus:outline-none focus:ring-2 focus:ring-ring",
+          authInputBaseClass,
+          "h-11 px-3 text-base font-mono tracking-widest",
           error && "border-destructive focus:ring-destructive",
         )}
       />
       {error && (
-        <span id={errorId} role="alert" className="text-xs text-destructive">
+        <span id={errorId} role="alert" className="mt-1 block text-xs text-destructive">
           {error}
         </span>
       )}

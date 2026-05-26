@@ -13,6 +13,7 @@ import {
 } from "@/lib/api/client";
 import { useAuthEnrollStore } from "@/stores/auth-enroll";
 import { TotpField } from "@/components/features/auth/TotpField";
+import { AuthField } from "@/components/features/auth/AuthField";
 import { PrismMark } from "@/components/brand/logo";
 
 /**
@@ -156,39 +157,35 @@ function LoginForm() {
           <Letterhead />
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
-            <Field
+            <AuthField
               label={T.emailLabel}
               icon={Mail}
-              input={
-                <input
-                  type="email"
-                  autoComplete="email"
-                  autoFocus
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={pending}
-                  className={cn(inputClass, error && "border-destructive/60")}
-                  placeholder={T.emailPlaceholder}
-                />
-              }
+              invalid={!!error}
+              inputProps={{
+                type: "email",
+                autoComplete: "email",
+                autoFocus: true,
+                required: true,
+                value: email,
+                onChange: (e) => setEmail(e.target.value),
+                disabled: pending,
+                placeholder: T.emailPlaceholder,
+              }}
             />
 
-            <Field
+            <AuthField
               label={T.passwordLabel}
               icon={Lock}
-              input={
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={pending}
-                  className={cn(inputClass, error && "border-destructive/60")}
-                  placeholder="••••••••••••"
-                />
-              }
+              invalid={!!error}
+              inputProps={{
+                type: "password",
+                autoComplete: "current-password",
+                required: true,
+                value: password,
+                onChange: (e) => setPassword(e.target.value),
+                disabled: pending,
+                placeholder: "••••••••••••",
+              }}
             />
 
             <TotpField
@@ -255,39 +252,6 @@ function LoginShell() {
 }
 
 /* ──────────────────────────────────────────────────────────── */
-
-const inputClass = cn(
-  "h-10 w-full rounded-md border border-input bg-card pl-9 pr-3 text-sm",
-  "font-sans placeholder:text-muted-foreground/50 placeholder:font-mono placeholder:text-xs",
-  "transition-colors",
-  "focus:outline-none focus:border-primary focus:ring-2 focus:ring-ring",
-  "disabled:opacity-50",
-);
-
-function Field({
-  label,
-  icon: Icon,
-  input,
-}: {
-  label: string;
-  icon: typeof Mail;
-  input: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs text-muted-foreground">
-        {label}
-      </span>
-      <div className="relative">
-        <Icon
-          className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
-          strokeWidth={1.75}
-        />
-        {input}
-      </div>
-    </label>
-  );
-}
 
 function ErrorBanner({ code }: { code: string }) {
   return (
