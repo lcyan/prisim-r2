@@ -203,7 +203,7 @@ describe("verifyCredentials (authorize 的纯函数核)", () => {
 
   it("recovery code path: works once, fails on reuse", async () => {
     const codes = generateRecoveryCodes();
-    const hashes = await Promise.all(codes.map(hashRecoveryCode));
+    const hashes = await Promise.all(codes.map((c) => hashRecoveryCode(c, userId)));
     for (const h of hashes) {
       sqlite
         .prepare(

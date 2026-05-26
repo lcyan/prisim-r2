@@ -166,7 +166,9 @@ export const POST = withPublicApi(
     // 10 个恢复码;sha256 后批量入库(insertRecoveryCodesForUser 内部
     // 先 DELETE 后 INSERT,确保旧码不残留)。
     const recoveryCodes = generateRecoveryCodes();
-    const hashes = await Promise.all(recoveryCodes.map(hashRecoveryCode));
+    const hashes = await Promise.all(
+      recoveryCodes.map((c) => hashRecoveryCode(c, user.id)),
+    );
     await insertRecoveryCodesForUser(db, { userId: user.id, hashes });
 
     await upsertReplayGuard(db, {

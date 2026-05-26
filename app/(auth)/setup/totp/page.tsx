@@ -71,10 +71,20 @@ export default function SetupTotpPage() {
       setStep("saved");
     } catch (err) {
       if (err instanceof ApiClientError) {
-        if (err.code === "auth.totp.grant_expired") {
-          // toast-ish — clear draft and bounce
+        // grant_expired AND invalid_code both mean the enrollment row was
+        // consumed (see /enroll/complete atomic DELETE-RETURNING) — there is
+        // no retry path against the dead grant. Clear the draft and bounce
+        // back to /login so the user restarts from preflight.
+        if (
+          err.code === "auth.totp.grant_expired" ||
+          err.code === "auth.totp.invalid_code"
+        ) {
           draft.clear();
-          alert("绑定已超时,请重新登录");
+          alert(
+            err.code === "auth.totp.invalid_code"
+              ? "验证码错误,出于安全原因绑定已重置。请重新登录后重新扫码。"
+              : "绑定已超时,请重新登录",
+          );
           router.replace("/login");
           return;
         }

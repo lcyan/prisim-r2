@@ -34,18 +34,27 @@ describe("normalizeRecoveryCode", () => {
 });
 
 describe("hashRecoveryCode", () => {
-  it("returns hex sha256, deterministic, normalized before hashing", async () => {
-    const a = await hashRecoveryCode("abcd-2345");
-    const b = await hashRecoveryCode("ABCD2345");
-    const c = await hashRecoveryCode("ABCD-2345");
+  const userA = "01H000000000000000000000A";
+  const userB = "01H000000000000000000000B";
+
+  it("returns hex hmac-sha256, deterministic, normalized before hashing", async () => {
+    const a = await hashRecoveryCode("abcd-2345", userA);
+    const b = await hashRecoveryCode("ABCD2345", userA);
+    const c = await hashRecoveryCode("ABCD-2345", userA);
     expect(a).toMatch(/^[0-9a-f]{64}$/);
     expect(a).toBe(b);
     expect(a).toBe(c);
   });
 
   it("differs across codes", async () => {
-    const a = await hashRecoveryCode("ABCD-2345");
-    const b = await hashRecoveryCode("EFGH-6789");
+    const a = await hashRecoveryCode("ABCD-2345", userA);
+    const b = await hashRecoveryCode("EFGH-6789", userA);
+    expect(a).not.toBe(b);
+  });
+
+  it("differs across users for the same code (per-user HMAC key)", async () => {
+    const a = await hashRecoveryCode("ABCD-2345", userA);
+    const b = await hashRecoveryCode("ABCD-2345", userB);
     expect(a).not.toBe(b);
   });
 });

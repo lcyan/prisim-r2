@@ -34,7 +34,7 @@ import "server-only";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 
 import { ApiError } from "@/lib/api/errors";
-import { enforceLimit, RateLimitBundles } from "@/lib/api/rate-limit";
+import { enforceLimit, RateLimitBundles, RateLimitPolicies } from "@/lib/api/rate-limit";
 import { logAudit } from "@/lib/audit/log";
 import { decryptCredential } from "@/lib/crypto/aes-gcm";
 import { getDb, type DbEnv } from "@/lib/db/client";
@@ -52,7 +52,7 @@ import {
   upsertReplayGuard,
 } from "./totp-store";
 import { createD1Adapter, type SessionUser } from "./adapter";
-import { verifyPassword } from "./password";
+import { verifyPassword, verifyPasswordOrDummy } from "./password";
 
 export interface VerifyEnv extends DbEnv {
   ENCRYPTION_KEY: string;
@@ -63,6 +63,11 @@ export interface VerifyCredentialsInput {
   password?: string;
   otp?: string;
   signInGrant?: string;
+  /** Client IP extracted by the NextAuth `authorize` wrapper. When provided,
+   *  triggers an early IP-keyed rate-limit so credential stuffing against
+   *  unknown emails (which never reach the per-user bucket) is still
+   *  bounded. Unit tests may omit this — the gate is skipped when absent. */
+  ip?: string;
 }
 
 /**
@@ -77,6 +82,27 @@ export async function verifyCredentials(
   const env = getRequestContext().env as unknown as VerifyEnv;
   const db = getDb(env);
   const adapter = createD1Adapter(db);
+
+  // Pre-auth IP gate — fires for every login attempt (including unknown
+  // emails and signInGrant submissions) so the per-user bucket below isn't
+  // the first defense. Reuses the established `login:ip` bucket
+  // (10 attempts per 5 min) shared with any future credential routes.
+  if (input.ip) {
+    try {
+      await enforceLimit(env.DB, [RateLimitPolicies.loginByIp(input.ip)]);
+    } catch (e) {
+      if (e instanceof ApiError) {
+        await logAudit({
+          userId: null,
+          op: "auth.login",
+          status: "failure",
+          errorMsg: "ratelimit_ip",
+        });
+        return null;
+      }
+      throw e;
+    }
+  }
 
   // ── Branch A: signInGrant ───────────────────────────────────
   if (input.signInGrant) {
@@ -103,7 +129,13 @@ export async function verifyCredentials(
   // ── Branch B: email + password + (otp | recovery code) ─────
   if (!input.email || !input.password) return null;
   const row = await adapter.getUserWithPassword(input.email);
-  if (!row) return null;
+  if (!row) {
+    // Anti-enumeration: pay the PBKDF2 cost even when the email doesn't
+    // exist so response wall-clock can't distinguish "no such email" from
+    // "wrong password". Collapses into the generic null return below.
+    await verifyPasswordOrDummy(input.password, null);
+    return null;
+  }
 
   // Run the password compare up-front but DO NOT short-circuit on it — we
   // must increment the per-user rate-limit counter even on wrong passwords,
@@ -228,7 +260,7 @@ export async function verifyCredentials(
     });
     return null;
   }
-  const hash = await hashRecoveryCode(normalized);
+  const hash = await hashRecoveryCode(normalized, row.id);
   const ok = await consumeRecoveryCode(db, { userId: row.id, hash });
   if (!ok) {
     await logAudit({

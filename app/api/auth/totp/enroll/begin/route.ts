@@ -21,7 +21,7 @@ import { ApiErrors } from "@/lib/api/errors";
 import { RateLimitBundles } from "@/lib/api/rate-limit";
 import { parseJson, TotpEnrollBeginSchema } from "@/lib/api/schemas";
 import { encryptCredential, type CryptoEnv } from "@/lib/crypto/aes-gcm";
-import { verifyPassword } from "@/lib/auth/password";
+import { verifyPasswordOrDummy } from "@/lib/auth/password";
 import { logAudit } from "@/lib/audit/log";
 import {
   buildOtpauthUri,
@@ -55,11 +55,12 @@ export const POST = withPublicApi(
       },
     });
 
-    // Anti-enumeration: 邮箱不存在 vs 密码错误共享同一响应。
-    // 始终走一次 verifyPassword 以保持时序相近(verifyPassword 在 row 为空时
-    // 不能调用,所以我们在缺失分支也做一次 PBKDF2 形态的等价工作量略偏短;
-    // 在合理范围内,完全的恒定时间需要更复杂的设计,这里以错误码统一为主)。
-    if (!row || !(await verifyPassword(password, row.passwordHash))) {
+    // Anti-enumeration: pay PBKDF2 cycles even when the email doesn't exist
+    // so timing can't distinguish "no such email" from "wrong password".
+    // verifyPasswordOrDummy compares against a fixed unbreakable dummy hash
+    // when `stored` is null, returning false in that branch.
+    const passwordOk = await verifyPasswordOrDummy(password, row?.passwordHash);
+    if (!row || !passwordOk) {
       await logAudit({
         userId: row?.id ?? null,
         op: "auth.totp.enroll.begin",

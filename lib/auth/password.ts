@@ -90,6 +90,39 @@ export async function verifyPassword(
   plain: string,
   stored: string,
 ): Promise<boolean> {
+  return verifyPasswordImpl(plain, stored);
+}
+
+// Fixed all-zero PBKDF2 envelope in the canonical storage format. Used as a
+// decoy target by verifyPasswordOrDummy when no real user row exists so
+// "email not found" and "wrong password" take the same wall-clock time.
+// The plaintext that derives to an all-zero 32-byte key under all-zero salt
+// + 600k iters is a 256-bit preimage search — infeasible to find, so the
+// dummy compare can never accidentally return true.
+const DUMMY_HASH =
+  "pbkdf2$sha256$600000$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+
+/**
+ * Like verifyPassword, but when `stored` is null/undefined runs PBKDF2
+ * against a fixed dummy hash so the timing matches the real wrong-password
+ * path. Always returns false in the dummy branch — the dummy hash is
+ * preimage-resistant, but the explicit early-return is defense in depth.
+ */
+export async function verifyPasswordOrDummy(
+  plain: string,
+  stored: string | null | undefined,
+): Promise<boolean> {
+  if (typeof stored === "string") {
+    return verifyPasswordImpl(plain, stored);
+  }
+  await verifyPasswordImpl(plain, DUMMY_HASH);
+  return false;
+}
+
+async function verifyPasswordImpl(
+  plain: string,
+  stored: string,
+): Promise<boolean> {
   if (typeof plain !== "string" || typeof stored !== "string") return false;
 
   const parts = stored.split("$");

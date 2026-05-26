@@ -18,6 +18,7 @@ import { getRequestContext } from "@cloudflare/next-on-pages";
 
 import { logAudit } from "@/lib/audit/log";
 import { getDb, type DbEnv } from "@/lib/db/client";
+import { getClientIp } from "@/lib/api/rate-limit";
 import { createD1Adapter } from "./adapter";
 import { authConfig } from "./config";
 import { verifyCredentials } from "./verify-credentials";
@@ -64,7 +65,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         otp: { label: "OTP", type: "text" },
         signInGrant: { label: "SignIn Grant", type: "text" },
       },
-      async authorize(creds) {
+      async authorize(creds, request) {
         // Coerce inputs to typed shapes; everything beyond this point lives
         // in verifyCredentials so the unit tests can exercise it without
         // standing up the full NextAuth runtime.
@@ -79,7 +80,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           typeof creds?.signInGrant === "string" && creds.signInGrant.length > 0
             ? creds.signInGrant
             : undefined;
-        return verifyCredentials({ email, password, otp, signInGrant });
+        // IP feeds the early loginByIp gate inside verifyCredentials. We
+        // tolerate the v5 typing where `request` may be undefined under some
+        // call shapes — fall back to "unknown" so the bucket still applies.
+        const ip =
+          request instanceof Request ? getClientIp(request) : "unknown";
+        return verifyCredentials({ email, password, otp, signInGrant, ip });
       },
     }),
   ],
