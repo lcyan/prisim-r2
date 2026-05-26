@@ -51,7 +51,6 @@
     "zustand": "5.0.13"
   },
   "devDependencies": {
-    "@cloudflare/next-on-pages": "^1.13.16",
     "@cloudflare/workers-types": "^4.20260520.1",
     "@playwright/test": "1.60.0",
     "@tailwindcss/postcss": "^4.0.0",
@@ -76,7 +75,6 @@
     "server-only": "^0.0.1",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
-    "vercel": "^54.2.0",
     "vitest": "^4.1.7",
     "wrangler": "^4.93.0"
   }
