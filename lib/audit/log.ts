@@ -19,12 +19,12 @@
 //     When omitted, ip and ua are written as NULL — still better than
 //     dropping the record entirely.
 //   * `db` is an optional second argument. Production callers omit it and
-//     we resolve the D1 binding via `getRequestContext()`. Unit tests
+//     we resolve the D1 binding via `getCloudflareContext()`. Unit tests
 //     inject a stub so they don't need to mock the Cloudflare runtime.
 
 import "server-only";
 
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { ulid } from "ulid";
 
 import { parseClientIp } from "@/lib/api/client-ip";
@@ -99,7 +99,7 @@ export function extractAuditMeta(req: Request | null | undefined): RequestMeta {
  *
  * @param input  Row fields + originating Request.
  * @param db     Optional Drizzle client. Production callers omit this so
- *               the D1 binding is resolved from `getRequestContext()`;
+ *               the D1 binding is resolved from `getCloudflareContext()`;
  *               tests inject a stub.
  */
 export async function logAudit(
@@ -108,7 +108,7 @@ export async function logAudit(
 ): Promise<void> {
   try {
     const database =
-      db ?? getDb(getRequestContext().env as unknown as DbEnv);
+      db ?? getDb(getCloudflareContext().env as unknown as DbEnv);
     const { ip, ua } = extractAuditMeta(input.req);
 
     await database.insert(schema.auditLog).values({

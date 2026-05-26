@@ -31,7 +31,7 @@
 
 import "server-only";
 
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { ApiError } from "@/lib/api/errors";
 import { enforceLimit, RateLimitBundles, RateLimitPolicies } from "@/lib/api/rate-limit";
@@ -79,7 +79,7 @@ export interface VerifyCredentialsInput {
 export async function verifyCredentials(
   input: VerifyCredentialsInput,
 ): Promise<SessionUser | null> {
-  const env = getRequestContext().env as unknown as VerifyEnv;
+  const env = getCloudflareContext().env as unknown as VerifyEnv;
   const db = getDb(env);
   const adapter = createD1Adapter(db);
 

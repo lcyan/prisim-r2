@@ -3,7 +3,7 @@
 // Edge-safe Auth.js v5 base config (no adapter, no DB calls, no Node APIs).
 // This object is used directly by middleware.ts via NextAuth(authConfig).auth,
 // which runs in Next.js's edge runtime where Cloudflare Pages bindings
-// (getRequestContext) are NOT available.
+// (getCloudflareContext) are NOT available.
 //
 // The "full" instance in lib/auth/index.ts extends this object with the
 // CredentialsProvider, jwt/session/signOut callbacks, and the D1 adapter —

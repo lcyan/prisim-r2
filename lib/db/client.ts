@@ -27,11 +27,11 @@ export type Db = ReturnType<typeof drizzle<typeof schema>>;
  *
  * Usage in an edge route handler:
  *
- *   import { getRequestContext } from "@cloudflare/next-on-pages";
+ *   import { getCloudflareContext } from "@opennextjs/cloudflare";
  *   import { getDb } from "@/lib/db/client";
  *
  *   export async function GET() {
- *     const db = getDb(getRequestContext().env as unknown as DbEnv);
+ *     const db = getDb(getCloudflareContext().env as unknown as DbEnv);
  *     const users = await db.select().from(schema.users).all();
  *     return Response.json(users);
  *   }

@@ -25,7 +25,7 @@ import { getToken } from "next-auth/jwt";
 import type { NextRequest } from "next/server";
 import { ZodError } from "zod";
 
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { createD1Adapter } from "@/lib/auth/adapter";
 import { CSRF_HEADER_NAME, hashCsrfToken, timingSafeEqual } from "@/lib/auth/csrf";
 import { getDb, type DbEnv } from "@/lib/db/client";
@@ -58,7 +58,7 @@ interface AuthEnv extends DbEnv {
 }
 
 function getEnv(): AuthEnv {
-  return getRequestContext().env as unknown as AuthEnv;
+  return getCloudflareContext().env as unknown as AuthEnv;
 }
 
 /**
@@ -161,7 +161,6 @@ export interface WithApiOptions {
  *
  * Usage in a route file:
  *
- *   export const runtime = "edge";
  *   export const POST = withApi(
  *     async (req, ctx) => {
  *       const input = await parseJson(req, ConnectionsCreateSchema);

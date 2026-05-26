@@ -14,7 +14,7 @@
 
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { logAudit } from "@/lib/audit/log";
 import { getDb, type DbEnv } from "@/lib/db/client";
@@ -48,7 +48,7 @@ interface AuthEnv extends DbEnv {
 }
 
 function getEnv(): AuthEnv {
-  return getRequestContext().env as unknown as AuthEnv;
+  return getCloudflareContext().env as unknown as AuthEnv;
 }
 
 function getAdapter() {
