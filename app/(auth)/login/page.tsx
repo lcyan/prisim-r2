@@ -304,9 +304,6 @@ function ErrorBanner({ code }: { code: string }) {
         <p className="mt-0.5 text-xs text-destructive/80">
           {describeError(code)}
         </p>
-        <p className="mt-0.5 font-mono text-xs text-destructive/60">
-          {code}
-        </p>
       </div>
     </div>
   );
