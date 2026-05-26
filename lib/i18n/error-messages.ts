@@ -30,6 +30,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   "auth.recovery_code.invalid": "恢复码无效或已使用",
   // 表单本地校验
   "auth.otp.required": "请输入验证码",
+  "auth.otp.invalid": "请输入 6 位数字验证码",
 };
 
 export function describeError(code: string | undefined | null): string {
