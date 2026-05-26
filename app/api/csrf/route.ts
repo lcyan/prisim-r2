@@ -10,14 +10,11 @@
 // This endpoint is GET-only and therefore CSRF-exempt — that's deliberate.
 // The endpoint's job is to *seed* the CSRF cookie, not to mutate state, so
 // requiring a CSRF header here would create a chicken/egg problem.
-//
-// Edge runtime so we can reach D1 / getCloudflareContext().
 
 import { requireSession } from "@/lib/api/middleware";
 import { toErrorResponse } from "@/lib/api/errors";
 import { buildCsrfCookie, CSRF_COOKIE_NAME } from "@/lib/auth/csrf";
 
-export const runtime = "edge";
 
 const SEVEN_DAYS = 60 * 60 * 24 * 7;
 

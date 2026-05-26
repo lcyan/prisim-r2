@@ -25,7 +25,6 @@ import { parseJson, TotpPreflightSchema } from "@/lib/api/schemas";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-export const runtime = "edge";
 
 export const POST = withPublicApi(
   async (req) => {

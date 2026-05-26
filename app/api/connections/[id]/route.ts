@@ -35,7 +35,6 @@ import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import { logAudit } from "@/lib/audit/log";
 import type { ConnectionSummary } from "@/lib/api/types";
 
-export const runtime = "edge";
 
 type ConnectionsEnv = DbEnv;
 

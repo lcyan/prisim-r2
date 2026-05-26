@@ -9,9 +9,6 @@
 // guessing is bounded, and a failure-only audit-log write so we keep IP/UA
 // for the request — events.signIn (lib/auth/index.ts) only fires on
 // *success* and has no req to read.
-//
-// Edge runtime is required because the full config uses getCloudflareContext()
-// to reach the D1 binding, which only exists inside the Pages worker.
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
@@ -24,7 +21,6 @@ import {
 import { logAudit } from "@/lib/audit/log";
 import type { DbEnv } from "@/lib/db/client";
 
-export const runtime = "edge";
 
 export { GET } from "@/lib/auth/handlers";
 import { POST as nextAuthPost } from "@/lib/auth/handlers";

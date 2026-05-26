@@ -53,13 +53,12 @@ import { R2CredentialError } from "@/lib/r2/errors";
 import { resolveConnectionForR2 } from "@/lib/r2/route-helpers";
 import { logAudit } from "@/lib/audit/log";
 
-export const runtime = "edge";
 
 type ShareEnv = DbEnv & CryptoEnv;
 
 /** sha256 hex of an arbitrary string. Used to fingerprint the minted URL
- *  for the `shares.url_hash` column — never the URL itself. Web Crypto so
- *  the route stays edge-runtime-safe (no node:crypto). */
+ *  for the `shares.url_hash` column — never the URL itself. Web Crypto only
+ *  (no node:crypto). */
 async function sha256Hex(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
   const digest = await crypto.subtle.digest("SHA-256", data);

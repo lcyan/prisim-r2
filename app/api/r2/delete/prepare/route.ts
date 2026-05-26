@@ -45,7 +45,6 @@ import {
 } from "@/lib/api/delete-token";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 
-export const runtime = "edge";
 
 // AUTH_SECRET is read by the token helper for HMAC; DB binding is used
 // only for the user-scoped connection existence check. We do NOT touch

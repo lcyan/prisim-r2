@@ -35,7 +35,6 @@ import { R2CredentialError } from "@/lib/r2/errors";
 import { resolveConnectionForR2 } from "@/lib/r2/route-helpers";
 import { getDashboardSummary } from "@/lib/dashboard/summary";
 
-export const runtime = "edge";
 
 type SummaryEnv = DbEnv & CryptoEnv;
 

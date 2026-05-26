@@ -40,7 +40,6 @@ import {
   runR2WithAudit,
 } from "@/lib/r2/route-helpers";
 
-export const runtime = "edge";
 
 type MultipartCompleteEnv = DbEnv & CryptoEnv;
 

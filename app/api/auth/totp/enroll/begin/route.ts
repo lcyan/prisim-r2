@@ -32,7 +32,6 @@ import { createEnrollment } from "@/lib/auth/totp-store";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-export const runtime = "edge";
 
 const ENROLLMENT_TTL_MS = 10 * 60 * 1000;
 const ISSUER = "Prisim R2";

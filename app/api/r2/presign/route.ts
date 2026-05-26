@@ -49,9 +49,6 @@ import {
 } from "@/lib/r2/route-helpers";
 import type { AuditOp } from "@/lib/audit/log";
 
-// Edge runtime is mandatory on Pages for routes touching D1 / getCloudflareContext.
-export const runtime = "edge";
-
 // Combined env shape — DB binding (for connection lookup + audit insert) +
 // ENCRYPTION_KEY (for credential decrypt). Composed here rather than in
 // lib/db|crypto because those modules each declare the minimal subset they

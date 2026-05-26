@@ -42,7 +42,6 @@ import { listBuckets } from "@/lib/r2/control";
 import { R2CredentialError } from "@/lib/r2/errors";
 import { logAudit } from "@/lib/audit/log";
 
-export const runtime = "edge";
 
 type ConnectionsEnv = DbEnv & CryptoEnv;
 

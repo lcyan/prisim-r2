@@ -5,9 +5,6 @@
 // here too so the header can display the signed-in email — and so a stale
 // JWT cookie (session row revoked server-side via the session() callback)
 // can't render this page without an email.
-//
-// Edge runtime is required because we read from D1 via auth() → adapter →
-// drizzle on the Cloudflare Pages runtime.
 
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
@@ -15,7 +12,6 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { AppShell } from "@/components/layout/app-shell";
 
-export const runtime = "edge";
 
 export default async function DashboardLayout({
   children,

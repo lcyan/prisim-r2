@@ -53,7 +53,6 @@ import {
 } from "@/lib/r2/route-helpers";
 import { logAudit } from "@/lib/audit/log";
 
-export const runtime = "edge";
 
 type ShareRevealEnv = DbEnv & CryptoEnv;
 

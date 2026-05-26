@@ -41,7 +41,6 @@ import { pathSegmentFromEnd } from "@/lib/api/path-id";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import { logAudit } from "@/lib/audit/log";
 
-export const runtime = "edge";
 
 type ShareDeleteEnv = DbEnv;
 
