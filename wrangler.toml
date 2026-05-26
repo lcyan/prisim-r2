@@ -15,5 +15,5 @@ pages_build_output_dir = ".vercel/output/static"
 [[d1_databases]]
 binding = "DB"
 database_name = "prisim-r2-db"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "ca97efd0-6267-4632-a35d-539433bff8b7"
 migrations_dir = "drizzle/migrations"
