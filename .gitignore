@@ -58,3 +58,9 @@ docs/superpowers/
 
 # design assets (local reference only)
 /doc/
+
+# OpenNext build output (Cloudflare Workers)
+/.open-next/
+
+# wrangler types output
+/cloudflare-env.d.ts
