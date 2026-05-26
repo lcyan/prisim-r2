@@ -1,16 +1,20 @@
-# Cloudflare Pages configuration for Prisim R2.
-# See: https://developers.cloudflare.com/pages/functions/wrangler-configuration/
+# Cloudflare Workers configuration for Prisim R2 (OpenNext build output).
+# See: https://opennext.js.org/cloudflare/get-started
 #
 # To bind a real D1 database, run:
 #   wrangler d1 create prisim-r2-db
 # then paste the returned database_id below.
 
 name = "prisim-r2"
+main = ".open-next/worker.js"
 compatibility_date = "2026-05-20"
-compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = ".vercel/output/static"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 
-# D1 database binding — Subtask 3 reads/writes via env.DB.
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# D1 database binding — routes read/write via env.DB.
 # `database_id` must be replaced with the real UUID after `wrangler d1 create`.
 [[d1_databases]]
 binding = "DB"
