@@ -10,6 +10,14 @@ main = ".open-next/worker.js"
 compatibility_date = "2026-05-20"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 
+# Disable esbuild's keep-names. Without this, libraries like next-themes that
+# convert scripts to strings can emit an `__name(...)` reference into the
+# stringified payload, and the browser hits `ReferenceError: __name is not
+# defined` when it evaluates the script.
+# Docs: https://opennext.js.org/cloudflare/howtos/keep_names (requires
+# wrangler >= 4.13.0; we are on 4.93+).
+keep_names = false
+
 [assets]
 directory = ".open-next/assets"
 binding = "ASSETS"
