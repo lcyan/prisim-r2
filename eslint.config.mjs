@@ -9,8 +9,10 @@ const eslintConfig = defineConfig([
   prettier,
   globalIgnores([
     ".next/**",
+    ".open-next/**",
     ".vercel/**",
     ".wrangler/**",
+    "cloudflare-env.d.ts",
     "out/**",
     "build/**",
     "coverage/**",
