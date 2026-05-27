@@ -45,6 +45,9 @@ export const ApiErrorCode = {
   // 凭据错(密码错或用户不存在,统一文案防 enumeration)。前端展示同
   // CredentialsSignin 的现行 "auth.invalid_credentials" key。
   InvalidCredentials: "auth.invalid_credentials",
+  // R2 folder creation
+  R2FolderInvalidName: "r2.folder_invalid_name",
+  R2FolderTooDeep: "r2.folder_too_deep",
   InternalUnexpected: "internal.unexpected",
 } as const;
 
@@ -117,6 +120,18 @@ export const ApiErrors = {
     details?: unknown,
     message = "Connection has active shares; remove them first",
   ) => new ApiError(ApiErrorCode.ConnectionInUse, message, 409, details),
+  r2FolderInvalidName: (reason: string) =>
+    new ApiError(
+      ApiErrorCode.R2FolderInvalidName,
+      `Invalid folder name: ${reason}`,
+      400,
+    ),
+  r2FolderTooDeep: () =>
+    new ApiError(
+      ApiErrorCode.R2FolderTooDeep,
+      "Folder path exceeds R2 key length limit (1024 bytes)",
+      400,
+    ),
   totpEnrollmentRequired: (message = "需要先绑定 TOTP") =>
     new ApiError(ApiErrorCode.TotpEnrollmentRequired, message, 401),
   totpInvalidCode: (message = "验证码错误或已过期") =>
