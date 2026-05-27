@@ -35,8 +35,10 @@ import {
   CompleteMultipartUploadCommand,
   CreateMultipartUploadCommand,
   DeleteObjectsCommand,
+  HeadObjectCommand,
   ListBucketsCommand,
   ListObjectsV2Command,
+  PutObjectCommand,
 } from "@aws-sdk/client-s3";
 
 import { mapR2Error } from "./errors";
@@ -375,6 +377,70 @@ export async function listBuckets(
       name: b.Name,
       creationDate: b.CreationDate,
     }));
+  } catch (err) {
+    throw mapR2Error(err);
+  }
+}
+
+// ─── putEmptyObject ──────────────────────────────────────────────────────
+//
+// Used by POST /api/r2/mkdir. Writes a 0-byte object with the given key
+// (typically `<prefix>/`), making the prefix appear as a "folder" in
+// list responses (R2 returns it under CommonPrefixes when Delimiter='/').
+//
+// Idempotent: HeadObject probe first. If the object already exists we
+// return without re-writing — gives callers a "already created" signal
+// rather than masking it as "created".
+//
+// Why HeadObject + PutObject rather than IfNoneMatch:"*"
+//   R2 has variable support for PutObject conditional headers and the
+//   error coming back via the SDK isn't uniform across versions. Two
+//   round-trips are fine here — mkdir is not on a hot path.
+
+export interface PutEmptyObjectParams {
+  client: S3Client;
+  bucket: string;
+  key: string;
+}
+
+export interface PutEmptyObjectResult {
+  alreadyExisted: boolean;
+}
+
+export async function putEmptyObject(
+  params: PutEmptyObjectParams,
+): Promise<PutEmptyObjectResult> {
+  requireNonEmpty(params?.bucket, "bucket");
+  requireNonEmpty(params?.key, "key");
+
+  // 1. Probe.
+  try {
+    await params.client.send(
+      new HeadObjectCommand({ Bucket: params.bucket, Key: params.key }),
+    );
+    return { alreadyExisted: true };
+  } catch (err) {
+    const status =
+      (err as { $metadata?: { httpStatusCode?: number } } | null)?.$metadata
+        ?.httpStatusCode ?? 0;
+    if (status !== 404) {
+      // 403 / 401 → R2CredentialError; 5xx → R2UpstreamError.
+      throw mapR2Error(err);
+    }
+    // Fall-through to PUT.
+  }
+
+  // 2. Write 0-byte object.
+  try {
+    await params.client.send(
+      new PutObjectCommand({
+        Bucket: params.bucket,
+        Key: params.key,
+        Body: new Uint8Array(0),
+        ContentLength: 0,
+      }),
+    );
+    return { alreadyExisted: false };
   } catch (err) {
     throw mapR2Error(err);
   }
