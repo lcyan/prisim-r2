@@ -87,9 +87,8 @@ vi.mock("@opennextjs/cloudflare", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/db/client")>(
-    "@/lib/db/client",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/db/client")>("@/lib/db/client");
   return {
     ...actual,
     getDb: () => drizzleDb,
@@ -201,7 +200,11 @@ async function seedUserAndConnection(
   return { userId, cid, csrfToken };
 }
 
-function postReq(pathSuffix: string, body: unknown, csrfToken: string): Request {
+function postReq(
+  pathSuffix: string,
+  body: unknown,
+  csrfToken: string,
+): Request {
   return new Request(`https://x/api/share/${pathSuffix}`, {
     method: "POST",
     headers: {

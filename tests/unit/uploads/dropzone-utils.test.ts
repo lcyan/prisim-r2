@@ -33,7 +33,10 @@ describe("lib/uploads/dropzone-utils", () => {
     it("accepts files at or under the 5 GiB cap", () => {
       const small = fakeFile("a.txt", 1);
       const exactlyMax = fakeFile("b.bin", MAX_UPLOAD_BYTES);
-      const { accepted, skipped } = validateAndPartitionFiles([small, exactlyMax]);
+      const { accepted, skipped } = validateAndPartitionFiles([
+        small,
+        exactlyMax,
+      ]);
       expect(accepted).toEqual([small, exactlyMax]);
       expect(skipped).toEqual([]);
     });
@@ -81,7 +84,10 @@ describe("lib/uploads/dropzone-utils", () => {
 
     it("names a single oversized file", () => {
       const desc = describeSkipped([
-        { file: fakeFile("big.bin", MAX_UPLOAD_BYTES + 1), reason: "too-large" },
+        {
+          file: fakeFile("big.bin", MAX_UPLOAD_BYTES + 1),
+          reason: "too-large",
+        },
       ]);
       expect(desc).toContain("big.bin");
       expect(desc).toContain("5 GB");
@@ -133,7 +139,9 @@ describe("lib/uploads/dropzone-utils", () => {
     });
 
     it("concatenates a trailing-slash prefix with the file name", () => {
-      expect(keyForFile("a/b/", fakeFile("photo.jpg", 1))).toBe("a/b/photo.jpg");
+      expect(keyForFile("a/b/", fakeFile("photo.jpg", 1))).toBe(
+        "a/b/photo.jpg",
+      );
     });
 
     it("does not encode spaces or punctuation — the SDK signs the raw key", () => {

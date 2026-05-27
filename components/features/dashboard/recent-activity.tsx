@@ -30,12 +30,23 @@ export function RecentActivity({ rows }: RecentActivityProps) {
       ) : (
         <ul className="space-y-1.5 text-xs">
           {rows.map((row) => (
-            <li key={row.id} className="grid grid-cols-[80px_120px_1fr_auto] items-center gap-2">
-              <span className="text-muted-foreground">{formatRelative(new Date(row.createdAt))}</span>
-              <Badge variant={row.status === "success" ? "secondary" : "destructive"} className="justify-self-start font-mono text-xs">
+            <li
+              key={row.id}
+              className="grid grid-cols-[80px_120px_1fr_auto] items-center gap-2"
+            >
+              <span className="text-muted-foreground">
+                {formatRelative(new Date(row.createdAt))}
+              </span>
+              <Badge
+                variant={row.status === "success" ? "secondary" : "destructive"}
+                className="justify-self-start font-mono text-xs"
+              >
                 {row.op}
               </Badge>
-              <span className="truncate font-mono text-foreground" title={`${row.bucket ?? ""} / ${row.key ?? ""}`}>
+              <span
+                className="truncate font-mono text-foreground"
+                title={`${row.bucket ?? ""} / ${row.key ?? ""}`}
+              >
                 {row.bucket ? `${row.bucket} / ` : ""}
                 {row.key ?? "—"}
               </span>

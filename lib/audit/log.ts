@@ -102,10 +102,7 @@ export function extractAuditMeta(req: Request | null | undefined): RequestMeta {
  *               the D1 binding is resolved from `getCloudflareContext()`;
  *               tests inject a stub.
  */
-export async function logAudit(
-  input: LogAuditInput,
-  db?: Db,
-): Promise<void> {
+export async function logAudit(input: LogAuditInput, db?: Db): Promise<void> {
   try {
     const database =
       db ?? getDb(getCloudflareContext().env as unknown as DbEnv);

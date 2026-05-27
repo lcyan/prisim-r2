@@ -28,7 +28,8 @@ export const useUiStore = create<UiState>()(
       commandMenuOpen: false,
       openCommandMenu: () => set({ commandMenuOpen: true }),
       closeCommandMenu: () => set({ commandMenuOpen: false }),
-      toggleCommandMenu: () => set((s) => ({ commandMenuOpen: !s.commandMenuOpen })),
+      toggleCommandMenu: () =>
+        set((s) => ({ commandMenuOpen: !s.commandMenuOpen })),
 
       mode: "system",
       setMode: (mode) => set({ mode }),

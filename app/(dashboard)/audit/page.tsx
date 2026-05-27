@@ -74,9 +74,7 @@ export default function AuditPage() {
     refetch,
   } = useAudit(filters);
 
-  const rows: AuditEntry[] = data
-    ? data.pages.flatMap((p) => p.items)
-    : [];
+  const rows: AuditEntry[] = data ? data.pages.flatMap((p) => p.items) : [];
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 p-6">
@@ -142,9 +140,7 @@ function Header() {
     <div className="flex items-baseline justify-between">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{T.pageTitle}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {T.pageDesc}
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{T.pageDesc}</p>
       </div>
     </div>
   );
@@ -242,9 +238,7 @@ function Body({
             className="mx-auto h-5 w-5 animate-spin text-muted-foreground"
             strokeWidth={1.5}
           />
-          <p className="mt-3 text-xs text-muted-foreground">
-            {T.loading}
-          </p>
+          <p className="mt-3 text-xs text-muted-foreground">{T.loading}</p>
         </td>
       </tr>
     );
@@ -257,9 +251,7 @@ function Body({
           <p className="font-display text-lg italic text-muted-foreground">
             {T.emptyTitle}
           </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {T.emptyHint}
-          </p>
+          <p className="mt-2 text-xs text-muted-foreground">{T.emptyHint}</p>
         </td>
       </tr>
     );

@@ -34,9 +34,7 @@
  * into ListObjectsV2 with Delimiter='/' without an extra `?? ""` /
  * `endsWith('/')` dance at the callsite.
  */
-export function segmentsToPrefix(
-  segments: string[] | undefined,
-): string {
+export function segmentsToPrefix(segments: string[] | undefined): string {
   if (!segments || segments.length === 0) return "";
   const joined = segments
     .map((s) => decodeURIComponent(s))

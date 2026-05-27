@@ -77,7 +77,9 @@ describe("withPublicApi", () => {
     const route = withPublicApi(async () => {
       throw ApiErrors.invalidCredentials();
     });
-    const res = await route(new Request("https://x/api/test", { method: "POST" }));
+    const res = await route(
+      new Request("https://x/api/test", { method: "POST" }),
+    );
     expect(res.status).toBe(401);
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe("auth.invalid_credentials");
@@ -85,12 +87,9 @@ describe("withPublicApi", () => {
 
   it("rate-limits by IP policy resolver", async () => {
     const withPublicApi = await importWrapper();
-    const route = withPublicApi(
-      async () => ({ ok: true }),
-      {
-        rateLimit: ({ ip }) => [RateLimitPolicies.totpPreflightByIp(ip)],
-      },
-    );
+    const route = withPublicApi(async () => ({ ok: true }), {
+      rateLimit: ({ ip }) => [RateLimitPolicies.totpPreflightByIp(ip)],
+    });
     const headers = { "cf-connecting-ip": "1.2.3.4" };
     // policy limit is 10/5min — 11th call should fail
     for (let i = 0; i < 10; i++) {

@@ -90,7 +90,10 @@ export default function DashboardPage() {
       </header>
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label={T.kpiBuckets} value={data.bucketsCount.toLocaleString()} />
+        <KpiCard
+          label={T.kpiBuckets}
+          value={data.bucketsCount.toLocaleString()}
+        />
         <KpiCard
           label={T.kpiShares}
           value={data.shares.active.toLocaleString()}

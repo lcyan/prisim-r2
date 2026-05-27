@@ -11,7 +11,10 @@
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 
-import { resolveSegments, type Segment } from "@/components/layout/breadcrumb-segments";
+import {
+  resolveSegments,
+  type Segment,
+} from "@/components/layout/breadcrumb-segments";
 import { TopbarConnectionPopover } from "@/components/layout/topbar-connection-popover";
 import { TopbarBucketPopover } from "@/components/layout/topbar-bucket-popover";
 
@@ -25,7 +28,9 @@ export function TopbarBreadcrumb() {
     <nav aria-label="面包屑" className="flex items-center gap-1 text-sm">
       {segments.map((seg, idx) => (
         <span key={`${seg.kind}-${idx}`} className="flex items-center gap-1">
-          {idx > 0 ? <ChevronRight className="h-3 w-3 text-muted-foreground" /> : null}
+          {idx > 0 ? (
+            <ChevronRight className="h-3 w-3 text-muted-foreground" />
+          ) : null}
           <SegmentNode segment={seg} />
         </span>
       ))}
@@ -42,7 +47,9 @@ function SegmentNode({ segment }: { segment: Segment }) {
     case "prefix":
       return <PrefixSegment path={segment.path} />;
     case "static":
-      return <span className="px-1 text-muted-foreground">{segment.label}</span>;
+      return (
+        <span className="px-1 text-muted-foreground">{segment.label}</span>
+      );
   }
 }
 

@@ -80,7 +80,9 @@ export function timingSafeEqual(a: string, b: string): boolean {
  */
 export function buildCsrfCookie(
   token: string,
-  opts: { maxAgeSeconds: number; secure?: boolean } = { maxAgeSeconds: 60 * 60 * 24 * 7 },
+  opts: { maxAgeSeconds: number; secure?: boolean } = {
+    maxAgeSeconds: 60 * 60 * 24 * 7,
+  },
 ): string {
   const secure = opts.secure ?? process.env.NODE_ENV === "production";
   const parts = [

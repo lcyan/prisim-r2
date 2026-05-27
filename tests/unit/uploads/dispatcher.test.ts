@@ -11,9 +11,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { fakeFile } from "./_fake-xhr";
 
 vi.mock("@/lib/uploads/single-put", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/uploads/single-put")>(
-    "@/lib/uploads/single-put",
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/uploads/single-put")
+  >("@/lib/uploads/single-put");
   return {
     ...actual,
     uploadSinglePut: vi.fn(),
@@ -21,9 +21,9 @@ vi.mock("@/lib/uploads/single-put", async () => {
 });
 
 vi.mock("@/lib/uploads/multipart", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/uploads/multipart")>(
-    "@/lib/uploads/multipart",
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/uploads/multipart")
+  >("@/lib/uploads/multipart");
   return {
     ...actual,
     uploadMultipart: vi.fn(),
@@ -54,7 +54,10 @@ describe("lib/uploads/dispatcher", () => {
    *  until released. Returns a runner that, when called, resolves the
    *  uploadSinglePut helper with a synthetic ETag. */
   function makeHeldSinglePut() {
-    const deferreds: Array<{ resolve: () => void; reject: (e: Error) => void }> = [];
+    const deferreds: Array<{
+      resolve: () => void;
+      reject: (e: Error) => void;
+    }> = [];
     vi.mocked(singlePutMod.uploadSinglePut).mockImplementation(() => {
       return new Promise<{ etag: string }>((resolve, reject) => {
         deferreds.push({
@@ -85,8 +88,12 @@ describe("lib/uploads/dispatcher", () => {
 
     // The 3 active tasks have status 'uploading' (or 'preparing' for the
     // very brief window before runTask flips it). The other 2 stay 'queued'.
-    const statuses = ids.map((id) => store.useUploadQueueStore.getState().tasks.get(id)?.status);
-    const inFlightCount = statuses.filter((s) => s === "uploading" || s === "preparing").length;
+    const statuses = ids.map(
+      (id) => store.useUploadQueueStore.getState().tasks.get(id)?.status,
+    );
+    const inFlightCount = statuses.filter(
+      (s) => s === "uploading" || s === "preparing",
+    ).length;
     const queuedCount = statuses.filter((s) => s === "queued").length;
     expect(inFlightCount).toBe(3);
     expect(queuedCount).toBe(2);
@@ -123,7 +130,9 @@ describe("lib/uploads/dispatcher", () => {
     for (let i = 0; i < 6; i++) await Promise.resolve();
 
     expect(dispatcher._inFlightCountForTest()).toBe(3);
-    expect(store.useUploadQueueStore.getState().tasks.get(ids[0]!)?.status).toBe("done");
+    expect(
+      store.useUploadQueueStore.getState().tasks.get(ids[0]!)?.status,
+    ).toBe("done");
 
     while (held.length > 0) {
       held.shift()!.resolve();
@@ -159,8 +168,12 @@ describe("lib/uploads/dispatcher", () => {
 
     expect(singleSpy).toHaveBeenCalledTimes(1);
     expect(multipartSpy).toHaveBeenCalledTimes(1);
-    expect(store.useUploadQueueStore.getState().tasks.get(smallId)?.status).toBe("done");
-    expect(store.useUploadQueueStore.getState().tasks.get(bigId)?.status).toBe("done");
+    expect(
+      store.useUploadQueueStore.getState().tasks.get(smallId)?.status,
+    ).toBe("done");
+    expect(store.useUploadQueueStore.getState().tasks.get(bigId)?.status).toBe(
+      "done",
+    );
   });
 
   it("UploadError(kind='aborted') from the helper maps to status 'canceled'", async () => {
@@ -177,7 +190,9 @@ describe("lib/uploads/dispatcher", () => {
     dispatcher.startUploadDispatcher();
     await dispatcher._drainForTest();
 
-    expect(store.useUploadQueueStore.getState().tasks.get(id)?.status).toBe("canceled");
+    expect(store.useUploadQueueStore.getState().tasks.get(id)?.status).toBe(
+      "canceled",
+    );
   });
 
   it("UploadError(kind='http') from the helper maps to status 'failed' with the message", async () => {
@@ -211,10 +226,14 @@ describe("lib/uploads/dispatcher", () => {
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
-    expect(store.useUploadQueueStore.getState().tasks.get(id)?.status).toBe("uploading");
+    expect(store.useUploadQueueStore.getState().tasks.get(id)?.status).toBe(
+      "uploading",
+    );
 
     store.useUploadQueueStore.getState().cancel(id);
-    expect(store.useUploadQueueStore.getState().tasks.get(id)?.status).toBe("canceled");
+    expect(store.useUploadQueueStore.getState().tasks.get(id)?.status).toBe(
+      "canceled",
+    );
 
     // Helper now rejects with kind='http' — the dispatcher must NOT overwrite
     // the 'canceled' status with 'failed'.
@@ -222,7 +241,9 @@ describe("lib/uploads/dispatcher", () => {
     held[0]!.reject(new UploadError("http", "after-the-fact 500", 500));
     await dispatcher._drainForTest();
 
-    expect(store.useUploadQueueStore.getState().tasks.get(id)?.status).toBe("canceled");
+    expect(store.useUploadQueueStore.getState().tasks.get(id)?.status).toBe(
+      "canceled",
+    );
   });
 
   it("startUploadDispatcher is idempotent (second call doesn't double-subscribe)", () => {

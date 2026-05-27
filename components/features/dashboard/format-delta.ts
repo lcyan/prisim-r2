@@ -11,7 +11,10 @@ export interface DeltaResult {
   label: string; // 显示文案
 }
 
-export function formatDelta(current: number, previous: number): DeltaResult | null {
+export function formatDelta(
+  current: number,
+  previous: number,
+): DeltaResult | null {
   if (previous === 0 && current === 0) return null;
   if (previous === 0) {
     return { direction: "up", pct: Infinity, label: "—" };

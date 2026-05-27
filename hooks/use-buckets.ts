@@ -24,10 +24,7 @@
 //     `refetch` from useQuery or `queryClient.invalidateQueries` against
 //     `bucketsQueryKey(cid)`.
 
-import {
-  useQuery,
-  type UseQueryResult,
-} from "@tanstack/react-query";
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
 import { apiFetch, ApiClientError } from "@/lib/api/client";
 import type { BucketSummary } from "@/lib/api/types";

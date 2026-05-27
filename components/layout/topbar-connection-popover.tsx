@@ -40,8 +40,16 @@ export function TopbarConnectionPopover() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium hover:bg-accent">
-        <Plug className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />
-        <span className={cn("max-w-[160px] truncate", !active && "text-muted-foreground")}>
+        <Plug
+          className="h-3.5 w-3.5 text-muted-foreground"
+          strokeWidth={1.75}
+        />
+        <span
+          className={cn(
+            "max-w-[160px] truncate",
+            !active && "text-muted-foreground",
+          )}
+        >
           {active?.name ?? T.pickPrompt}
         </span>
         <ChevronDown className="h-3 w-3 text-muted-foreground" />
@@ -60,7 +68,10 @@ export function TopbarConnectionPopover() {
         ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem className="p-0">
-          <Link href="/connections" className="flex w-full items-center gap-2 px-2 py-1.5">
+          <Link
+            href="/connections"
+            className="flex w-full items-center gap-2 px-2 py-1.5"
+          >
             <Plus className="h-3.5 w-3.5" />
             {T.add}
           </Link>

@@ -83,9 +83,8 @@ vi.mock("@opennextjs/cloudflare", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/db/client")>(
-    "@/lib/db/client",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/db/client")>("@/lib/db/client");
   return {
     ...actual,
     getDb: () => drizzleDb,
@@ -107,7 +106,10 @@ vi.mock("@/lib/auth/adapter", () => ({
 }));
 
 // vi.mock is hoisted; route imports MUST come after.
-import { POST as connectionsPOST, GET as connectionsGET } from "@/app/api/connections/route";
+import {
+  POST as connectionsPOST,
+  GET as connectionsGET,
+} from "@/app/api/connections/route";
 import {
   PATCH as connectionPATCH,
   DELETE as connectionDELETE,
@@ -227,7 +229,12 @@ async function readJson(res: Response): Promise<{
   createdAt?: number;
   lastUsedAt?: number | null;
   ok?: boolean;
-  error?: { code: string; message: string; requestId: string; details?: unknown };
+  error?: {
+    code: string;
+    message: string;
+    requestId: string;
+    details?: unknown;
+  };
 }> {
   return (await res.json()) as Awaited<ReturnType<typeof readJson>>;
 }
@@ -282,7 +289,9 @@ describe("POST /api/connections — create", () => {
       ),
     );
     expect(res.status).toBe(400);
-    expect((await readJson(res)).error?.code).toBe(ApiErrorCode.ValidationInvalid);
+    expect((await readJson(res)).error?.code).toBe(
+      ApiErrorCode.ValidationInvalid,
+    );
     expect(listBucketsImpl).not.toHaveBeenCalled();
   });
 
@@ -370,7 +379,9 @@ describe("POST /api/connections — create", () => {
       ),
     );
     expect(res.status).toBe(201);
-    expect(res.headers.get("location")).toMatch(/^\/api\/connections\/[0-9A-HJKMNP-TV-Z]{26}$/);
+    expect(res.headers.get("location")).toMatch(
+      /^\/api\/connections\/[0-9A-HJKMNP-TV-Z]{26}$/,
+    );
     const body = await readJson(res);
     expect(body.name).toBe("prod");
     expect(body.accountId).toBe(VALID_ACCOUNT_ID);
@@ -401,11 +412,17 @@ describe("POST /api/connections — create", () => {
       secret_key_iv: Buffer;
     };
     expect(row.name).toBe("prod");
-    expect(row.endpoint).toBe(`https://${VALID_ACCOUNT_ID}.r2.cloudflarestorage.com`);
+    expect(row.endpoint).toBe(
+      `https://${VALID_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    );
     expect(row.access_key_masked).toBe("AKIA****1234");
     // Bytes should NOT contain the literal access key / secret key.
-    expect(row.access_key_ciphertext.toString("utf8")).not.toContain(VALID_ACCESS_KEY);
-    expect(row.secret_key_ciphertext.toString("utf8")).not.toContain(VALID_SECRET_KEY);
+    expect(row.access_key_ciphertext.toString("utf8")).not.toContain(
+      VALID_ACCESS_KEY,
+    );
+    expect(row.secret_key_ciphertext.toString("utf8")).not.toContain(
+      VALID_SECRET_KEY,
+    );
     // IV is the GCM nonce — 12 bytes per encryptCredential.
     expect(row.access_key_iv.length).toBe(12);
     expect(row.secret_key_iv.length).toBe(12);
@@ -450,7 +467,11 @@ describe("GET /api/connections — list", () => {
       .prepare(
         `INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, 'h', ?)`,
       )
-      .run(otherUserId, `${otherUserId}@test.local`, Math.floor(Date.now() / 1000));
+      .run(
+        otherUserId,
+        `${otherUserId}@test.local`,
+        Math.floor(Date.now() / 1000),
+      );
     seedConnection(otherUserId, "userA-conn");
     seedConnection(otherUserId, "userA-conn-2");
 
@@ -472,7 +493,14 @@ describe("GET /api/connections — list", () => {
     // blob fields don't appear in serialization.
     const keys = Object.keys(body[0] ?? {}).sort();
     expect(keys).toEqual(
-      ["accessKeyMasked", "accountId", "createdAt", "id", "lastUsedAt", "name"].sort(),
+      [
+        "accessKeyMasked",
+        "accountId",
+        "createdAt",
+        "id",
+        "lastUsedAt",
+        "name",
+      ].sort(),
     );
   });
 
@@ -519,7 +547,9 @@ describe("PATCH /api/connections/[id] — rename only", () => {
       ),
     );
     expect(res.status).toBe(400);
-    expect((await readJson(res)).error?.code).toBe(ApiErrorCode.ValidationInvalid);
+    expect((await readJson(res)).error?.code).toBe(
+      ApiErrorCode.ValidationInvalid,
+    );
 
     // Row is unchanged — name stays "old" and accountId untouched.
     const row = sqlite
@@ -536,7 +566,11 @@ describe("PATCH /api/connections/[id] — rename only", () => {
       .prepare(
         `INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, 'h', ?)`,
       )
-      .run(otherUserId, `${otherUserId}@test.local`, Math.floor(Date.now() / 1000));
+      .run(
+        otherUserId,
+        `${otherUserId}@test.local`,
+        Math.floor(Date.now() / 1000),
+      );
     const targetId = seedConnection(otherUserId, "victim");
 
     // User B logs in and tries to rename it.
@@ -572,21 +606,22 @@ describe("DELETE /api/connections/[id] — share dependency check", () => {
                              url_hash, ttl_seconds, expires_at, created_at)
          VALUES (?, ?, ?, 'buk', 'k', 'h', 60, ?, ?)`,
       )
-      .run(
-        ulid(),
-        userId,
-        id,
-        future,
-        Math.floor(Date.now() / 1000),
-      );
+      .run(ulid(), userId, id, future, Math.floor(Date.now() / 1000));
 
     const res = await connectionDELETE(
-      jsonReq("DELETE", `https://x/api/connections/${id}`, undefined, csrfToken),
+      jsonReq(
+        "DELETE",
+        `https://x/api/connections/${id}`,
+        undefined,
+        csrfToken,
+      ),
     );
     expect(res.status).toBe(409);
     const body = await readJson(res);
     expect(body.error?.code).toBe(ApiErrorCode.ConnectionInUse);
-    expect((body.error?.details as { activeShares?: number })?.activeShares).toBe(1);
+    expect(
+      (body.error?.details as { activeShares?: number })?.activeShares,
+    ).toBe(1);
 
     // Connection still exists.
     const present = sqlite
@@ -610,7 +645,12 @@ describe("DELETE /api/connections/[id] — share dependency check", () => {
       .run(ulid(), userId, id, past, past);
 
     const res = await connectionDELETE(
-      jsonReq("DELETE", `https://x/api/connections/${id}`, undefined, csrfToken),
+      jsonReq(
+        "DELETE",
+        `https://x/api/connections/${id}`,
+        undefined,
+        csrfToken,
+      ),
     );
     expect(res.status).toBe(200);
     expect((await readJson(res)).ok).toBe(true);
@@ -638,18 +678,25 @@ describe("DELETE /api/connections/[id] — share dependency check", () => {
       .prepare(
         `INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, 'h', ?)`,
       )
-      .run(otherUserId, `${otherUserId}@test.local`, Math.floor(Date.now() / 1000));
+      .run(
+        otherUserId,
+        `${otherUserId}@test.local`,
+        Math.floor(Date.now() / 1000),
+      );
     const victimId = seedConnection(otherUserId, "victim");
 
     const { csrfToken } = await seedUser();
     const res = await connectionDELETE(
-      jsonReq("DELETE", `https://x/api/connections/${victimId}`, undefined, csrfToken),
+      jsonReq(
+        "DELETE",
+        `https://x/api/connections/${victimId}`,
+        undefined,
+        csrfToken,
+      ),
     );
     expect(res.status).toBe(404);
     expect(
-      sqlite
-        .prepare(`SELECT id FROM connections WHERE id = ?`)
-        .get(victimId),
+      sqlite.prepare(`SELECT id FROM connections WHERE id = ?`).get(victimId),
     ).toBeTruthy();
   });
 });

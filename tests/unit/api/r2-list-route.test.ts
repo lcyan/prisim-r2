@@ -34,10 +34,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { ulid } from "ulid";
 
-import {
-  generateCsrfToken,
-  hashCsrfToken,
-} from "@/lib/auth/csrf";
+import { generateCsrfToken, hashCsrfToken } from "@/lib/auth/csrf";
 import { encryptCredential } from "@/lib/crypto/aes-gcm";
 import { schema as realSchema } from "@/lib/db/schema";
 import type { RateLimitDb } from "@/lib/api/rate-limit";
@@ -97,9 +94,8 @@ vi.mock("@opennextjs/cloudflare", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/db/client")>(
-    "@/lib/db/client",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/db/client")>("@/lib/db/client");
   return {
     ...actual,
     // Both the route and audit log go through getDb(); returning a
@@ -277,7 +273,12 @@ describe("GET /api/r2/list — happy path", () => {
     const lastMod = new Date("2026-04-01T12:00:00Z");
     listObjectsImpl.mockResolvedValueOnce({
       items: [
-        { key: "a/file.txt", size: 42, etag: '"etag-a"', lastModified: lastMod },
+        {
+          key: "a/file.txt",
+          size: 42,
+          etag: '"etag-a"',
+          lastModified: lastMod,
+        },
         { key: "a/other.bin", size: 7 },
       ],
       prefixes: ["a/sub1/", "a/sub2/"],
@@ -285,7 +286,9 @@ describe("GET /api/r2/list — happy path", () => {
       isTruncated: true,
     });
     const { cid } = await seedUserAndConnection();
-    const res = await listGET(listReq({ cid, bucket: "my-bucket", prefix: "a/" }));
+    const res = await listGET(
+      listReq({ cid, bucket: "my-bucket", prefix: "a/" }),
+    );
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       objects: Array<{
@@ -430,7 +433,9 @@ describe("GET /api/r2/list — validation", () => {
 
   it("rejects a non-ULID cid with 400", async () => {
     await seedUserAndConnection();
-    const res = await listGET(listReq({ cid: "not-a-ulid", bucket: "test-bucket" }));
+    const res = await listGET(
+      listReq({ cid: "not-a-ulid", bucket: "test-bucket" }),
+    );
     expect(res.status).toBe(400);
     expect(listObjectsImpl).not.toHaveBeenCalled();
   });
@@ -448,7 +453,9 @@ describe("GET /api/r2/list — authorization & scoping", () => {
   it("returns 404 when the connection does not exist for this user", async () => {
     await seedUserAndConnection();
     const nonExistent = ulid();
-    const res = await listGET(listReq({ cid: nonExistent, bucket: "test-bucket" }));
+    const res = await listGET(
+      listReq({ cid: nonExistent, bucket: "test-bucket" }),
+    );
     expect(res.status).toBe(404);
     expect((await readJson(res)).error?.code).toBe(ApiErrorCode.NotFound);
     expect(listObjectsImpl).not.toHaveBeenCalled();
@@ -458,7 +465,9 @@ describe("GET /api/r2/list — authorization & scoping", () => {
     const userA = await seedUserAndConnection({ loginAs: false });
     await seedUserAndConnection({ loginAs: true });
 
-    const res = await listGET(listReq({ cid: userA.cid, bucket: "test-bucket" }));
+    const res = await listGET(
+      listReq({ cid: userA.cid, bucket: "test-bucket" }),
+    );
     expect(res.status).toBe(404);
 
     // The victim's connection was never touched.

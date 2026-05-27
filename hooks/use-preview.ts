@@ -21,10 +21,7 @@
 //   * No image preloading — <img src> handles that natively. The UI
 //     uses onLoad/onError to clear the large-file skeleton.
 
-import {
-  useMutation,
-  type UseMutationResult,
-} from "@tanstack/react-query";
+import { useMutation, type UseMutationResult } from "@tanstack/react-query";
 
 import { apiFetch, ApiClientError } from "@/lib/api/client";
 import {

@@ -50,19 +50,51 @@ type NavItem = {
 };
 
 const MAIN_NAV: readonly NavItem[] = [
-  { label: T.navDashboard, href: "/dashboard", icon: LayoutDashboard, matchPrefixes: ["/dashboard"] },
-  { label: T.navBuckets, href: "/buckets", icon: Database, matchPrefixes: ["/buckets"] },
-  { label: T.navShares, href: "/shares", icon: Link2, matchPrefixes: ["/shares"] },
-  { label: T.navAudit, href: "/audit", icon: FileClock, matchPrefixes: ["/audit"] },
+  {
+    label: T.navDashboard,
+    href: "/dashboard",
+    icon: LayoutDashboard,
+    matchPrefixes: ["/dashboard"],
+  },
+  {
+    label: T.navBuckets,
+    href: "/buckets",
+    icon: Database,
+    matchPrefixes: ["/buckets"],
+  },
+  {
+    label: T.navShares,
+    href: "/shares",
+    icon: Link2,
+    matchPrefixes: ["/shares"],
+  },
+  {
+    label: T.navAudit,
+    href: "/audit",
+    icon: FileClock,
+    matchPrefixes: ["/audit"],
+  },
 ];
 
 const ADMIN_NAV: readonly NavItem[] = [
-  { label: T.navConnections, href: "/connections", icon: Plug, matchPrefixes: ["/connections", "/settings/connections"] },
-  { label: T.navSettings, href: "/settings", icon: Settings, matchPrefixes: ["/settings"] },
+  {
+    label: T.navConnections,
+    href: "/connections",
+    icon: Plug,
+    matchPrefixes: ["/connections", "/settings/connections"],
+  },
+  {
+    label: T.navSettings,
+    href: "/settings",
+    icon: Settings,
+    matchPrefixes: ["/settings"],
+  },
 ];
 
 function isActive(pathname: string, item: NavItem): boolean {
-  return item.matchPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  return item.matchPrefixes.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
 }
 
 export function AppSidebar() {
@@ -74,7 +106,9 @@ export function AppSidebar() {
           <PrismMark size={28} className="shrink-0" />
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <p className="truncate text-sm font-semibold">{T.brand}</p>
-            <p className="truncate text-[11px] text-muted-foreground">{T.brandSub}</p>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {T.brandSub}
+            </p>
           </div>
         </div>
       </SidebarHeader>
@@ -84,7 +118,11 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {MAIN_NAV.map((item) => (
-                <NavRow key={item.href} item={item} active={isActive(pathname, item)} />
+                <NavRow
+                  key={item.href}
+                  item={item}
+                  active={isActive(pathname, item)}
+                />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -94,7 +132,11 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {ADMIN_NAV.map((item) => (
-                <NavRow key={item.href} item={item} active={isActive(pathname, item)} />
+                <NavRow
+                  key={item.href}
+                  item={item}
+                  active={isActive(pathname, item)}
+                />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>

@@ -108,9 +108,7 @@ function RenameConnectionForm({
     <>
       <DialogHeader>
         <DialogTitle>{T.title}</DialogTitle>
-        <DialogDescription>
-          {T.desc}
-        </DialogDescription>
+        <DialogDescription>{T.desc}</DialogDescription>
       </DialogHeader>
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>

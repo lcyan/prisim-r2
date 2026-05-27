@@ -28,10 +28,9 @@ import BucketsPage from "@/app/(dashboard)/buckets/page";
 // and return the *state object* (truthy) instead of the id. Resolve via
 // mockImplementation so the selector actually runs.
 function setActiveConnection(state: { activeConnectionId: string | null }) {
-  vi.mocked(useActiveConnectionStore).mockImplementation(
-    ((selector?: (s: typeof state) => unknown) =>
-      selector ? selector(state) : state) as never,
-  );
+  vi.mocked(useActiveConnectionStore).mockImplementation(((
+    selector?: (s: typeof state) => unknown,
+  ) => (selector ? selector(state) : state)) as never);
 }
 
 function withQuery(ui: ReactElement) {

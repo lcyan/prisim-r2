@@ -152,8 +152,14 @@ export function startAutoRemoveDone(opts?: {
 /** Window contract surface we need. Defined as an interface so tests
  *  can pass a stub object instead of patching the real `window`. */
 export interface BeforeUnloadHost {
-  addEventListener: (type: "beforeunload", listener: (e: Event) => void) => void;
-  removeEventListener: (type: "beforeunload", listener: (e: Event) => void) => void;
+  addEventListener: (
+    type: "beforeunload",
+    listener: (e: Event) => void,
+  ) => void;
+  removeEventListener: (
+    type: "beforeunload",
+    listener: (e: Event) => void,
+  ) => void;
 }
 
 /** Register a `beforeunload` listener whenever any task is in flight.

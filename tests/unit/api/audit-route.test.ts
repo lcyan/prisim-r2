@@ -25,10 +25,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { ulid } from "ulid";
 
-import {
-  generateCsrfToken,
-  hashCsrfToken,
-} from "@/lib/auth/csrf";
+import { generateCsrfToken, hashCsrfToken } from "@/lib/auth/csrf";
 import { schema as realSchema } from "@/lib/db/schema";
 import type { RateLimitDb } from "@/lib/api/rate-limit";
 import { ApiErrorCode } from "@/lib/api/errors";
@@ -61,9 +58,8 @@ vi.mock("@opennextjs/cloudflare", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/db/client")>(
-    "@/lib/db/client",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/db/client")>("@/lib/db/client");
   return {
     ...actual,
     getDb: () => drizzleDb,
@@ -243,8 +239,20 @@ describe("GET /api/audit — listing", () => {
   it("returns the user's rows newest-first", async () => {
     const { userId } = await seedUser();
     const now = Math.floor(Date.now() / 1000);
-    insertAuditRow({ userId, op: "object.delete", bucket: "b", key: "old.txt", createdAtSec: now - 100 });
-    insertAuditRow({ userId, op: "object.delete", bucket: "b", key: "new.txt", createdAtSec: now - 10 });
+    insertAuditRow({
+      userId,
+      op: "object.delete",
+      bucket: "b",
+      key: "old.txt",
+      createdAtSec: now - 100,
+    });
+    insertAuditRow({
+      userId,
+      op: "object.delete",
+      bucket: "b",
+      key: "new.txt",
+      createdAtSec: now - 10,
+    });
 
     const res = await auditGET(listReq());
     expect(res.status).toBe(200);
@@ -257,8 +265,20 @@ describe("GET /api/audit — listing", () => {
     const userA = await seedUser({ loginAs: false });
     const userB = await seedUser({ loginAs: true });
     const now = Math.floor(Date.now() / 1000);
-    insertAuditRow({ userId: userA.userId, op: "object.delete", bucket: "b", key: "userA.txt", createdAtSec: now - 10 });
-    insertAuditRow({ userId: userB.userId, op: "object.delete", bucket: "b", key: "userB.txt", createdAtSec: now - 5 });
+    insertAuditRow({
+      userId: userA.userId,
+      op: "object.delete",
+      bucket: "b",
+      key: "userA.txt",
+      createdAtSec: now - 10,
+    });
+    insertAuditRow({
+      userId: userB.userId,
+      op: "object.delete",
+      bucket: "b",
+      key: "userB.txt",
+      createdAtSec: now - 5,
+    });
 
     const res = await auditGET(listReq());
     const body = await readJson(res);
@@ -270,9 +290,27 @@ describe("GET /api/audit — filters", () => {
   it("op filter narrows to one AuditOp value", async () => {
     const { userId } = await seedUser();
     const now = Math.floor(Date.now() / 1000);
-    insertAuditRow({ userId, op: "object.delete", bucket: "b", key: "del.txt", createdAtSec: now - 30 });
-    insertAuditRow({ userId, op: "presign.get", bucket: "b", key: "get.txt", createdAtSec: now - 20 });
-    insertAuditRow({ userId, op: "share.create", bucket: "b", key: "share.txt", createdAtSec: now - 10 });
+    insertAuditRow({
+      userId,
+      op: "object.delete",
+      bucket: "b",
+      key: "del.txt",
+      createdAtSec: now - 30,
+    });
+    insertAuditRow({
+      userId,
+      op: "presign.get",
+      bucket: "b",
+      key: "get.txt",
+      createdAtSec: now - 20,
+    });
+    insertAuditRow({
+      userId,
+      op: "share.create",
+      bucket: "b",
+      key: "share.txt",
+      createdAtSec: now - 10,
+    });
 
     const res = await auditGET(listReq({ op: "object.delete" }));
     expect(res.status).toBe(200);
@@ -284,8 +322,20 @@ describe("GET /api/audit — filters", () => {
   it("bucket filter narrows to one bucket name (exact match)", async () => {
     const { userId } = await seedUser();
     const now = Math.floor(Date.now() / 1000);
-    insertAuditRow({ userId, op: "object.delete", bucket: "alpha", key: "a.txt", createdAtSec: now - 20 });
-    insertAuditRow({ userId, op: "object.delete", bucket: "beta", key: "b.txt", createdAtSec: now - 10 });
+    insertAuditRow({
+      userId,
+      op: "object.delete",
+      bucket: "alpha",
+      key: "a.txt",
+      createdAtSec: now - 20,
+    });
+    insertAuditRow({
+      userId,
+      op: "object.delete",
+      bucket: "beta",
+      key: "b.txt",
+      createdAtSec: now - 10,
+    });
 
     const res = await auditGET(listReq({ bucket: "alpha" }));
     const body = await readJson(res);
@@ -295,11 +345,31 @@ describe("GET /api/audit — filters", () => {
   it("op + bucket compose (AND)", async () => {
     const { userId } = await seedUser();
     const now = Math.floor(Date.now() / 1000);
-    insertAuditRow({ userId, op: "object.delete", bucket: "alpha", key: "match.txt", createdAtSec: now - 30 });
-    insertAuditRow({ userId, op: "object.delete", bucket: "beta", key: "wrong-bucket.txt", createdAtSec: now - 20 });
-    insertAuditRow({ userId, op: "presign.get", bucket: "alpha", key: "wrong-op.txt", createdAtSec: now - 10 });
+    insertAuditRow({
+      userId,
+      op: "object.delete",
+      bucket: "alpha",
+      key: "match.txt",
+      createdAtSec: now - 30,
+    });
+    insertAuditRow({
+      userId,
+      op: "object.delete",
+      bucket: "beta",
+      key: "wrong-bucket.txt",
+      createdAtSec: now - 20,
+    });
+    insertAuditRow({
+      userId,
+      op: "presign.get",
+      bucket: "alpha",
+      key: "wrong-op.txt",
+      createdAtSec: now - 10,
+    });
 
-    const res = await auditGET(listReq({ op: "object.delete", bucket: "alpha" }));
+    const res = await auditGET(
+      listReq({ op: "object.delete", bucket: "alpha" }),
+    );
     const body = await readJson(res);
     expect(body.items?.map((i) => i.key)).toEqual(["match.txt"]);
   });

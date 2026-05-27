@@ -41,16 +41,18 @@ vi.mock("@opennextjs/cloudflare", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/db/client")>(
-    "@/lib/db/client",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/db/client")>("@/lib/db/client");
   return {
     ...actual,
     getDb: () => drizzleDb,
   };
 });
 
-const MIGRATIONS_DIR = path.resolve(__dirname, "../../../../drizzle/migrations");
+const MIGRATIONS_DIR = path.resolve(
+  __dirname,
+  "../../../../drizzle/migrations",
+);
 
 function applyMigrations(db: SqliteDb) {
   const files = readdirSync(MIGRATIONS_DIR)
@@ -113,7 +115,12 @@ function seedUser(opts: { email: string; totpEnabled: boolean }) {
       `INSERT INTO users (id, email, password_hash, created_at, totp_enabled)
        VALUES (?, ?, 'h', ?, ?)`,
     )
-    .run(ulid(), opts.email, Math.floor(Date.now() / 1000), opts.totpEnabled ? 1 : 0);
+    .run(
+      ulid(),
+      opts.email,
+      Math.floor(Date.now() / 1000),
+      opts.totpEnabled ? 1 : 0,
+    );
 }
 
 describe("POST /api/auth/totp/preflight", () => {

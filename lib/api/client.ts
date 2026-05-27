@@ -47,7 +47,9 @@ async function parseApiResponse<T>(res: Response): Promise<T> {
     if (isJson) {
       const payload = (await res.json()) as ApiErrorPayload;
       const requestId =
-        res.headers.get("x-request-id") ?? payload.error?.requestId ?? "unknown";
+        res.headers.get("x-request-id") ??
+        payload.error?.requestId ??
+        "unknown";
       throw new ApiClientError(
         payload.error.code,
         payload.error.message,
@@ -168,7 +170,10 @@ async function performFetch<T>(
     ...init,
     method,
     headers,
-    body: init.json !== undefined ? JSON.stringify(init.json) : (init.body ?? undefined),
+    body:
+      init.json !== undefined
+        ? JSON.stringify(init.json)
+        : (init.body ?? undefined),
     credentials: init.credentials ?? "include",
   });
 
@@ -181,7 +186,10 @@ async function performFetch<T>(
   if (!res.ok) {
     if (isJson) {
       const payload = (await res.json()) as ApiErrorPayload;
-      const requestId = res.headers.get("x-request-id") ?? payload.error?.requestId ?? "unknown";
+      const requestId =
+        res.headers.get("x-request-id") ??
+        payload.error?.requestId ??
+        "unknown";
       throw new ApiClientError(
         payload.error.code,
         payload.error.message,

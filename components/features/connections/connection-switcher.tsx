@@ -213,17 +213,13 @@ export function ConnectionSwitcherMenu({
       style={{ boxShadow: "var(--shadow-lg)" }}
     >
       <div className="border-b border-border px-3 py-2">
-        <p className="text-xs text-muted-foreground">
-          {T.title}
-        </p>
+        <p className="text-xs text-muted-foreground">{T.title}</p>
       </div>
 
       <ul className="max-h-[280px] overflow-auto py-1">
         {connections.length === 0 ? (
           <li className="px-3 py-6 text-center">
-            <p className="text-xs text-muted-foreground">
-              {T.empty}
-            </p>
+            <p className="text-xs text-muted-foreground">{T.empty}</p>
           </li>
         ) : (
           connections.map((c) => {
@@ -576,9 +572,7 @@ function DialogField({
   return (
     <label className="block">
       <div className="mb-1 flex items-baseline justify-between gap-3">
-        <span className="text-xs text-muted-foreground">
-          {label}
-        </span>
+        <span className="text-xs text-muted-foreground">{label}</span>
         {hint ? (
           <span className="truncate text-xs text-muted-foreground/70">
             {hint}

@@ -1,10 +1,10 @@
 // Tremor AreaChart [v0.3.1]
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-"use client"
+"use client";
 
-import React from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import React from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Area,
   CartesianGrid,
@@ -17,14 +17,14 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from "recharts"
-import { AxisDomain } from "recharts/types/util/types"
+} from "recharts";
+import { AxisDomain } from "recharts/types/util/types";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 // --- Inlined Tremor helpers (chartColors / getYAxisDomain / useOnWindowResize / hasOnlyOneValueForKey) ---
 
-type ColorUtility = "bg" | "stroke" | "fill" | "text"
+type ColorUtility = "bg" | "stroke" | "fill" | "text";
 
 const chartColors = {
   blue: {
@@ -83,26 +83,26 @@ const chartColors = {
   },
 } as const satisfies {
   [color: string]: {
-    [key in ColorUtility]: string
-  }
-}
+    [key in ColorUtility]: string;
+  };
+};
 
-type AvailableChartColorsKeys = keyof typeof chartColors
+type AvailableChartColorsKeys = keyof typeof chartColors;
 
 const AvailableChartColors: AvailableChartColorsKeys[] = Object.keys(
   chartColors,
-) as Array<AvailableChartColorsKeys>
+) as Array<AvailableChartColorsKeys>;
 
 const constructCategoryColors = (
   categories: string[],
   colors: AvailableChartColorsKeys[],
 ): Map<string, AvailableChartColorsKeys> => {
-  const categoryColors = new Map<string, AvailableChartColorsKeys>()
+  const categoryColors = new Map<string, AvailableChartColorsKeys>();
   categories.forEach((category, index) => {
-    categoryColors.set(category, colors[index % colors.length]!)
-  })
-  return categoryColors
-}
+    categoryColors.set(category, colors[index % colors.length]!);
+  });
+  return categoryColors;
+};
 
 const getColorClassName = (
   color: AvailableChartColorsKeys,
@@ -113,57 +113,56 @@ const getColorClassName = (
     stroke: "stroke-gray-500",
     fill: "fill-gray-500",
     text: "text-gray-500",
-  }
-  return chartColors[color]?.[type] ?? fallbackColor[type]
-}
+  };
+  return chartColors[color]?.[type] ?? fallbackColor[type];
+};
 
 const getYAxisDomain = (
   autoMinValue: boolean,
   minValue: number | undefined,
   maxValue: number | undefined,
 ) => {
-  const minDomain = autoMinValue ? "auto" : (minValue ?? 0)
-  const maxDomain = maxValue ?? "auto"
-  return [minDomain, maxDomain]
-}
+  const minDomain = autoMinValue ? "auto" : (minValue ?? 0);
+  const maxDomain = maxValue ?? "auto";
+  return [minDomain, maxDomain];
+};
 
 const useOnWindowResize = (handler: () => void) => {
   React.useEffect(() => {
     const handleResize = () => {
-      handler()
-    }
-    handleResize()
-    window.addEventListener("resize", handleResize)
+      handler();
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
 
-    return () => window.removeEventListener("resize", handleResize)
-  }, [handler])
-}
+    return () => window.removeEventListener("resize", handleResize);
+  }, [handler]);
+};
 
 function hasOnlyOneValueForKey(array: any[], keyToCheck: string): boolean {
-  const val: any[] = []
+  const val: any[] = [];
 
   for (const obj of array) {
     if (Object.prototype.hasOwnProperty.call(obj, keyToCheck)) {
-      val.push(obj[keyToCheck])
+      val.push(obj[keyToCheck]);
       if (val.length > 1) {
-        return false
+        return false;
       }
     }
   }
 
-  return true
+  return true;
 }
 
 // --- End inlined helpers ---
 
-
 //#region Legend
 
 interface LegendItemProps {
-  name: string
-  color: AvailableChartColorsKeys
-  onClick?: (name: string, color: AvailableChartColorsKeys) => void
-  activeLegend?: string
+  name: string;
+  color: AvailableChartColorsKeys;
+  onClick?: (name: string, color: AvailableChartColorsKeys) => void;
+  activeLegend?: string;
 }
 
 const LegendItem = ({
@@ -172,7 +171,7 @@ const LegendItem = ({
   onClick,
   activeLegend,
 }: LegendItemProps) => {
-  const hasOnValueChange = !!onClick
+  const hasOnValueChange = !!onClick;
   return (
     <li
       className={cn(
@@ -183,8 +182,8 @@ const LegendItem = ({
           : "cursor-default",
       )}
       onClick={(e) => {
-        e.stopPropagation()
-        onClick?.(name, color)
+        e.stopPropagation();
+        onClick?.(name, color);
       }}
     >
       <span
@@ -209,37 +208,37 @@ const LegendItem = ({
         {name}
       </p>
     </li>
-  )
-}
+  );
+};
 
 interface ScrollButtonProps {
-  icon: React.ElementType
-  onClick?: () => void
-  disabled?: boolean
+  icon: React.ElementType;
+  onClick?: () => void;
+  disabled?: boolean;
 }
 
 const ScrollButton = ({ icon, onClick, disabled }: ScrollButtonProps) => {
-  const Icon = icon
-  const [isPressed, setIsPressed] = React.useState(false)
-  const intervalRef = React.useRef<NodeJS.Timeout | null>(null)
+  const Icon = icon;
+  const [isPressed, setIsPressed] = React.useState(false);
+  const intervalRef = React.useRef<NodeJS.Timeout | null>(null);
 
   React.useEffect(() => {
     if (isPressed) {
       intervalRef.current = setInterval(() => {
-        onClick?.()
-      }, 300)
+        onClick?.();
+      }, 300);
     } else {
-      clearInterval(intervalRef.current as NodeJS.Timeout)
+      clearInterval(intervalRef.current as NodeJS.Timeout);
     }
-    return () => clearInterval(intervalRef.current as NodeJS.Timeout)
-  }, [isPressed, onClick])
+    return () => clearInterval(intervalRef.current as NodeJS.Timeout);
+  }, [isPressed, onClick]);
 
   React.useEffect(() => {
     if (disabled) {
-      clearInterval(intervalRef.current as NodeJS.Timeout)
-      setIsPressed(false)
+      clearInterval(intervalRef.current as NodeJS.Timeout);
+      setIsPressed(false);
     }
-  }, [disabled])
+  }, [disabled]);
 
   return (
     <button
@@ -253,35 +252,35 @@ const ScrollButton = ({ icon, onClick, disabled }: ScrollButtonProps) => {
       )}
       disabled={disabled}
       onClick={(e) => {
-        e.stopPropagation()
-        onClick?.()
+        e.stopPropagation();
+        onClick?.();
       }}
       onMouseDown={(e) => {
-        e.stopPropagation()
-        setIsPressed(true)
+        e.stopPropagation();
+        setIsPressed(true);
       }}
       onMouseUp={(e) => {
-        e.stopPropagation()
-        setIsPressed(false)
+        e.stopPropagation();
+        setIsPressed(false);
       }}
     >
       <Icon className="size-full" aria-hidden="true" />
     </button>
-  )
-}
+  );
+};
 
 interface LegendProps extends React.OlHTMLAttributes<HTMLOListElement> {
-  categories: string[]
-  colors?: AvailableChartColorsKeys[]
-  onClickLegendItem?: (category: string, color: string) => void
-  activeLegend?: string
-  enableLegendSlider?: boolean
+  categories: string[];
+  colors?: AvailableChartColorsKeys[];
+  onClickLegendItem?: (category: string, color: string) => void;
+  activeLegend?: string;
+  enableLegendSlider?: boolean;
 }
 
 type HasScrollProps = {
-  left: boolean
-  right: boolean
-}
+  left: boolean;
+  right: boolean;
+};
 
 const Legend = React.forwardRef<HTMLOListElement, LegendProps>((props, ref) => {
   const {
@@ -292,30 +291,30 @@ const Legend = React.forwardRef<HTMLOListElement, LegendProps>((props, ref) => {
     activeLegend,
     enableLegendSlider = false,
     ...other
-  } = props
-  const scrollableRef = React.useRef<HTMLInputElement>(null)
-  const scrollButtonsRef = React.useRef<HTMLDivElement>(null)
-  const [hasScroll, setHasScroll] = React.useState<HasScrollProps | null>(null)
-  const [isKeyDowned, setIsKeyDowned] = React.useState<string | null>(null)
-  const intervalRef = React.useRef<NodeJS.Timeout | null>(null)
+  } = props;
+  const scrollableRef = React.useRef<HTMLInputElement>(null);
+  const scrollButtonsRef = React.useRef<HTMLDivElement>(null);
+  const [hasScroll, setHasScroll] = React.useState<HasScrollProps | null>(null);
+  const [isKeyDowned, setIsKeyDowned] = React.useState<string | null>(null);
+  const intervalRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const checkScroll = React.useCallback(() => {
-    const scrollable = scrollableRef?.current
-    if (!scrollable) return
+    const scrollable = scrollableRef?.current;
+    if (!scrollable) return;
 
-    const hasLeftScroll = scrollable.scrollLeft > 0
+    const hasLeftScroll = scrollable.scrollLeft > 0;
     const hasRightScroll =
-      scrollable.scrollWidth - scrollable.clientWidth > scrollable.scrollLeft
+      scrollable.scrollWidth - scrollable.clientWidth > scrollable.scrollLeft;
 
-    setHasScroll({ left: hasLeftScroll, right: hasRightScroll })
-  }, [setHasScroll])
+    setHasScroll({ left: hasLeftScroll, right: hasRightScroll });
+  }, [setHasScroll]);
 
   const scrollToTest = React.useCallback(
     (direction: "left" | "right") => {
-      const element = scrollableRef?.current
-      const scrollButtons = scrollButtonsRef?.current
-      const scrollButtonsWith = scrollButtons?.clientWidth ?? 0
-      const width = element?.clientWidth ?? 0
+      const element = scrollableRef?.current;
+      const scrollButtons = scrollButtonsRef?.current;
+      const scrollButtonsWith = scrollButtons?.clientWidth ?? 0;
+      const width = element?.clientWidth ?? 0;
 
       if (element && enableLegendSlider) {
         element.scrollTo({
@@ -324,59 +323,59 @@ const Legend = React.forwardRef<HTMLOListElement, LegendProps>((props, ref) => {
               ? element.scrollLeft - width + scrollButtonsWith
               : element.scrollLeft + width - scrollButtonsWith,
           behavior: "smooth",
-        })
+        });
         setTimeout(() => {
-          checkScroll()
-        }, 400)
+          checkScroll();
+        }, 400);
       }
     },
     [enableLegendSlider, checkScroll],
-  )
+  );
 
   React.useEffect(() => {
     const keyDownHandler = (key: string) => {
       if (key === "ArrowLeft") {
-        scrollToTest("left")
+        scrollToTest("left");
       } else if (key === "ArrowRight") {
-        scrollToTest("right")
+        scrollToTest("right");
       }
-    }
+    };
     if (isKeyDowned) {
-      keyDownHandler(isKeyDowned)
+      keyDownHandler(isKeyDowned);
       intervalRef.current = setInterval(() => {
-        keyDownHandler(isKeyDowned)
-      }, 300)
+        keyDownHandler(isKeyDowned);
+      }, 300);
     } else {
-      clearInterval(intervalRef.current as NodeJS.Timeout)
+      clearInterval(intervalRef.current as NodeJS.Timeout);
     }
-    return () => clearInterval(intervalRef.current as NodeJS.Timeout)
-  }, [isKeyDowned, scrollToTest])
+    return () => clearInterval(intervalRef.current as NodeJS.Timeout);
+  }, [isKeyDowned, scrollToTest]);
 
   const keyDown = (e: KeyboardEvent) => {
-    e.stopPropagation()
+    e.stopPropagation();
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-      e.preventDefault()
-      setIsKeyDowned(e.key)
+      e.preventDefault();
+      setIsKeyDowned(e.key);
     }
-  }
+  };
   const keyUp = (e: KeyboardEvent) => {
-    e.stopPropagation()
-    setIsKeyDowned(null)
-  }
+    e.stopPropagation();
+    setIsKeyDowned(null);
+  };
 
   React.useEffect(() => {
-    const scrollable = scrollableRef?.current
+    const scrollable = scrollableRef?.current;
     if (enableLegendSlider) {
-      checkScroll()
-      scrollable?.addEventListener("keydown", keyDown)
-      scrollable?.addEventListener("keyup", keyUp)
+      checkScroll();
+      scrollable?.addEventListener("keydown", keyDown);
+      scrollable?.addEventListener("keyup", keyUp);
     }
 
     return () => {
-      scrollable?.removeEventListener("keydown", keyDown)
-      scrollable?.removeEventListener("keyup", keyUp)
-    }
-  }, [checkScroll, enableLegendSlider])
+      scrollable?.removeEventListener("keydown", keyDown);
+      scrollable?.removeEventListener("keyup", keyUp);
+    };
+  }, [checkScroll, enableLegendSlider]);
 
   return (
     <ol
@@ -419,16 +418,16 @@ const Legend = React.forwardRef<HTMLOListElement, LegendProps>((props, ref) => {
             <ScrollButton
               icon={ChevronLeft}
               onClick={() => {
-                setIsKeyDowned(null)
-                scrollToTest("left")
+                setIsKeyDowned(null);
+                scrollToTest("left");
               }}
               disabled={!hasScroll?.left}
             />
             <ScrollButton
               icon={ChevronRight}
               onClick={() => {
-                setIsKeyDowned(null)
-                scrollToTest("right")
+                setIsKeyDowned(null);
+                scrollToTest("right");
               }}
               disabled={!hasScroll?.right}
             />
@@ -436,10 +435,10 @@ const Legend = React.forwardRef<HTMLOListElement, LegendProps>((props, ref) => {
         </>
       ) : null}
     </ol>
-  )
-})
+  );
+});
 
-Legend.displayName = "Legend"
+Legend.displayName = "Legend";
 
 const ChartLegend = (
   { payload }: any,
@@ -451,18 +450,18 @@ const ChartLegend = (
   legendPosition?: "left" | "center" | "right",
   yAxisWidth?: number,
 ) => {
-  const legendRef = React.useRef<HTMLDivElement>(null)
+  const legendRef = React.useRef<HTMLDivElement>(null);
 
   useOnWindowResize(() => {
     const calculateHeight = (height: number | undefined) =>
-      height ? Number(height) + 15 : 60
-    setLegendHeight(calculateHeight(legendRef.current?.clientHeight))
-  })
+      height ? Number(height) + 15 : 60;
+    setLegendHeight(calculateHeight(legendRef.current?.clientHeight));
+  });
 
-  const legendPayload = payload.filter((item: any) => item.type !== "none")
+  const legendPayload = payload.filter((item: any) => item.type !== "none");
 
   const paddingLeft =
-    legendPosition === "left" && yAxisWidth ? yAxisWidth - 8 : 0
+    legendPosition === "left" && yAxisWidth ? yAxisWidth - 8 : 0;
 
   return (
     <div
@@ -485,27 +484,27 @@ const ChartLegend = (
         enableLegendSlider={enableLegendSlider}
       />
     </div>
-  )
-}
+  );
+};
 
 //#region Tooltip
 
-type TooltipProps = Pick<ChartTooltipProps, "active" | "payload" | "label">
+type TooltipProps = Pick<ChartTooltipProps, "active" | "payload" | "label">;
 
 type PayloadItem = {
-  category: string
-  value: number
-  index: string
-  color: AvailableChartColorsKeys
-  type?: string
-  payload: any
-}
+  category: string;
+  value: number;
+  index: string;
+  color: AvailableChartColorsKeys;
+  type?: string;
+  payload: any;
+};
 
 interface ChartTooltipProps {
-  active: boolean | undefined
-  payload: PayloadItem[]
-  label: string
-  valueFormatter: (value: number) => string
+  active: boolean | undefined;
+  payload: PayloadItem[];
+  label: string;
+  valueFormatter: (value: number) => string;
 }
 
 const ChartTooltip = ({
@@ -577,55 +576,55 @@ const ChartTooltip = ({
           ))}
         </div>
       </div>
-    )
+    );
   }
-  return null
-}
+  return null;
+};
 
 //#region AreaChart
 
 interface ActiveDot {
-  index?: number
-  dataKey?: string
+  index?: number;
+  dataKey?: string;
 }
 
 type BaseEventProps = {
-  eventType: "dot" | "category"
-  categoryClicked: string
-  [key: string]: number | string
-}
+  eventType: "dot" | "category";
+  categoryClicked: string;
+  [key: string]: number | string;
+};
 
-type AreaChartEventProps = BaseEventProps | null | undefined
+type AreaChartEventProps = BaseEventProps | null | undefined;
 
 interface AreaChartProps extends React.HTMLAttributes<HTMLDivElement> {
-  data: Record<string, any>[]
-  index: string
-  categories: string[]
-  colors?: AvailableChartColorsKeys[]
-  valueFormatter?: (value: number) => string
-  startEndOnly?: boolean
-  showXAxis?: boolean
-  showYAxis?: boolean
-  showGridLines?: boolean
-  yAxisWidth?: number
-  intervalType?: "preserveStartEnd" | "equidistantPreserveStart"
-  showTooltip?: boolean
-  showLegend?: boolean
-  autoMinValue?: boolean
-  minValue?: number
-  maxValue?: number
-  allowDecimals?: boolean
-  onValueChange?: (value: AreaChartEventProps) => void
-  enableLegendSlider?: boolean
-  tickGap?: number
-  connectNulls?: boolean
-  xAxisLabel?: string
-  yAxisLabel?: string
-  type?: "default" | "stacked" | "percent"
-  legendPosition?: "left" | "center" | "right"
-  fill?: "gradient" | "solid" | "none"
-  tooltipCallback?: (tooltipCallbackContent: TooltipProps) => void
-  customTooltip?: React.ComponentType<TooltipProps>
+  data: Record<string, any>[];
+  index: string;
+  categories: string[];
+  colors?: AvailableChartColorsKeys[];
+  valueFormatter?: (value: number) => string;
+  startEndOnly?: boolean;
+  showXAxis?: boolean;
+  showYAxis?: boolean;
+  showGridLines?: boolean;
+  yAxisWidth?: number;
+  intervalType?: "preserveStartEnd" | "equidistantPreserveStart";
+  showTooltip?: boolean;
+  showLegend?: boolean;
+  autoMinValue?: boolean;
+  minValue?: number;
+  maxValue?: number;
+  allowDecimals?: boolean;
+  onValueChange?: (value: AreaChartEventProps) => void;
+  enableLegendSlider?: boolean;
+  tickGap?: number;
+  connectNulls?: boolean;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+  type?: "default" | "stacked" | "percent";
+  legendPosition?: "left" | "center" | "right";
+  fill?: "gradient" | "solid" | "none";
+  tooltipCallback?: (tooltipCallbackContent: TooltipProps) => void;
+  customTooltip?: React.ComponentType<TooltipProps>;
 }
 
 const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
@@ -661,26 +660,26 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
       tooltipCallback,
       customTooltip,
       ...other
-    } = props
-    const CustomTooltip = customTooltip
+    } = props;
+    const CustomTooltip = customTooltip;
     const paddingValue =
-      (!showXAxis && !showYAxis) || (startEndOnly && !showYAxis) ? 0 : 20
-    const [legendHeight, setLegendHeight] = React.useState(60)
+      (!showXAxis && !showYAxis) || (startEndOnly && !showYAxis) ? 0 : 20;
+    const [legendHeight, setLegendHeight] = React.useState(60);
     const [activeDot, setActiveDot] = React.useState<ActiveDot | undefined>(
       undefined,
-    )
+    );
     const [activeLegend, setActiveLegend] = React.useState<string | undefined>(
       undefined,
-    )
-    const categoryColors = constructCategoryColors(categories, colors)
+    );
+    const categoryColors = constructCategoryColors(categories, colors);
 
-    const yAxisDomain = getYAxisDomain(autoMinValue, minValue, maxValue)
-    const hasOnValueChange = !!onValueChange
-    const stacked = type === "stacked" || type === "percent"
-    const areaId = React.useId()
+    const yAxisDomain = getYAxisDomain(autoMinValue, minValue, maxValue);
+    const hasOnValueChange = !!onValueChange;
+    const stacked = type === "stacked" || type === "percent";
+    const areaId = React.useId();
 
-    const prevActiveRef = React.useRef<boolean | undefined>(undefined)
-    const prevLabelRef = React.useRef<string | undefined>(undefined)
+    const prevActiveRef = React.useRef<boolean | undefined>(undefined);
+    const prevLabelRef = React.useRef<string | undefined>(undefined);
 
     const getFillContent = ({
       fillType,
@@ -688,17 +687,17 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
       activeLegend,
       category,
     }: {
-      fillType: AreaChartProps["fill"]
-      activeDot: ActiveDot | undefined
-      activeLegend: string | undefined
-      category: string
+      fillType: AreaChartProps["fill"];
+      activeDot: ActiveDot | undefined;
+      activeLegend: string | undefined;
+      category: string;
     }) => {
       const stopOpacity =
-        activeDot || (activeLegend && activeLegend !== category) ? 0.1 : 0.3
+        activeDot || (activeLegend && activeLegend !== category) ? 0.1 : 0.3;
 
       switch (fillType) {
         case "none":
-          return <stop stopColor="currentColor" stopOpacity={0} />
+          return <stop stopColor="currentColor" stopOpacity={0} />;
         case "gradient":
           return (
             <>
@@ -709,21 +708,21 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
               />
               <stop offset="95%" stopColor="currentColor" stopOpacity={0} />
             </>
-          )
+          );
         case "solid":
         default:
-          return <stop stopColor="currentColor" stopOpacity={stopOpacity} />
+          return <stop stopColor="currentColor" stopOpacity={stopOpacity} />;
       }
-    }
+    };
 
     function valueToPercent(value: number) {
-      return `${(value * 100).toFixed(0)}%`
+      return `${(value * 100).toFixed(0)}%`;
     }
 
     function onDotClick(itemData: any, event: React.MouseEvent) {
-      event.stopPropagation()
+      event.stopPropagation();
 
-      if (!hasOnValueChange) return
+      if (!hasOnValueChange) return;
       if (
         (itemData.index === activeDot?.index &&
           itemData.dataKey === activeDot?.dataKey) ||
@@ -731,41 +730,41 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
           activeLegend &&
           activeLegend === itemData.dataKey)
       ) {
-        setActiveLegend(undefined)
-        setActiveDot(undefined)
-        onValueChange?.(null)
+        setActiveLegend(undefined);
+        setActiveDot(undefined);
+        onValueChange?.(null);
       } else {
-        setActiveLegend(itemData.dataKey)
+        setActiveLegend(itemData.dataKey);
         setActiveDot({
           index: itemData.index,
           dataKey: itemData.dataKey,
-        })
+        });
         onValueChange?.({
           eventType: "dot",
           categoryClicked: itemData.dataKey,
           ...itemData.payload,
-        })
+        });
       }
     }
 
     function onCategoryClick(dataKey: string) {
-      if (!hasOnValueChange) return
+      if (!hasOnValueChange) return;
       if (
         (dataKey === activeLegend && !activeDot) ||
         (hasOnlyOneValueForKey(data, dataKey) &&
           activeDot &&
           activeDot.dataKey === dataKey)
       ) {
-        setActiveLegend(undefined)
-        onValueChange?.(null)
+        setActiveLegend(undefined);
+        onValueChange?.(null);
       } else {
-        setActiveLegend(dataKey)
+        setActiveLegend(dataKey);
         onValueChange?.({
           eventType: "category",
           categoryClicked: dataKey,
-        })
+        });
       }
-      setActiveDot(undefined)
+      setActiveDot(undefined);
     }
 
     return (
@@ -781,9 +780,9 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
             onClick={
               hasOnValueChange && (activeLegend || activeDot)
                 ? () => {
-                    setActiveDot(undefined)
-                    setActiveLegend(undefined)
-                    onValueChange?.(null)
+                    setActiveDot(undefined);
+                    setActiveLegend(undefined);
+                    onValueChange?.(null);
                   }
                 : undefined
             }
@@ -887,16 +886,16 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
                       type: item.type,
                       payload: item.payload,
                     }))
-                  : []
+                  : [];
 
                 if (
                   tooltipCallback &&
                   (active !== prevActiveRef.current ||
                     label !== prevLabelRef.current)
                 ) {
-                  tooltipCallback({ active, payload: cleanPayload, label })
-                  prevActiveRef.current = active
-                  prevLabelRef.current = label
+                  tooltipCallback({ active, payload: cleanPayload, label });
+                  prevActiveRef.current = active;
+                  prevLabelRef.current = label;
                 }
 
                 return showTooltip && active ? (
@@ -914,7 +913,7 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
                       valueFormatter={valueFormatter}
                     />
                   )
-                ) : null
+                ) : null;
               }}
             />
 
@@ -940,7 +939,7 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
               />
             ) : null}
             {categories.map((category) => {
-              const categoryId = `${areaId}-${category.replace(/[^a-zA-Z0-9]/g, "")}`
+              const categoryId = `${areaId}-${category.replace(/[^a-zA-Z0-9]/g, "")}`;
               return (
                 <React.Fragment key={category}>
                   <defs key={category}>
@@ -991,7 +990,7 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
                         strokeLinejoin,
                         strokeWidth,
                         dataKey,
-                      } = props
+                      } = props;
                       return (
                         <Dot
                           className={cn(
@@ -1014,7 +1013,7 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
                           strokeWidth={strokeWidth}
                           onClick={(_, event) => onDotClick(props, event)}
                         />
-                      )
+                      );
                     }}
                     dot={(props: any) => {
                       const {
@@ -1026,7 +1025,7 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
                         cy: cyCoord,
                         dataKey,
                         index,
-                      } = props
+                      } = props;
 
                       if (
                         (hasOnlyOneValueForKey(data, category) &&
@@ -1059,9 +1058,9 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
                               ),
                             )}
                           />
-                        )
+                        );
                       }
-                      return <React.Fragment key={index}></React.Fragment>
+                      return <React.Fragment key={index}></React.Fragment>;
                     }}
                     key={category}
                     name={category}
@@ -1077,7 +1076,7 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
                     fill={`url(#${categoryId})`}
                   />
                 </React.Fragment>
-              )
+              );
             })}
             {/* hidden lines to increase clickable target area */}
             {onValueChange
@@ -1096,9 +1095,9 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
                     strokeWidth={12}
                     connectNulls={connectNulls}
                     onClick={(props: any, event) => {
-                      event.stopPropagation()
-                      const { name } = props
-                      onCategoryClick(name)
+                      event.stopPropagation();
+                      const { name } = props;
+                      onCategoryClick(name);
                     }}
                   />
                 ))
@@ -1106,10 +1105,10 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
           </RechartsAreaChart>
         </ResponsiveContainer>
       </div>
-    )
+    );
   },
-)
+);
 
-AreaChart.displayName = "AreaChart"
+AreaChart.displayName = "AreaChart";
 
-export { AreaChart, type AreaChartEventProps, type TooltipProps }
+export { AreaChart, type AreaChartEventProps, type TooltipProps };

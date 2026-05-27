@@ -53,10 +53,7 @@ interface SelectedKeysState {
   onPrefixChange: (next: SelectionScope) => void;
 }
 
-function scopeEquals(
-  a: SelectionScope | null,
-  b: SelectionScope,
-): boolean {
+function scopeEquals(a: SelectionScope | null, b: SelectionScope): boolean {
   return a !== null && a.bucket === b.bucket && a.prefix === b.prefix;
 }
 
@@ -75,8 +72,7 @@ export const useSelectedKeysStore = create<SelectedKeysState>()((set) => ({
       return { selectedKeys: next };
     }),
 
-  setSelection: (keys) =>
-    set(() => ({ selectedKeys: new Set(keys) })),
+  setSelection: (keys) => set(() => ({ selectedKeys: new Set(keys) })),
 
   clear: () => set(() => ({ selectedKeys: new Set<string>() })),
 

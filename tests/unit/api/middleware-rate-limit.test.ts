@@ -126,7 +126,12 @@ beforeEach(() => {
 
 async function readJson(res: Response) {
   return (await res.json()) as {
-    error?: { code: string; message: string; requestId: string; details?: unknown };
+    error?: {
+      code: string;
+      message: string;
+      requestId: string;
+      details?: unknown;
+    };
   } & Record<string, unknown>;
 }
 
@@ -138,9 +143,7 @@ describe("withApi rate-limit integration", () => {
     // Use a tiny limit so the test stays fast — the policy itself is
     // covered by tests/unit/api/rate-limit.test.ts.
     const handler = withApi(async () => ({ ok: true }), {
-      rateLimit: () => [
-        { key: "test:bucket", limit: 2, windowMs: 60_000 },
-      ],
+      rateLimit: () => [{ key: "test:bucket", limit: 2, windowMs: 60_000 }],
     });
 
     const makeReq = () =>
@@ -248,7 +251,10 @@ describe("withApi rate-limit integration", () => {
   });
 
   it("GET requests skip CSRF but still hit rate-limit when configured", async () => {
-    await seedSession({ sessionToken: "sess-4", csrfToken: generateCsrfToken() });
+    await seedSession({
+      sessionToken: "sess-4",
+      csrfToken: generateCsrfToken(),
+    });
     const handler = withApi(async () => ({ ok: true }), {
       rateLimit: () => [{ key: "get-test", limit: 1, windowMs: 60_000 }],
     });

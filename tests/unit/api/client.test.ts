@@ -56,7 +56,9 @@ describe("readCookie", () => {
 describe("apiFetch", () => {
   it("attaches X-CSRF-Token on POST when cookie is present", async () => {
     setDocumentCookie(`${CSRF_COOKIE_NAME}=hdr-token`);
-    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(
+    const fetchMock = vi.fn<
+      (url: string, init?: RequestInit) => Promise<Response>
+    >(
       async () =>
         new Response(JSON.stringify({ ok: true }), {
           status: 200,
@@ -73,7 +75,9 @@ describe("apiFetch", () => {
 
   it("does NOT attach X-CSRF-Token on GET", async () => {
     setDocumentCookie(`${CSRF_COOKIE_NAME}=should-not-be-sent`);
-    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(
+    const fetchMock = vi.fn<
+      (url: string, init?: RequestInit) => Promise<Response>
+    >(
       async () =>
         new Response(JSON.stringify({ ok: true }), {
           status: 200,
@@ -119,24 +123,30 @@ describe("apiFetch", () => {
     setDocumentCookie(`${CSRF_COOKIE_NAME}=t`);
     // Use a non-csrf code so the retry path doesn't fire — that path has
     // its own dedicated coverage below. Any envelope-shaped error works.
-    const fetchMock = vi.fn(async () =>
-      new Response(
-        JSON.stringify({
-          error: {
-            code: "validation.failed",
-            message: "Bad input",
-            requestId: "req-1",
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "validation.failed",
+              message: "Bad input",
+              requestId: "req-1",
+            },
+          }),
+          {
+            status: 400,
+            headers: {
+              "content-type": "application/json",
+              "x-request-id": "req-1",
+            },
           },
-        }),
-        {
-          status: 400,
-          headers: { "content-type": "application/json", "x-request-id": "req-1" },
-        },
-      ),
+        ),
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(apiFetch("/api/test", { method: "POST", json: {} })).rejects.toMatchObject({
+    await expect(
+      apiFetch("/api/test", { method: "POST", json: {} }),
+    ).rejects.toMatchObject({
       name: "ApiClientError",
       code: "validation.failed",
       requestId: "req-1",
@@ -173,7 +183,10 @@ describe("apiFetch", () => {
           }),
           {
             status: 401,
-            headers: { "content-type": "application/json", "x-request-id": "req-stale" },
+            headers: {
+              "content-type": "application/json",
+              "x-request-id": "req-stale",
+            },
           },
         );
       }
@@ -247,7 +260,10 @@ describe("apiFetch", () => {
 
   it("returns undefined for 204 responses", async () => {
     setDocumentCookie(`${CSRF_COOKIE_NAME}=t`);
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 204 })),
+    );
     expect(await apiFetch("/api/test", { method: "DELETE" })).toBeUndefined();
   });
 });
@@ -268,7 +284,9 @@ describe("refreshCsrfToken", () => {
     // stale, so the read-from-cookie shortcut would just hand back the
     // bad token again. refreshCsrfToken bypasses the shortcut.
     setDocumentCookie(`${CSRF_COOKIE_NAME}=stale-do-not-use`);
-    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(
+    const fetchMock = vi.fn<
+      (url: string, init?: RequestInit) => Promise<Response>
+    >(
       async () =>
         new Response(JSON.stringify({ csrfToken: "fresh-from-server" }), {
           status: 200,
@@ -292,8 +310,16 @@ describe("refreshCsrfToken", () => {
 
 describe("ApiClientError shape", () => {
   it("preserves all fields", () => {
-    const e = new ApiClientError("auth.unauthorized", "no", 401, "req-x", { y: 1 });
-    expect({ code: e.code, message: e.message, status: e.status, requestId: e.requestId, details: e.details }).toEqual({
+    const e = new ApiClientError("auth.unauthorized", "no", 401, "req-x", {
+      y: 1,
+    });
+    expect({
+      code: e.code,
+      message: e.message,
+      status: e.status,
+      requestId: e.requestId,
+      details: e.details,
+    }).toEqual({
       code: "auth.unauthorized",
       message: "no",
       status: 401,

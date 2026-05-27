@@ -35,10 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useCreateShare } from "@/hooks/use-shares";
-import {
-  SHARE_TTL_SECONDS,
-  type ShareTtlSeconds,
-} from "@/lib/api/schemas";
+import { SHARE_TTL_SECONDS, type ShareTtlSeconds } from "@/lib/api/schemas";
 import { ApiClientError } from "@/lib/api/client";
 import { ApiErrorCode } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
@@ -53,7 +50,8 @@ const T = {
   ttl7dHint: "最长时长",
   shareTitle: "分享对象",
   shareDescBefore: "为 ",
-  shareDescAfter: " 生成一个 presigned 链接，任何拥有该 URL 的人都能下载。链接在过期前无法撤销。",
+  shareDescAfter:
+    " 生成一个 presigned 链接，任何拥有该 URL 的人都能下载。链接在过期前无法撤销。",
   ttlLabel: "链接有效期",
   cancel: "取消",
   creating: "正在创建…",
@@ -123,9 +121,10 @@ function ShareForm({
   // someone a file" UX; 1h is too short to share over email, 7d is the
   // long-lived case that the user opts into deliberately.
   const [ttlSeconds, setTtlSeconds] = useState<ShareTtlSeconds>(86400);
-  const [result, setResult] = useState<{ url: string; expiresAt: number } | null>(
-    null,
-  );
+  const [result, setResult] = useState<{
+    url: string;
+    expiresAt: number;
+  } | null>(null);
   const mutation = useCreateShare();
 
   async function handleCreate() {
@@ -195,9 +194,7 @@ function ShareForm({
                     : "border-border hover:border-foreground/30",
                 )}
               >
-                <span className="text-sm text-foreground">
-                  {opt.label}
-                </span>
+                <span className="text-sm text-foreground">{opt.label}</span>
                 <span className="text-xs text-muted-foreground">
                   {opt.description}
                 </span>

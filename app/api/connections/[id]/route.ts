@@ -35,7 +35,6 @@ import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import { logAudit } from "@/lib/audit/log";
 import type { ConnectionSummary } from "@/lib/api/types";
 
-
 type ConnectionsEnv = DbEnv;
 
 /** Next.js 15 wraps dynamic route params in a Promise. We don't consume the

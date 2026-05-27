@@ -119,7 +119,8 @@ export async function uploadMultipart(
   input: UploadMultipartInput,
   options: UploadMultipartOptions,
 ): Promise<UploadMultipartResult> {
-  const { signal, onUploadIdReady, onPartProgress, onPartStart, onPartDone } = options;
+  const { signal, onUploadIdReady, onPartProgress, onPartStart, onPartDone } =
+    options;
 
   if (signal.aborted) {
     throw new UploadError("aborted", "Upload aborted before start");
@@ -142,12 +143,22 @@ export async function uploadMultipart(
     );
   } catch (err) {
     if (signal.aborted) {
-      throw new UploadError("aborted", "Upload aborted during create", undefined, err);
+      throw new UploadError(
+        "aborted",
+        "Upload aborted during create",
+        undefined,
+        err,
+      );
     }
     if (err instanceof ApiClientError) {
       throw new UploadError("presign", err.message, err.status, err);
     }
-    throw new UploadError("presign", (err as Error).message ?? "multipart create failed", undefined, err);
+    throw new UploadError(
+      "presign",
+      (err as Error).message ?? "multipart create failed",
+      undefined,
+      err,
+    );
   }
 
   const { uploadId } = createRes;
@@ -213,12 +224,22 @@ export async function uploadMultipart(
         });
       } catch (err) {
         if (linkedController.signal.aborted) {
-          throw new UploadError("aborted", `Part ${partNumber} aborted during presign`, undefined, err);
+          throw new UploadError(
+            "aborted",
+            `Part ${partNumber} aborted during presign`,
+            undefined,
+            err,
+          );
         }
         if (err instanceof ApiClientError) {
           throw new UploadError("presign", err.message, err.status, err);
         }
-        throw new UploadError("presign", (err as Error).message ?? "part presign failed", undefined, err);
+        throw new UploadError(
+          "presign",
+          (err as Error).message ?? "part presign failed",
+          undefined,
+          err,
+        );
       }
 
       const result: UploadSinglePutResult = await uploadBodyViaXhr({
@@ -268,11 +289,24 @@ export async function uploadMultipart(
     // If the external signal was the cause, normalize to 'aborted' even if
     // an individual part rejected as 'http' due to the abort racing the
     // last byte send.
-    if (signal.aborted && !(firstError instanceof UploadError && firstError.kind === "presign")) {
-      throw new UploadError("aborted", "Multipart upload aborted", undefined, firstError);
+    if (
+      signal.aborted &&
+      !(firstError instanceof UploadError && firstError.kind === "presign")
+    ) {
+      throw new UploadError(
+        "aborted",
+        "Multipart upload aborted",
+        undefined,
+        firstError,
+      );
     }
     if (firstError instanceof UploadError) throw firstError;
-    throw new UploadError("network", (firstError as Error).message ?? "part upload failed", undefined, firstError);
+    throw new UploadError(
+      "network",
+      (firstError as Error).message ?? "part upload failed",
+      undefined,
+      firstError,
+    );
   }
 
   // 5. complete — parts must be sorted by partNumber, but the route layer
@@ -302,7 +336,12 @@ export async function uploadMultipart(
     if (err instanceof ApiClientError) {
       throw new UploadError("http", err.message, err.status, err);
     }
-    throw new UploadError("network", (err as Error).message ?? "complete failed", undefined, err);
+    throw new UploadError(
+      "network",
+      (err as Error).message ?? "complete failed",
+      undefined,
+      err,
+    );
   }
 
   return {

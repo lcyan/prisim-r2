@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  describeError,
-  ERROR_MESSAGES,
-} from "@/lib/i18n/error-messages";
+import { describeError, ERROR_MESSAGES } from "@/lib/i18n/error-messages";
 
 describe("describeError", () => {
   it("returns mapped Chinese text for known codes", () => {
@@ -13,7 +10,9 @@ describe("describeError", () => {
   });
 
   it("falls back to '操作失败（<code>）' for unknown codes", () => {
-    expect(describeError("totally.fake.code")).toBe("操作失败（totally.fake.code）");
+    expect(describeError("totally.fake.code")).toBe(
+      "操作失败（totally.fake.code）",
+    );
   });
 
   it("returns '未知错误' for null/undefined/empty", () => {

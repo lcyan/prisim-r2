@@ -57,7 +57,6 @@ import {
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-
 const SIGN_IN_GRANT_TTL_MS = 5 * 60 * 1000;
 
 type CompleteEnv = DbEnv & CryptoEnv;

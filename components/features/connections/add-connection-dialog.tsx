@@ -61,7 +61,8 @@ const T = {
   successToast: "连接已添加",
   successDesc: (name: string) => `R2 连通性校验成功：「${name}」`,
   failureToast: "添加失败",
-  errInvalidCreds: "Cloudflare 拒绝了该 Access Key，请检查 Token 是否具备 R2 读取权限，以及 Account ID 是否匹配。",
+  errInvalidCreds:
+    "Cloudflare 拒绝了该 Access Key，请检查 Token 是否具备 R2 读取权限，以及 Account ID 是否匹配。",
   errValidation: "有字段不符合预期格式。",
   errRateLimited: "尝试过于频繁，请稍后再试。",
   errUnknown: "未知错误",
@@ -157,9 +158,7 @@ function AddConnectionForm({
     <>
       <DialogHeader>
         <DialogTitle>{T.title}</DialogTitle>
-        <DialogDescription>
-          {T.desc}
-        </DialogDescription>
+        <DialogDescription>{T.desc}</DialogDescription>
       </DialogHeader>
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>

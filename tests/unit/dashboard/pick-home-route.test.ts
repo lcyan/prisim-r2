@@ -4,9 +4,9 @@ import { pickHomeRoute } from "@/components/features/dashboard/pick-home-route";
 
 describe("pickHomeRoute", () => {
   it("returns /dashboard when no callbackUrl is supplied", () => {
-    expect(pickHomeRoute({ activeConnectionId: null, activeBucket: null })).toBe(
-      "/dashboard",
-    );
+    expect(
+      pickHomeRoute({ activeConnectionId: null, activeBucket: null }),
+    ).toBe("/dashboard");
     expect(
       pickHomeRoute({ activeConnectionId: "conn_01", activeBucket: null }),
     ).toBe("/dashboard");
@@ -41,7 +41,10 @@ describe("pickHomeRoute", () => {
 
   it("rejects callbackUrls that do not start with /", () => {
     expect(
-      pickHomeRoute({ activeConnectionId: null, activeBucket: null }, "javascript:alert(1)"),
+      pickHomeRoute(
+        { activeConnectionId: null, activeBucket: null },
+        "javascript:alert(1)",
+      ),
     ).toBe("/dashboard");
   });
 });

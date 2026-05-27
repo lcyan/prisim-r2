@@ -44,9 +44,8 @@ vi.mock("@opennextjs/cloudflare", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/db/client")>(
-    "@/lib/db/client",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/db/client")>("@/lib/db/client");
   return {
     ...actual,
     getDb: () => drizzleDb,
@@ -61,7 +60,10 @@ vi.mock("qrcode", () => ({
   toString: async () => "<svg>fake-qr</svg>",
 }));
 
-const MIGRATIONS_DIR = path.resolve(__dirname, "../../../../drizzle/migrations");
+const MIGRATIONS_DIR = path.resolve(
+  __dirname,
+  "../../../../drizzle/migrations",
+);
 
 function applyMigrations(db: SqliteDb) {
   const files = readdirSync(MIGRATIONS_DIR)
@@ -184,7 +186,9 @@ describe("POST /api/auth/totp/enroll/begin", () => {
       password: "correct-horse-battery-12",
     });
     const log = sqlite
-      .prepare("SELECT op, status FROM audit_log ORDER BY created_at DESC LIMIT 1")
+      .prepare(
+        "SELECT op, status FROM audit_log ORDER BY created_at DESC LIMIT 1",
+      )
       .get() as { op: string; status: string };
     expect(log.op).toBe("auth.totp.enroll.begin");
     expect(log.status).toBe("success");

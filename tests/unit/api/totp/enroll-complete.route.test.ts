@@ -47,9 +47,8 @@ vi.mock("@opennextjs/cloudflare", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/db/client")>(
-    "@/lib/db/client",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/db/client")>("@/lib/db/client");
   return {
     ...actual,
     getDb: () => drizzleDb,
@@ -137,9 +136,7 @@ beforeEach(async () => {
 });
 
 async function call(body: unknown, ip = "1.2.3.4") {
-  const { POST } = await import(
-    "@/app/api/auth/totp/enroll/complete/route"
-  );
+  const { POST } = await import("@/app/api/auth/totp/enroll/complete/route");
   return POST(
     new Request("https://x/api/auth/totp/enroll/complete", {
       method: "POST",

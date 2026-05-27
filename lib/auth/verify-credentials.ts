@@ -34,15 +34,16 @@ import "server-only";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { ApiError } from "@/lib/api/errors";
-import { enforceLimit, RateLimitBundles, RateLimitPolicies } from "@/lib/api/rate-limit";
+import {
+  enforceLimit,
+  RateLimitBundles,
+  RateLimitPolicies,
+} from "@/lib/api/rate-limit";
 import { logAudit } from "@/lib/audit/log";
 import { decryptCredential } from "@/lib/crypto/aes-gcm";
 import { getDb, type DbEnv } from "@/lib/db/client";
 
-import {
-  hashRecoveryCode,
-  normalizeRecoveryCode,
-} from "./recovery-codes";
+import { hashRecoveryCode, normalizeRecoveryCode } from "./recovery-codes";
 import { base32Decode, verifyTotpCode } from "./totp";
 import {
   consumeRecoveryCode,

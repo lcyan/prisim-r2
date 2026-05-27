@@ -25,11 +25,7 @@ vi.mock("@opennextjs/cloudflare", () => ({
   },
 }));
 
-import {
-  extractAuditMeta,
-  logAudit,
-  type AuditOp,
-} from "@/lib/audit/log";
+import { extractAuditMeta, logAudit, type AuditOp } from "@/lib/audit/log";
 import type { Db } from "@/lib/db/client";
 
 /** Build a minimal Db stub that records the most recent insert payload.
@@ -200,10 +196,7 @@ describe("logAudit", () => {
   it("swallows DB failures and logs to console.error (insert phase)", async () => {
     const { db } = makeStubDb({ throwOn: "insert" });
     await expect(
-      logAudit(
-        { userId: "u", op: "object.delete", status: "success" },
-        db,
-      ),
+      logAudit({ userId: "u", op: "object.delete", status: "success" }, db),
     ).resolves.toBeUndefined();
     expect(errSpy).toHaveBeenCalledTimes(1);
     const message = errSpy.mock.calls[0]?.[0] as string;
@@ -214,10 +207,7 @@ describe("logAudit", () => {
   it("swallows DB failures and logs to console.error (values phase)", async () => {
     const { db } = makeStubDb({ throwOn: "values" });
     await expect(
-      logAudit(
-        { userId: "u", op: "share.create", status: "failure" },
-        db,
-      ),
+      logAudit({ userId: "u", op: "share.create", status: "failure" }, db),
     ).resolves.toBeUndefined();
     expect(errSpy).toHaveBeenCalledTimes(1);
   });

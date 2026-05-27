@@ -52,7 +52,6 @@ import {
   touchConnectionLastUsed,
 } from "@/lib/r2/route-helpers";
 
-
 type ListEnv = DbEnv & CryptoEnv;
 
 export const GET = withApi(async (req, ctx) => {

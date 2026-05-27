@@ -15,7 +15,12 @@ vi.mock("@/lib/api/client", () => ({
     code: string;
     status: number;
     requestId: string;
-    constructor(code: string, message: string, status: number, requestId: string) {
+    constructor(
+      code: string,
+      message: string,
+      status: number,
+      requestId: string,
+    ) {
       super(message);
       this.code = code;
       this.status = status;
@@ -54,7 +59,10 @@ describe("lib/uploads/single-put", () => {
   });
 
   it("happy path: presign, PUT, returns quote-stripped ETag", async () => {
-    apiFetchMock.mockResolvedValueOnce({ url: "https://r2.example/u", expiresAt: Date.now() + 900_000 });
+    apiFetchMock.mockResolvedValueOnce({
+      url: "https://r2.example/u",
+      expiresAt: Date.now() + 900_000,
+    });
     const ac = new AbortController();
     const file = fakeFile("a.bin", 100);
 
@@ -83,7 +91,12 @@ describe("lib/uploads/single-put", () => {
     const ac = new AbortController();
 
     const promise = uploadSinglePut(
-      { cid: "01HF000000000000000000000A", bucket: "buk", key: "a", file: fakeFile("a", 200) },
+      {
+        cid: "01HF000000000000000000000A",
+        bucket: "buk",
+        key: "a",
+        file: fakeFile("a", 200),
+      },
       { signal: ac.signal, onProgress },
     );
     await Promise.resolve();
@@ -105,7 +118,12 @@ describe("lib/uploads/single-put", () => {
     ac.abort();
     await expect(
       uploadSinglePut(
-        { cid: "01HF000000000000000000000A", bucket: "buk", key: "a", file: fakeFile("a", 100) },
+        {
+          cid: "01HF000000000000000000000A",
+          bucket: "buk",
+          key: "a",
+          file: fakeFile("a", 100),
+        },
         { signal: ac.signal, onProgress: vi.fn() },
       ),
     ).rejects.toMatchObject({ name: "UploadError", kind: "aborted" });
@@ -116,7 +134,12 @@ describe("lib/uploads/single-put", () => {
     apiFetchMock.mockResolvedValueOnce({ url: "https://r2/u", expiresAt: 0 });
     const ac = new AbortController();
     const promise = uploadSinglePut(
-      { cid: "01HF000000000000000000000A", bucket: "buk", key: "a", file: fakeFile("a", 100) },
+      {
+        cid: "01HF000000000000000000000A",
+        bucket: "buk",
+        key: "a",
+        file: fakeFile("a", 100),
+      },
       { signal: ac.signal, onProgress: vi.fn() },
     );
     await Promise.resolve();
@@ -134,7 +157,12 @@ describe("lib/uploads/single-put", () => {
     apiFetchMock.mockResolvedValueOnce({ url: "https://r2/u", expiresAt: 0 });
     const ac = new AbortController();
     const promise = uploadSinglePut(
-      { cid: "01HF000000000000000000000A", bucket: "buk", key: "a", file: fakeFile("a", 100) },
+      {
+        cid: "01HF000000000000000000000A",
+        bucket: "buk",
+        key: "a",
+        file: fakeFile("a", 100),
+      },
       { signal: ac.signal, onProgress: vi.fn() },
     );
     await Promise.resolve();
@@ -148,7 +176,12 @@ describe("lib/uploads/single-put", () => {
     apiFetchMock.mockResolvedValueOnce({ url: "https://r2/u", expiresAt: 0 });
     const ac = new AbortController();
     const promise = uploadSinglePut(
-      { cid: "01HF000000000000000000000A", bucket: "buk", key: "a", file: fakeFile("a", 100) },
+      {
+        cid: "01HF000000000000000000000A",
+        bucket: "buk",
+        key: "a",
+        file: fakeFile("a", 100),
+      },
       { signal: ac.signal, onProgress: vi.fn() },
     );
     await Promise.resolve();
@@ -165,7 +198,12 @@ describe("lib/uploads/single-put", () => {
     apiFetchMock.mockResolvedValueOnce({ url: "https://r2/u", expiresAt: 0 });
     const ac = new AbortController();
     const promise = uploadSinglePut(
-      { cid: "01HF000000000000000000000A", bucket: "buk", key: "a", file: fakeFile("a", 100) },
+      {
+        cid: "01HF000000000000000000000A",
+        bucket: "buk",
+        key: "a",
+        file: fakeFile("a", 100),
+      },
       { signal: ac.signal, onProgress: vi.fn() },
     );
     await Promise.resolve();

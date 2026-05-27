@@ -63,7 +63,9 @@ const T = {
   hintLine3: "选择文件。",
   maxFileSize: "每个文件最大 5 GB",
   enqueueInto: (bucket: string, prefix: string) =>
-    prefix.length > 0 ? `上传到 ${bucket}/${prefix}` : `上传到 ${bucket}/（根目录）`,
+    prefix.length > 0
+      ? `上传到 ${bucket}/${prefix}`
+      : `上传到 ${bucket}/（根目录）`,
   dropTitle: "释放鼠标即可上传到",
   noBucket: "（未选择 bucket）",
 } as const;
@@ -140,32 +142,41 @@ export function Dropzone({
 
   /* ─── drag handlers ─────────────────────────────────────────── */
 
-  const handleDragEnter = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
-    // Reject non-file drags so dragging text from another tab doesn't
-    // light up the overlay. DataTransfer.types is a DOMStringList in
-    // some browsers and an array in others; `Array.from` handles both.
-    if (!hasFiles(event.dataTransfer)) return;
-    event.preventDefault();
-    dragCounterRef.current += 1;
-    if (dragCounterRef.current === 1) setIsDragging(true);
-  }, []);
+  const handleDragEnter = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      // Reject non-file drags so dragging text from another tab doesn't
+      // light up the overlay. DataTransfer.types is a DOMStringList in
+      // some browsers and an array in others; `Array.from` handles both.
+      if (!hasFiles(event.dataTransfer)) return;
+      event.preventDefault();
+      dragCounterRef.current += 1;
+      if (dragCounterRef.current === 1) setIsDragging(true);
+    },
+    [],
+  );
 
-  const handleDragOver = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
-    // Required to allow drop — without preventDefault here the drop
-    // event never fires.
-    if (!hasFiles(event.dataTransfer)) return;
-    event.preventDefault();
-    // Mark the drop effect so the OS shows a copy cursor. Some browsers
-    // (Safari) keep the "not allowed" cursor without this.
-    event.dataTransfer.dropEffect = "copy";
-  }, []);
+  const handleDragOver = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      // Required to allow drop — without preventDefault here the drop
+      // event never fires.
+      if (!hasFiles(event.dataTransfer)) return;
+      event.preventDefault();
+      // Mark the drop effect so the OS shows a copy cursor. Some browsers
+      // (Safari) keep the "not allowed" cursor without this.
+      event.dataTransfer.dropEffect = "copy";
+    },
+    [],
+  );
 
-  const handleDragLeave = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
-    if (!hasFiles(event.dataTransfer)) return;
-    event.preventDefault();
-    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
-    if (dragCounterRef.current === 0) setIsDragging(false);
-  }, []);
+  const handleDragLeave = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!hasFiles(event.dataTransfer)) return;
+      event.preventDefault();
+      dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+      if (dragCounterRef.current === 0) setIsDragging(false);
+    },
+    [],
+  );
 
   const handleDrop = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
@@ -227,9 +238,7 @@ export function Dropzone({
             {T.hintLine3}
           </span>
         </span>
-        <span className="text-xs text-muted-foreground">
-          {T.maxFileSize}
-        </span>
+        <span className="text-xs text-muted-foreground">{T.maxFileSize}</span>
 
         {/* Hidden multi-file input drives the Browse button. `multiple`
             so the OS picker lets the user pick a batch. */}

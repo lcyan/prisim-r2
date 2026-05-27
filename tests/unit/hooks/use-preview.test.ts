@@ -14,14 +14,9 @@ import {
   parseContentRangeTotal,
   requestPreviewPresignedUrl,
 } from "@/hooks/use-preview";
-import {
-  PREVIEW_TEXT_BYTE_CAP,
-} from "@/lib/files/preview";
+import { PREVIEW_TEXT_BYTE_CAP } from "@/lib/files/preview";
 import { ApiClientError } from "@/lib/api/client";
-import {
-  CSRF_COOKIE_NAME,
-  CSRF_HEADER_NAME,
-} from "@/lib/auth/csrf-constants";
+import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from "@/lib/auth/csrf-constants";
 
 function stubFetch(responder: (url: string, init?: RequestInit) => Response) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) =>
@@ -109,9 +104,7 @@ describe("requestPreviewPresignedUrl", () => {
 
 describe("parseContentRangeTotal", () => {
   it("parses the slash-suffix as the object total", () => {
-    expect(parseContentRangeTotal("bytes 0-1048575/52428800")).toBe(
-      52_428_800,
-    );
+    expect(parseContentRangeTotal("bytes 0-1048575/52428800")).toBe(52_428_800);
   });
 
   it("tolerates extra whitespace", () => {
@@ -155,9 +148,7 @@ describe("fetchTextHead", () => {
     const [, init] = fetchMock.mock.calls[0]!;
     expect(init?.method).toBe("GET");
     const headers = new Headers(init?.headers);
-    expect(headers.get("range")).toBe(
-      `bytes=0-${PREVIEW_TEXT_BYTE_CAP - 1}`,
-    );
+    expect(headers.get("range")).toBe(`bytes=0-${PREVIEW_TEXT_BYTE_CAP - 1}`);
   });
 
   it("returns the body and marks truncated=false when total <= cap", async () => {

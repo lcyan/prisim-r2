@@ -47,15 +47,7 @@ describe("previewExtension", () => {
 
 describe("detectPreviewKind", () => {
   it("classifies common images", () => {
-    for (const ext of [
-      "png",
-      "jpg",
-      "jpeg",
-      "gif",
-      "webp",
-      "svg",
-      "avif",
-    ]) {
+    for (const ext of ["png", "jpg", "jpeg", "gif", "webp", "svg", "avif"]) {
       expect(detectPreviewKind(`pic.${ext}`)).toBe("image");
     }
   });

@@ -39,12 +39,8 @@ import { ApiErrors } from "@/lib/api/errors";
 import { RateLimitBundles } from "@/lib/api/rate-limit";
 import { parseJson, R2DeletePrepareSchema } from "@/lib/api/schemas";
 import type { R2DeletePrepareResponse } from "@/lib/api/types";
-import {
-  issueDeleteToken,
-  type DeleteTokenEnv,
-} from "@/lib/api/delete-token";
+import { issueDeleteToken, type DeleteTokenEnv } from "@/lib/api/delete-token";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
-
 
 // AUTH_SECRET is read by the token helper for HMAC; DB binding is used
 // only for the user-scoped connection existence check. We do NOT touch

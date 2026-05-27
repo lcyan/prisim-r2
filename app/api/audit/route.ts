@@ -49,7 +49,6 @@ import {
 import type { AuditEntry, AuditListResponse } from "@/lib/api/types";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 
-
 type AuditListEnv = DbEnv;
 
 function encodeCursor(createdAtMs: number, id: string): string {

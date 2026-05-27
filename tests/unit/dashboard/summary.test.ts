@@ -122,9 +122,30 @@ describe("getDashboardSummary", () => {
     const insert = sqlite.prepare(
       "INSERT INTO audit_log (id, user_id, connection_id, op, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     );
-    insert.run(ulid(), userId, connectionId, "object.delete", "success", nowSec);
-    insert.run(ulid(), userId, connectionId, "object.delete", "failure", nowSec);
-    insert.run(ulid(), userId, connectionId, "object.delete", "failure", nowSec);
+    insert.run(
+      ulid(),
+      userId,
+      connectionId,
+      "object.delete",
+      "success",
+      nowSec,
+    );
+    insert.run(
+      ulid(),
+      userId,
+      connectionId,
+      "object.delete",
+      "failure",
+      nowSec,
+    );
+    insert.run(
+      ulid(),
+      userId,
+      connectionId,
+      "object.delete",
+      "failure",
+      nowSec,
+    );
 
     const summary = await getDashboardSummary(
       { connectionId, range: "30d" },
@@ -141,11 +162,32 @@ describe("getDashboardSummary", () => {
       "INSERT INTO audit_log (id, user_id, connection_id, op, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     );
     for (let i = 0; i < 5; i++)
-      insert.run(ulid(), userId, connectionId, "upload.create", "success", nowSec);
+      insert.run(
+        ulid(),
+        userId,
+        connectionId,
+        "upload.create",
+        "success",
+        nowSec,
+      );
     for (let i = 0; i < 2; i++)
-      insert.run(ulid(), userId, connectionId, "object.delete", "success", nowSec);
+      insert.run(
+        ulid(),
+        userId,
+        connectionId,
+        "object.delete",
+        "success",
+        nowSec,
+      );
     for (let i = 0; i < 9; i++)
-      insert.run(ulid(), userId, connectionId, "presign.get", "success", nowSec);
+      insert.run(
+        ulid(),
+        userId,
+        connectionId,
+        "presign.get",
+        "success",
+        nowSec,
+      );
 
     const summary = await getDashboardSummary(
       { connectionId, range: "7d" },

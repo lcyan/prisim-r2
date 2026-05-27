@@ -39,10 +39,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { withApi } from "@/lib/api/middleware";
 import { ApiErrors } from "@/lib/api/errors";
-import {
-  parseQuery,
-  R2BucketsQuerySchema,
-} from "@/lib/api/schemas";
+import { parseQuery, R2BucketsQuerySchema } from "@/lib/api/schemas";
 import type { BucketSummary } from "@/lib/api/types";
 import { type DbEnv } from "@/lib/db/client";
 import { type CryptoEnv } from "@/lib/crypto/aes-gcm";
@@ -52,7 +49,6 @@ import {
   resolveConnectionForR2,
   touchConnectionLastUsed,
 } from "@/lib/r2/route-helpers";
-
 
 type BucketsEnv = DbEnv & CryptoEnv;
 

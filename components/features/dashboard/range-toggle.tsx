@@ -22,7 +22,9 @@ export function RangeToggle({ value, onChange }: RangeToggleProps) {
         onClick={() => onChange("7d")}
         className={cn(
           "rounded-sm px-3 py-1 transition-colors",
-          value === "7d" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground",
+          value === "7d"
+            ? "bg-primary/10 text-primary font-medium"
+            : "text-muted-foreground hover:text-foreground",
         )}
         aria-pressed={value === "7d"}
       >
@@ -33,7 +35,9 @@ export function RangeToggle({ value, onChange }: RangeToggleProps) {
         onClick={() => onChange("30d")}
         className={cn(
           "rounded-sm px-3 py-1 transition-colors",
-          value === "30d" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground",
+          value === "30d"
+            ? "bg-primary/10 text-primary font-medium"
+            : "text-muted-foreground hover:text-foreground",
         )}
         aria-pressed={value === "30d"}
       >

@@ -32,7 +32,9 @@ describe("PBKDF2 password hashing", () => {
 
   it("emits the documented storage format", async () => {
     const hash = await hashPassword("x");
-    expect(hash).toMatch(/^pbkdf2\$sha256\$600000\$[A-Za-z0-9+/=]+\$[A-Za-z0-9+/=]+$/);
+    expect(hash).toMatch(
+      /^pbkdf2\$sha256\$600000\$[A-Za-z0-9+/=]+\$[A-Za-z0-9+/=]+$/,
+    );
   });
 
   it("returns false for malformed stored hashes", async () => {

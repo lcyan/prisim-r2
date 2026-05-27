@@ -72,7 +72,8 @@ const completeMultipartImpl = vi.fn();
 const abortMultipartImpl = vi.fn();
 vi.mock("@/lib/r2/control", () => ({
   createMultipartUpload: (...args: unknown[]) => createMultipartImpl(...args),
-  completeMultipartUpload: (...args: unknown[]) => completeMultipartImpl(...args),
+  completeMultipartUpload: (...args: unknown[]) =>
+    completeMultipartImpl(...args),
   abortMultipartUpload: (...args: unknown[]) => abortMultipartImpl(...args),
 }));
 
@@ -97,9 +98,8 @@ vi.mock("@opennextjs/cloudflare", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/db/client")>(
-    "@/lib/db/client",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/db/client")>("@/lib/db/client");
   return {
     ...actual,
     // Route + audit log both go through getDb(); a single drizzle instance
@@ -316,11 +316,7 @@ describe("POST /api/r2/multipart/create — happy path", () => {
     createMultipartImpl.mockResolvedValueOnce({ uploadId: "upload-1" });
     const { cid, csrfToken } = await seedUserAndConnection();
     const res = await createPOST(
-      mpReq(
-        "create",
-        { cid, bucket: "my-bucket", key: "big.bin" },
-        csrfToken,
-      ),
+      mpReq("create", { cid, bucket: "my-bucket", key: "big.bin" }, csrfToken),
     );
     expect(res.status).toBe(200);
     const call = createMultipartImpl.mock.calls[0]![0] as {

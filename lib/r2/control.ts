@@ -63,11 +63,7 @@ function requirePositiveInt(
   value: unknown,
   field: string,
 ): asserts value is number {
-  if (
-    typeof value !== "number" ||
-    !Number.isInteger(value) ||
-    value <= 0
-  ) {
+  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
     throw new TypeError(`r2/control: ${field} must be a positive integer`);
   }
 }
@@ -300,9 +296,7 @@ export async function completeMultipartUpload(
   requireNonEmpty(params?.key, "key");
   requireNonEmpty(params?.uploadId, "uploadId");
   if (!Array.isArray(params?.parts) || params.parts.length === 0) {
-    throw new TypeError(
-      "r2/control: parts must be a non-empty array",
-    );
+    throw new TypeError("r2/control: parts must be a non-empty array");
   }
   for (const p of params.parts) {
     requirePositiveInt(p?.partNumber, "parts[].partNumber");

@@ -21,7 +21,15 @@ export type FakeXhrSent = {
 export class FakeXhr {
   status = 0;
   responseText = "";
-  upload: { onprogress: ((ev: { lengthComputable: boolean; loaded: number; total: number }) => void) | null } = {
+  upload: {
+    onprogress:
+      | ((ev: {
+          lengthComputable: boolean;
+          loaded: number;
+          total: number;
+        }) => void)
+      | null;
+  } = {
     onprogress: null,
   };
   onload: (() => void) | null = null;
@@ -71,7 +79,11 @@ export class FakeXhr {
   }
 
   getResponseHeader(name: string): string | null {
-    return this._responseHeaders[name] ?? this._responseHeaders[name.toLowerCase()] ?? null;
+    return (
+      this._responseHeaders[name] ??
+      this._responseHeaders[name.toLowerCase()] ??
+      null
+    );
   }
 
   /* ──────────── test hooks ──────────── */
@@ -82,7 +94,9 @@ export class FakeXhr {
 
   /** Simulate a successful 2xx with optional response headers (typically
    *  { ETag: '"abc..."' }). Defaults to 200. */
-  succeed(opts: { status?: number; headers?: Record<string, string> } = {}): void {
+  succeed(
+    opts: { status?: number; headers?: Record<string, string> } = {},
+  ): void {
     if (this._settled) return;
     this._settled = true;
     this.status = opts.status ?? 200;
@@ -166,7 +180,11 @@ export function installFakeXhr(): () => void {
 /** Build a File-like object of arbitrary `size` without allocating bytes.
  *  Returned object satisfies the structural needs of single-put.ts and
  *  multipart.ts (file.size, file.slice(start, end), file.type). */
-export function fakeFile(name: string, size: number, type = "application/octet-stream"): File {
+export function fakeFile(
+  name: string,
+  size: number,
+  type = "application/octet-stream",
+): File {
   const slice = (start = 0, end = size): Blob =>
     ({
       size: Math.max(0, (end ?? size) - start),
@@ -189,14 +207,25 @@ export function fakeFile(name: string, size: number, type = "application/octet-s
  *  pre-built responses keyed by URL substring. Falls through with the
  *  provided default for any unmatched URL. */
 export function makeApiFetchMock(
-  handlers: Array<{ matches: (url: string, init: { method?: string; json?: unknown }) => boolean; respond: (input: { url: string; init: { method?: string; json?: unknown } }) => unknown | Promise<unknown> }>,
+  handlers: Array<{
+    matches: (
+      url: string,
+      init: { method?: string; json?: unknown },
+    ) => boolean;
+    respond: (input: {
+      url: string;
+      init: { method?: string; json?: unknown };
+    }) => unknown | Promise<unknown>;
+  }>,
 ) {
-  return vi.fn(async (url: string, init: { method?: string; json?: unknown } = {}) => {
-    for (const h of handlers) {
-      if (h.matches(url, init)) {
-        return h.respond({ url, init });
+  return vi.fn(
+    async (url: string, init: { method?: string; json?: unknown } = {}) => {
+      for (const h of handlers) {
+        if (h.matches(url, init)) {
+          return h.respond({ url, init });
+        }
       }
-    }
-    throw new Error(`No mock handler for ${init.method ?? "GET"} ${url}`);
-  });
+      throw new Error(`No mock handler for ${init.method ?? "GET"} ${url}`);
+    },
+  );
 }

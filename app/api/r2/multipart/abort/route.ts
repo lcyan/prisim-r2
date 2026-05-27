@@ -32,11 +32,7 @@ import { parseJson, R2MultipartAbortSchema } from "@/lib/api/schemas";
 import { type DbEnv } from "@/lib/db/client";
 import { type CryptoEnv } from "@/lib/crypto/aes-gcm";
 import { abortMultipartUpload } from "@/lib/r2/control";
-import {
-  resolveConnectionForR2,
-  runR2WithAudit,
-} from "@/lib/r2/route-helpers";
-
+import { resolveConnectionForR2, runR2WithAudit } from "@/lib/r2/route-helpers";
 
 type MultipartAbortEnv = DbEnv & CryptoEnv;
 

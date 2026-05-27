@@ -42,16 +42,24 @@ describe("stores/upload-queue", () => {
 
     it("enqueueMany returns ids in input order", () => {
       const files = [fakeFile("a", 1), fakeFile("b", 1), fakeFile("c", 1)];
-      const ids = store.useUploadQueueStore.getState().enqueueMany(
-        "01HF000000000000000000000A",
-        "buk",
-        files,
-        (f) => `prefix/${f.name}`,
-      );
+      const ids = store.useUploadQueueStore
+        .getState()
+        .enqueueMany(
+          "01HF000000000000000000000A",
+          "buk",
+          files,
+          (f) => `prefix/${f.name}`,
+        );
 
       expect(ids).toHaveLength(3);
-      const tasks = ids.map((id) => store.useUploadQueueStore.getState().tasks.get(id));
-      expect(tasks.map((t) => t?.key)).toEqual(["prefix/a", "prefix/b", "prefix/c"]);
+      const tasks = ids.map((id) =>
+        store.useUploadQueueStore.getState().tasks.get(id),
+      );
+      expect(tasks.map((t) => t?.key)).toEqual([
+        "prefix/a",
+        "prefix/b",
+        "prefix/c",
+      ]);
     });
   });
 
@@ -69,7 +77,9 @@ describe("stores/upload-queue", () => {
       store.useUploadQueueStore.getState().setAbortController(id, ac);
       store.useUploadQueueStore.getState().cancel(id);
 
-      expect(store.useUploadQueueStore.getState().tasks.get(id)?.status).toBe("canceled");
+      expect(store.useUploadQueueStore.getState().tasks.get(id)?.status).toBe(
+        "canceled",
+      );
       expect(abortSpy).toHaveBeenCalledOnce();
     });
 
@@ -82,7 +92,9 @@ describe("stores/upload-queue", () => {
       });
       store.useUploadQueueStore.getState().setStatus(id, "done");
       store.useUploadQueueStore.getState().cancel(id);
-      expect(store.useUploadQueueStore.getState().tasks.get(id)?.status).toBe("done");
+      expect(store.useUploadQueueStore.getState().tasks.get(id)?.status).toBe(
+        "done",
+      );
     });
   });
 
@@ -96,7 +108,9 @@ describe("stores/upload-queue", () => {
       });
       store.useUploadQueueStore.getState().setError(id, "boom");
       store.useUploadQueueStore.getState().setProgress(id, 500);
-      store.useUploadQueueStore.getState().setPart(id, 1, { etag: "abc", status: "done" });
+      store.useUploadQueueStore
+        .getState()
+        .setPart(id, 1, { etag: "abc", status: "done" });
 
       store.useUploadQueueStore.getState().retry(id);
       const task = store.useUploadQueueStore.getState().tasks.get(id);
@@ -117,7 +131,9 @@ describe("stores/upload-queue", () => {
       // Status is 'queued'.
       store.useUploadQueueStore.getState().retry(id);
       // Still 'queued' — no thrash, but also no error.
-      expect(store.useUploadQueueStore.getState().tasks.get(id)?.status).toBe("queued");
+      expect(store.useUploadQueueStore.getState().tasks.get(id)?.status).toBe(
+        "queued",
+      );
     });
   });
 

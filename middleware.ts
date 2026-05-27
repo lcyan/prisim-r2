@@ -21,5 +21,7 @@ export default NextAuth(authConfig).auth;
 export const config = {
   // Skip Next internals, static assets, and the favicon. The authConfig's
   // authorized() callback decides which of the remaining paths are public.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp|css|js|map)).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp|css|js|map)).*)",
+  ],
 };

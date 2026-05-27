@@ -172,21 +172,15 @@ describe("recovery codes", () => {
     expect(await countActiveRecoveryCodes(db, userId)).toBe(5);
 
     // First consume returns true.
-    expect(
-      await consumeRecoveryCode(db, { userId, hash: "h2" }),
-    ).toBe(true);
+    expect(await consumeRecoveryCode(db, { userId, hash: "h2" })).toBe(true);
     expect(await countActiveRecoveryCodes(db, userId)).toBe(4);
 
     // Same code consumed again → false (already used).
-    expect(
-      await consumeRecoveryCode(db, { userId, hash: "h2" }),
-    ).toBe(false);
+    expect(await consumeRecoveryCode(db, { userId, hash: "h2" })).toBe(false);
     expect(await countActiveRecoveryCodes(db, userId)).toBe(4);
 
     // Unknown hash → false.
-    expect(
-      await consumeRecoveryCode(db, { userId, hash: "nope" }),
-    ).toBe(false);
+    expect(await consumeRecoveryCode(db, { userId, hash: "nope" })).toBe(false);
 
     // Re-insert replaces the set (delete-then-insert semantics).
     await insertRecoveryCodesForUser(db, { userId, hashes: ["a", "b"] });

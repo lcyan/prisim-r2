@@ -34,10 +34,7 @@ import {
 } from "@tanstack/react-query";
 
 import { apiFetch, ApiClientError } from "@/lib/api/client";
-import type {
-  ShareCreateInput,
-  ShareTtlSeconds,
-} from "@/lib/api/schemas";
+import type { ShareCreateInput, ShareTtlSeconds } from "@/lib/api/schemas";
 import type {
   ShareCreateResponse,
   ShareDeleteResponse,

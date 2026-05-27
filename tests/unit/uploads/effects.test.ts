@@ -156,12 +156,14 @@ describe("lib/uploads/effects.startBeforeUnloadGuard", () => {
 
   it("only attaches once even if multiple tasks enter the queue", () => {
     const stop = mods.effects.startBeforeUnloadGuard({ host });
-    const ids = mods.store.useUploadQueueStore.getState().enqueueMany(
-      "01HF000000000000000000000A",
-      "buk",
-      [fakeFile("a", 1), fakeFile("b", 1), fakeFile("c", 1)],
-      (f) => f.name,
-    );
+    const ids = mods.store.useUploadQueueStore
+      .getState()
+      .enqueueMany(
+        "01HF000000000000000000000A",
+        "buk",
+        [fakeFile("a", 1), fakeFile("b", 1), fakeFile("c", 1)],
+        (f) => f.name,
+      );
     expect(ids).toHaveLength(3);
     expect(host.listeners()).toHaveLength(1);
     stop();
@@ -224,7 +226,10 @@ function makeStubHost() {
       if (type !== "beforeunload") return;
       set.add(listener);
     },
-    removeEventListener: (type: "beforeunload", listener: (e: Event) => void) => {
+    removeEventListener: (
+      type: "beforeunload",
+      listener: (e: Event) => void,
+    ) => {
       if (type !== "beforeunload") return;
       set.delete(listener);
     },

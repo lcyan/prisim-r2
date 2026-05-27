@@ -12,7 +12,9 @@
 import { useEffect, type ReactNode } from "react";
 import { useUiStore } from "@/stores/ui-store";
 
-function resolveEffectiveMode(mode: "light" | "dark" | "system"): "light" | "dark" {
+function resolveEffectiveMode(
+  mode: "light" | "dark" | "system",
+): "light" | "dark" {
   if (mode === "system") {
     return typeof window !== "undefined" &&
       window.matchMedia("(prefers-color-scheme: dark)").matches

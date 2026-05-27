@@ -22,7 +22,9 @@ export function CommandMenuTrigger() {
     >
       <Search className="h-3 w-3" strokeWidth={1.75} />
       <span>{T.trigger}</span>
-      <span className="ml-2 rounded border border-border px-1.5 font-mono text-[10px] tracking-tight">⌘K</span>
+      <span className="ml-2 rounded border border-border px-1.5 font-mono text-[10px] tracking-tight">
+        ⌘K
+      </span>
     </button>
   );
 }

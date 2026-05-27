@@ -118,7 +118,11 @@ export function Logo({
   className,
 }: LogoProps) {
   return (
-    <div className={["flex items-center gap-2.5", className].filter(Boolean).join(" ")}>
+    <div
+      className={["flex items-center gap-2.5", className]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <PrismMark size={size} variant={variant} />
       <div className="flex min-w-0 flex-col leading-none">
         <span className="font-semibold tracking-tight text-foreground">

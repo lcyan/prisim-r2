@@ -44,7 +44,10 @@ export function UserMenu({ email }: UserMenuProps) {
           <span className="hidden font-mono text-xs text-muted-foreground sm:inline">
             {email}
           </span>
-          <ChevronDown className="h-3 w-3 text-muted-foreground" strokeWidth={2} />
+          <ChevronDown
+            className="h-3 w-3 text-muted-foreground"
+            strokeWidth={2}
+          />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

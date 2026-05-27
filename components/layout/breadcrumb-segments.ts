@@ -19,7 +19,10 @@ const SCOPED_ROUTES: Array<{ prefix: string; label: string }> = [
 
 export function resolveSegments(pathname: string): Segment[] {
   // 顺序敏感:/settings/connections 必须在 /settings 与 /connections 之前判断
-  if (pathname === "/settings/connections" || pathname.startsWith("/settings/connections/")) {
+  if (
+    pathname === "/settings/connections" ||
+    pathname.startsWith("/settings/connections/")
+  ) {
     return [
       { kind: "static", label: "设置" },
       { kind: "static", label: "连接管理" },

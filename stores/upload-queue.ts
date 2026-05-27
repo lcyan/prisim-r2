@@ -131,7 +131,11 @@ interface UploadQueueState {
   setUploadId: (id: string, uploadId: string) => void;
   /** Patch one part's state — partial update against the existing entry, or
    *  create a fresh one if missing. */
-  setPart: (id: string, partNumber: number, patch: Partial<UploadPartState>) => void;
+  setPart: (
+    id: string,
+    partNumber: number,
+    patch: Partial<UploadPartState>,
+  ) => void;
   setError: (id: string, msg: string) => void;
   /** Attach the AbortController the dispatcher created. Exposed so `cancel`
    *  can call .abort() without round-tripping through the dispatcher. */
@@ -167,11 +171,7 @@ const MIN_SAMPLE_INTERVAL_MS = 50;
 /** Status values from which the dispatcher hasn't yet started doing work
  *  the user can't undo by hand. Used by `removeOne` to refuse to drop a row
  *  that the dispatcher is still iterating over. */
-const TERMINAL_STATUSES = new Set<UploadStatus>([
-  "done",
-  "failed",
-  "canceled",
-]);
+const TERMINAL_STATUSES = new Set<UploadStatus>(["done", "failed", "canceled"]);
 
 function makeInitialTask(args: EnqueueArgs): UploadTaskInternal {
   const now = Date.now();
@@ -259,7 +259,10 @@ export const useUploadQueueStore = create<UploadQueueState>()((set) => ({
       let nextSampleTs = existing._lastSampleTs;
       let nextSampleBytes = existing._lastSampleBytes;
       if (dt >= MIN_SAMPLE_INTERVAL_MS) {
-        const deltaBytes = Math.max(0, bytesUploaded - existing._lastSampleBytes);
+        const deltaBytes = Math.max(
+          0,
+          bytesUploaded - existing._lastSampleBytes,
+        );
         const instant = (deltaBytes / dt) * 1000;
         nextEma =
           existing._emaSpeed === 0
@@ -286,7 +289,9 @@ export const useUploadQueueStore = create<UploadQueueState>()((set) => ({
   setPart: (id, partNumber, patch) =>
     set((state) => ({
       tasks: patchTask(state.tasks, id, (t) => {
-        const existing = t.parts.get(partNumber) ?? { status: "pending" as const };
+        const existing = t.parts.get(partNumber) ?? {
+          status: "pending" as const,
+        };
         const merged: UploadPartState = { ...existing, ...patch };
         const parts = new Map(t.parts);
         parts.set(partNumber, merged);
@@ -393,7 +398,9 @@ export function useUploadQueueCount(): number {
  *  so the rows don't jitter on every status change. Returns the SAME array
  *  identity between renders when nothing changed (via Zustand's default
  *  Object.is on the Map — adapter happens outside the selector). */
-export function selectTasksOrdered(state: UploadQueueState): UploadTaskInternal[] {
+export function selectTasksOrdered(
+  state: UploadQueueState,
+): UploadTaskInternal[] {
   return orderTasks(state.tasks);
 }
 

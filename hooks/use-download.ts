@@ -29,15 +29,10 @@
 //     level. The hook does its part by setting `download` + `rel="noopener"`.
 //   * No resume / chunked retry — V1 explicitly defers that.
 
-import {
-  useMutation,
-  type UseMutationResult,
-} from "@tanstack/react-query";
+import { useMutation, type UseMutationResult } from "@tanstack/react-query";
 
 import { apiFetch, ApiClientError } from "@/lib/api/client";
-import {
-  R2_PRESIGN_DEFAULT_TTL_SECONDS,
-} from "@/lib/api/schemas";
+import { R2_PRESIGN_DEFAULT_TTL_SECONDS } from "@/lib/api/schemas";
 import type { R2PresignResponse } from "@/lib/api/types";
 
 /** Default URL lifetime for download presigns. Centralized as `900s` via

@@ -27,7 +27,11 @@ import { ZodError } from "zod";
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { createD1Adapter } from "@/lib/auth/adapter";
-import { CSRF_HEADER_NAME, hashCsrfToken, timingSafeEqual } from "@/lib/auth/csrf";
+import {
+  CSRF_HEADER_NAME,
+  hashCsrfToken,
+  timingSafeEqual,
+} from "@/lib/auth/csrf";
 import { getDb, type DbEnv } from "@/lib/db/client";
 
 import { ApiErrors, toErrorResponse } from "./errors";
@@ -210,10 +214,9 @@ export function withApi<T = unknown>(
             windowMs: policy.windowMs,
           });
           if (!result.ok) {
-            throw ApiErrors.rateLimitedWithRetry(
-              result.retryAfter ?? 1,
-              { policy: policy.key },
-            );
+            throw ApiErrors.rateLimitedWithRetry(result.retryAfter ?? 1, {
+              policy: policy.key,
+            });
           }
         }
       }

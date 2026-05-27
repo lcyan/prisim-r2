@@ -30,7 +30,9 @@ interface TopbarBucketPopoverProps {
   currentBucket: string;
 }
 
-export function TopbarBucketPopover({ currentBucket }: TopbarBucketPopoverProps) {
+export function TopbarBucketPopover({
+  currentBucket,
+}: TopbarBucketPopoverProps) {
   const router = useRouter();
   // Use destructure (not selector) so the test's mockReturnValue works.
   const { activeConnectionId: activeId } = useActiveConnectionStore();
@@ -43,7 +45,10 @@ export function TopbarBucketPopover({ currentBucket }: TopbarBucketPopoverProps)
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium hover:bg-accent">
-        <Database className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />
+        <Database
+          className="h-3.5 w-3.5 text-muted-foreground"
+          strokeWidth={1.75}
+        />
         <span className="max-w-[180px] truncate">{currentBucket}</span>
         <ChevronDown className="h-3 w-3 text-muted-foreground" />
       </DropdownMenuTrigger>
@@ -59,13 +64,18 @@ export function TopbarBucketPopover({ currentBucket }: TopbarBucketPopoverProps)
               className="flex items-center justify-between"
             >
               <span className="truncate font-mono text-xs">{b.name}</span>
-              {b.name === currentBucket ? <Check className="h-3.5 w-3.5" /> : null}
+              {b.name === currentBucket ? (
+                <Check className="h-3.5 w-3.5" />
+              ) : null}
             </DropdownMenuItem>
           ))
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem className="p-0">
-          <Link href="/buckets" className="flex w-full items-center gap-2 px-2 py-1.5">
+          <Link
+            href="/buckets"
+            className="flex w-full items-center gap-2 px-2 py-1.5"
+          >
             <ListIcon className="h-3.5 w-3.5" />
             {T.viewAll}
           </Link>

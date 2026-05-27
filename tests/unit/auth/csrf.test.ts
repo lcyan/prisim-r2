@@ -63,7 +63,10 @@ describe("timingSafeEqual", () => {
 
 describe("buildCsrfCookie", () => {
   it("sets path, max-age, SameSite=Lax, and is not HttpOnly", () => {
-    const cookie = buildCsrfCookie("the-token", { maxAgeSeconds: 60, secure: false });
+    const cookie = buildCsrfCookie("the-token", {
+      maxAgeSeconds: 60,
+      secure: false,
+    });
     expect(cookie).toMatch(new RegExp(`^${CSRF_COOKIE_NAME}=the-token`));
     expect(cookie).toContain("Path=/");
     expect(cookie).toContain("Max-Age=60");
@@ -72,9 +75,9 @@ describe("buildCsrfCookie", () => {
   });
 
   it("appends Secure when opts.secure=true", () => {
-    expect(
-      buildCsrfCookie("t", { maxAgeSeconds: 30, secure: true }),
-    ).toContain("Secure");
+    expect(buildCsrfCookie("t", { maxAgeSeconds: 30, secure: true })).toContain(
+      "Secure",
+    );
   });
 
   it("omits Secure when opts.secure=false", () => {

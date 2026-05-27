@@ -27,7 +27,10 @@ describe("TopbarBucketPopover", () => {
       activeBucket: "assets",
     } as never);
     vi.mocked(useBuckets).mockReturnValue({
-      data: [{ name: "assets", createdAt: 0 }, { name: "backups", createdAt: 0 }],
+      data: [
+        { name: "assets", createdAt: 0 },
+        { name: "backups", createdAt: 0 },
+      ],
       isPending: false,
     } as never);
     render(withQuery(<TopbarBucketPopover currentBucket="assets" />));
@@ -41,7 +44,10 @@ describe("TopbarBucketPopover", () => {
       activeBucket: "assets",
     } as never);
     vi.mocked(useBuckets).mockReturnValue({
-      data: [{ name: "assets", createdAt: 0 }, { name: "backups", createdAt: 0 }],
+      data: [
+        { name: "assets", createdAt: 0 },
+        { name: "backups", createdAt: 0 },
+      ],
       isPending: false,
     } as never);
     render(withQuery(<TopbarBucketPopover currentBucket="assets" />));

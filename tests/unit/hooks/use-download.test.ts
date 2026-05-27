@@ -28,10 +28,7 @@ import {
   triggerNativeDownload,
 } from "@/hooks/use-download";
 import { ApiClientError } from "@/lib/api/client";
-import {
-  CSRF_COOKIE_NAME,
-  CSRF_HEADER_NAME,
-} from "@/lib/auth/csrf-constants";
+import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from "@/lib/auth/csrf-constants";
 
 function stubFetch(responder: (url: string, init?: RequestInit) => Response) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) =>
@@ -281,8 +278,6 @@ describe("triggerNativeDownload", () => {
     // fires in response to a click, so this branch is unreachable in
     // practice — pinning it ensures we never break SSR by throwing.
     vi.stubGlobal("document", undefined);
-    expect(() =>
-      triggerNativeDownload("https://x/y", "a.txt"),
-    ).not.toThrow();
+    expect(() => triggerNativeDownload("https://x/y", "a.txt")).not.toThrow();
   });
 });

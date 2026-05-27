@@ -204,12 +204,7 @@ const R2PresignBaseShape = {
   cid: UlidSchema,
   bucket: BucketNameSchema,
   key: ObjectKeySchema,
-  ttl: z
-    .number()
-    .int()
-    .positive()
-    .max(R2_PRESIGN_MAX_TTL_SECONDS)
-    .optional(),
+  ttl: z.number().int().positive().max(R2_PRESIGN_MAX_TTL_SECONDS).optional(),
 } as const;
 
 /**
@@ -302,7 +297,9 @@ export const R2MultipartCompleteSchema = z
     parts: z.array(R2MultipartPartSchema).min(1).max(10_000),
   })
   .strict();
-export type R2MultipartCompleteInput = z.infer<typeof R2MultipartCompleteSchema>;
+export type R2MultipartCompleteInput = z.infer<
+  typeof R2MultipartCompleteSchema
+>;
 
 export const R2MultipartAbortSchema = z
   .object({
@@ -390,11 +387,7 @@ export const ShareCreateSchema = z
     // z.union<literal,literal,literal> — Zod 4 disallows narrow union of
     // numeric literals here without a tuple cast on .literal args, so we
     // express it as three z.literal()s. Matches the task brief verbatim.
-    ttlSeconds: z.union([
-      z.literal(3600),
-      z.literal(86400),
-      z.literal(604800),
-    ]),
+    ttlSeconds: z.union([z.literal(3600), z.literal(86400), z.literal(604800)]),
   })
   .strict();
 export type ShareCreateInput = z.infer<typeof ShareCreateSchema>;
@@ -517,18 +510,30 @@ export type DashboardSummaryQuery = z.infer<typeof DashboardSummaryQuerySchema>;
 /* ─── TOTP / 二次验证 ─────────────────────────────────────── */
 
 export const TotpPreflightSchema = z.object({
-  email: z.string().email().max(254).transform((s) => s.toLowerCase().trim()),
+  email: z
+    .string()
+    .email()
+    .max(254)
+    .transform((s) => s.toLowerCase().trim()),
 });
 export type TotpPreflightInput = z.infer<typeof TotpPreflightSchema>;
 
 export const TotpEnrollBeginSchema = z.object({
-  email: z.string().email().max(254).transform((s) => s.toLowerCase().trim()),
+  email: z
+    .string()
+    .email()
+    .max(254)
+    .transform((s) => s.toLowerCase().trim()),
   password: z.string().min(1).max(256),
 });
 export type TotpEnrollBeginInput = z.infer<typeof TotpEnrollBeginSchema>;
 
 export const TotpEnrollCompleteSchema = z.object({
-  email: z.string().email().max(254).transform((s) => s.toLowerCase().trim()),
+  email: z
+    .string()
+    .email()
+    .max(254)
+    .transform((s) => s.toLowerCase().trim()),
   grant: z.string().min(16).max(64),
   code: z.string().regex(/^\d{6}$/, "code 必须是 6 位数字"),
 });

@@ -47,12 +47,8 @@ import { pathSegmentFromEnd } from "@/lib/api/path-id";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import { type CryptoEnv } from "@/lib/crypto/aes-gcm";
 import { presignGet } from "@/lib/r2/presign";
-import {
-  resolveConnectionForR2,
-  runR2WithAudit,
-} from "@/lib/r2/route-helpers";
+import { resolveConnectionForR2, runR2WithAudit } from "@/lib/r2/route-helpers";
 import { logAudit } from "@/lib/audit/log";
-
 
 type ShareRevealEnv = DbEnv & CryptoEnv;
 
@@ -79,10 +75,7 @@ export const POST = withApi(
       })
       .from(schema.shares)
       .where(
-        and(
-          eq(schema.shares.id, id),
-          eq(schema.shares.userId, ctx.userId),
-        ),
+        and(eq(schema.shares.id, id), eq(schema.shares.userId, ctx.userId)),
       )
       .get();
 

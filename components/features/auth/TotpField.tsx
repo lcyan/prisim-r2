@@ -16,7 +16,15 @@ interface Props {
 }
 
 export const TotpField = forwardRef<HTMLInputElement, Props>(function TotpField(
-  { value, onChange, disabled, error, label = "验证码", maxLength = 10, autoFocus },
+  {
+    value,
+    onChange,
+    disabled,
+    error,
+    label = "验证码",
+    maxLength = 10,
+    autoFocus,
+  },
   ref,
 ) {
   const errorId = useId();
@@ -45,7 +53,11 @@ export const TotpField = forwardRef<HTMLInputElement, Props>(function TotpField(
         )}
       />
       {error && (
-        <span id={errorId} role="alert" className="mt-1 block text-xs text-destructive">
+        <span
+          id={errorId}
+          role="alert"
+          className="mt-1 block text-xs text-destructive"
+        >
           {error}
         </span>
       )}

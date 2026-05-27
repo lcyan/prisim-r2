@@ -93,13 +93,27 @@ export function CommandMenu() {
           ))}
         </CommandGroup>
         <CommandGroup heading={T.groupActions}>
-          <CommandItem onSelect={run(() => router.push("/connections?new=1"))}>{T.newConnection}</CommandItem>
-          <CommandItem onSelect={run(() => setTheme("blue"))}>{T.pickBlue}</CommandItem>
-          <CommandItem onSelect={run(() => setTheme("orange"))}>{T.pickOrange}</CommandItem>
-          <CommandItem onSelect={run(() => setTheme("green"))}>{T.pickGreen}</CommandItem>
-          <CommandItem onSelect={run(() => setMode("light"))}>{T.pickLight}</CommandItem>
-          <CommandItem onSelect={run(() => setMode("dark"))}>{T.pickDark}</CommandItem>
-          <CommandItem onSelect={run(() => setMode("system"))}>{T.pickSystem}</CommandItem>
+          <CommandItem onSelect={run(() => router.push("/connections?new=1"))}>
+            {T.newConnection}
+          </CommandItem>
+          <CommandItem onSelect={run(() => setTheme("blue"))}>
+            {T.pickBlue}
+          </CommandItem>
+          <CommandItem onSelect={run(() => setTheme("orange"))}>
+            {T.pickOrange}
+          </CommandItem>
+          <CommandItem onSelect={run(() => setTheme("green"))}>
+            {T.pickGreen}
+          </CommandItem>
+          <CommandItem onSelect={run(() => setMode("light"))}>
+            {T.pickLight}
+          </CommandItem>
+          <CommandItem onSelect={run(() => setMode("dark"))}>
+            {T.pickDark}
+          </CommandItem>
+          <CommandItem onSelect={run(() => setMode("system"))}>
+            {T.pickSystem}
+          </CommandItem>
         </CommandGroup>
       </CommandList>
     </CommandDialog>

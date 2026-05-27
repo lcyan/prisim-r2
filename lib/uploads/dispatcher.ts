@@ -51,10 +51,7 @@ import {
 
 import { UploadError } from "./single-put";
 import { uploadSinglePut } from "./single-put";
-import {
-  MULTIPART_THRESHOLD_BYTES,
-  uploadMultipart,
-} from "./multipart";
+import { MULTIPART_THRESHOLD_BYTES, uploadMultipart } from "./multipart";
 
 /* ─── concurrency limits ─────────────────────────────────────── */
 
@@ -294,7 +291,10 @@ function flushProgressIfDue(
   const now = Date.now();
   // Always flush if this is the very first sample so the bar starts moving
   // immediately rather than after 200ms of "queued"-looking dead time.
-  if (ps.lastFlushAt !== 0 && now - ps.lastFlushAt < PROGRESS_FLUSH_INTERVAL_MS) {
+  if (
+    ps.lastFlushAt !== 0 &&
+    now - ps.lastFlushAt < PROGRESS_FLUSH_INTERVAL_MS
+  ) {
     return;
   }
   ps.lastFlushAt = now;

@@ -148,9 +148,9 @@ wrangler d1 execute prisim-r2-db --local --command \
 
 ## 常见问题
 
-| 现象 | 可能原因 |
-| --- | --- |
+| 现象                                            | 可能原因                                                                      |
+| ----------------------------------------------- | ----------------------------------------------------------------------------- |
 | 登录返回 500,响应里有 `D1_ERROR: no such table` | 没跑 `pnpm db:migrate:local`,或者 `wrangler.toml` 里 `database_id` 还是占位符 |
-| 登录页加载但 `/api/csrf` 报 500 | 多半是在跑 `pnpm dev` 而不是 `pnpm preview` |
-| 上传立刻失败 / 网络面板看不到 PUT | 桶的 CORS 没加 `http://localhost:8787`,见第 7 步 |
-| 新增 connection 时返回 `crypto.*` 错误 | `.dev.vars` 里的 `ENCRYPTION_KEY` 不是合法的 base64,或者少于 32 字节 |
+| 登录页加载但 `/api/csrf` 报 500                 | 多半是在跑 `pnpm dev` 而不是 `pnpm preview`                                   |
+| 上传立刻失败 / 网络面板看不到 PUT               | 桶的 CORS 没加 `http://localhost:8787`,见第 7 步                              |
+| 新增 connection 时返回 `crypto.*` 错误          | `.dev.vars` 里的 `ENCRYPTION_KEY` 不是合法的 base64,或者少于 32 字节          |

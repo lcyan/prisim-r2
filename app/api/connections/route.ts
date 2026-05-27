@@ -33,15 +33,11 @@ import {
 } from "@/lib/api/schemas";
 import type { ConnectionSummary } from "@/lib/api/types";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
-import {
-  encryptCredential,
-  type CryptoEnv,
-} from "@/lib/crypto/aes-gcm";
+import { encryptCredential, type CryptoEnv } from "@/lib/crypto/aes-gcm";
 import { makeS3Client } from "@/lib/r2/client";
 import { listBuckets } from "@/lib/r2/control";
 import { R2CredentialError } from "@/lib/r2/errors";
 import { logAudit } from "@/lib/audit/log";
-
 
 type ConnectionsEnv = DbEnv & CryptoEnv;
 

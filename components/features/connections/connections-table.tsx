@@ -171,10 +171,7 @@ function ConnectionsTableHead({
 }) {
   return (
     <TableHead
-      className={cn(
-        "h-9 text-xs font-medium text-muted-foreground",
-        className,
-      )}
+      className={cn("h-9 text-xs font-medium text-muted-foreground", className)}
     >
       {children}
     </TableHead>

@@ -59,7 +59,8 @@ import { cn, formatBytes } from "@/lib/utils";
 const T = {
   loadFailedTitle: "无法加载预览",
   unavailableTitle: "暂不支持的预览",
-  unavailableHint: "此文件类型无法在浏览器中预览。请使用「下载」按钮保存到本地。",
+  unavailableHint:
+    "此文件类型无法在浏览器中预览。请使用「下载」按钮保存到本地。",
   imageLoadFailed: "无法加载图片。请检查 bucket 的 CORS 设置。",
   loadTextFailedTitle: "无法加载文本",
   truncatedShowing: (cap: string) => `仅显示前 ${cap}`,
@@ -96,10 +97,7 @@ export function PreviewDialog(props: PreviewDialogProps) {
           // Lazy-mount the body so closing wipes per-preview state (the
           // presigned URL, the fetched text, the skeleton flag) without
           // a reset effect.
-          <PreviewBody
-            {...props}
-            onClose={() => props.onOpenChange(false)}
-          />
+          <PreviewBody {...props} onClose={() => props.onOpenChange(false)} />
         ) : null}
       </DialogContent>
     </Dialog>
@@ -161,11 +159,7 @@ function PreviewBody({
         ) : presign.isPending || !presign.data ? (
           <PresignLoadingView error={presign.error} />
         ) : kind === "image" ? (
-          <ImageView
-            url={presign.data.url}
-            objectKey={objectKey}
-            size={size}
-          />
+          <ImageView url={presign.data.url} objectKey={objectKey} size={size} />
         ) : (
           // `key={url}` remounts the text view if the URL ever changes
           // mid-dialog (e.g. a presign retry). That way the effect's
@@ -246,8 +240,7 @@ function ImageView({
   // Large-image skeleton: only kept up until the <img> fires onLoad /
   // onError. We don't gate ALL images behind it because a 50 KB png on
   // localhost flashes the skeleton for one frame.
-  const showSkeleton =
-    size !== null && size > PREVIEW_IMAGE_LARGE_BYTES;
+  const showSkeleton = size !== null && size > PREVIEW_IMAGE_LARGE_BYTES;
   const [imgState, setImgState] = useState<"loading" | "loaded" | "error">(
     showSkeleton ? "loading" : "loaded",
   );
@@ -261,9 +254,7 @@ function ImageView({
       {imgState === "error" ? (
         <div className="flex flex-col items-center gap-2 py-12 text-center">
           <AlertTriangle className="h-5 w-5 text-destructive" />
-          <p className="text-xs text-muted-foreground">
-            {T.imageLoadFailed}
-          </p>
+          <p className="text-xs text-muted-foreground">{T.imageLoadFailed}</p>
         </div>
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
@@ -282,16 +273,15 @@ function ImageView({
   );
 }
 
-function TextView({
-  url,
-  sizeHint,
-}: {
-  url: string;
-  sizeHint: number | null;
-}) {
+function TextView({ url, sizeHint }: { url: string; sizeHint: number | null }) {
   const [state, setState] = useState<
     | { phase: "loading" }
-    | { phase: "loaded"; text: string; truncated: boolean; total: number | null }
+    | {
+        phase: "loaded";
+        text: string;
+        truncated: boolean;
+        total: number | null;
+      }
     | { phase: "error"; message: string }
   >({ phase: "loading" });
 
@@ -312,8 +302,7 @@ function TextView({
         // also a signal: if we know the file is bigger than the cap and
         // the response headers were silent, mark truncated anyway.
         const truncated =
-          res.truncated ||
-          (total !== null && total > PREVIEW_TEXT_BYTE_CAP);
+          res.truncated || (total !== null && total > PREVIEW_TEXT_BYTE_CAP);
         setState({ phase: "loaded", text: res.text, truncated, total });
       })
       .catch((err) => {
@@ -356,7 +345,9 @@ function TextView({
           className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300"
         >
           {T.truncatedShowing(formatBytes(PREVIEW_TEXT_BYTE_CAP))}
-          {state.total !== null ? T.truncatedOf(formatBytes(state.total)) : null}
+          {state.total !== null
+            ? T.truncatedOf(formatBytes(state.total))
+            : null}
           {T.truncatedDownloadHint}
         </div>
       ) : null}

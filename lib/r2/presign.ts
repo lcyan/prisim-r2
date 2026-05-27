@@ -57,11 +57,7 @@ function requirePositiveInt(
   value: unknown,
   field: string,
 ): asserts value is number {
-  if (
-    typeof value !== "number" ||
-    !Number.isInteger(value) ||
-    value <= 0
-  ) {
+  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
     throw new TypeError(`presign: ${field} must be a positive integer`);
   }
 }

@@ -32,11 +32,12 @@ const T = {
   modeSystem: "跟随系统",
 } as const;
 
-const PRIMARIES: Array<{ value: "blue" | "orange" | "green"; label: string }> = [
-  { value: "blue", label: T.themeBlue },
-  { value: "orange", label: T.themeOrange },
-  { value: "green", label: T.themeGreen },
-];
+const PRIMARIES: Array<{ value: "blue" | "orange" | "green"; label: string }> =
+  [
+    { value: "blue", label: T.themeBlue },
+    { value: "orange", label: T.themeOrange },
+    { value: "green", label: T.themeGreen },
+  ];
 
 const MODES: Array<{ value: Mode; label: string }> = [
   { value: "light", label: T.modeLight },
@@ -65,7 +66,9 @@ export function ThemeSwitcher() {
             onSelect={() => setTheme(p.value)}
             className="flex items-center justify-between"
           >
-            <span className={cn(p.value === theme && "font-medium")}>{p.label}</span>
+            <span className={cn(p.value === theme && "font-medium")}>
+              {p.label}
+            </span>
             {p.value === theme ? <Check className="h-3.5 w-3.5" /> : null}
           </DropdownMenuItem>
         ))}
@@ -77,7 +80,9 @@ export function ThemeSwitcher() {
             onSelect={() => setMode(m.value)}
             className="flex items-center justify-between"
           >
-            <span className={cn(m.value === mode && "font-medium")}>{m.label}</span>
+            <span className={cn(m.value === mode && "font-medium")}>
+              {m.label}
+            </span>
             {m.value === mode ? <Check className="h-3.5 w-3.5" /> : null}
           </DropdownMenuItem>
         ))}

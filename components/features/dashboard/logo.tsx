@@ -15,9 +15,7 @@ export function Logo() {
         <span className="font-display text-lg font-semibold tracking-tight">
           Prisim
         </span>
-        <span className="text-xs text-muted-foreground">
-          R2 · 边缘控制台
-        </span>
+        <span className="text-xs text-muted-foreground">R2 · 边缘控制台</span>
       </span>
     </Link>
   );

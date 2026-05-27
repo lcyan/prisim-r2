@@ -7,7 +7,12 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-import { installFakeXhr, registry, fakeFile, type FakeXhrSent } from "./_fake-xhr";
+import {
+  installFakeXhr,
+  registry,
+  fakeFile,
+  type FakeXhrSent,
+} from "./_fake-xhr";
 
 vi.mock("@/lib/api/client", () => ({
   apiFetch: vi.fn(),
@@ -15,7 +20,12 @@ vi.mock("@/lib/api/client", () => ({
     code: string;
     status: number;
     requestId: string;
-    constructor(code: string, message: string, status: number, requestId: string) {
+    constructor(
+      code: string,
+      message: string,
+      status: number,
+      requestId: string,
+    ) {
       super(message);
       this.code = code;
       this.status = status;
@@ -51,29 +61,34 @@ describe("lib/uploads/multipart", () => {
   });
 
   function wireDefaultApiResponses(): void {
-    apiFetchMock.mockImplementation(async (url: string, init: { method?: string; json?: unknown } = {}) => {
-      apiCalls.push({ url, init });
-      if (url.endsWith("/api/r2/multipart/create")) {
-        return { uploadId: "mp-upload-1" };
-      }
-      if (url.endsWith("/api/r2/multipart/complete")) {
-        return { etag: '"final-abc"', location: "https://r2/loc" };
-      }
-      if (url.endsWith("/api/r2/multipart/abort")) {
-        return undefined;
-      }
-      if (url.endsWith("/api/r2/presign")) {
-        const partNumber = (init.json as { partNumber?: number })?.partNumber ?? 0;
-        return { url: `https://r2/u/part-${partNumber}`, expiresAt: 0 };
-      }
-      throw new Error(`unmocked ${url}`);
-    });
+    apiFetchMock.mockImplementation(
+      async (url: string, init: { method?: string; json?: unknown } = {}) => {
+        apiCalls.push({ url, init });
+        if (url.endsWith("/api/r2/multipart/create")) {
+          return { uploadId: "mp-upload-1" };
+        }
+        if (url.endsWith("/api/r2/multipart/complete")) {
+          return { etag: '"final-abc"', location: "https://r2/loc" };
+        }
+        if (url.endsWith("/api/r2/multipart/abort")) {
+          return undefined;
+        }
+        if (url.endsWith("/api/r2/presign")) {
+          const partNumber =
+            (init.json as { partNumber?: number })?.partNumber ?? 0;
+          return { url: `https://r2/u/part-${partNumber}`, expiresAt: 0 };
+        }
+        throw new Error(`unmocked ${url}`);
+      },
+    );
   }
 
   /** Drain XHRs that have called .send() — succeed each with a synthetic
    *  ETag derived from its URL so the test can verify part ordering. Track
    *  the historical peak of concurrent active XHRs along the way. */
-  async function drainAndTrackPeak(maxIterations = 1000): Promise<{ peakActive: number }> {
+  async function drainAndTrackPeak(
+    maxIterations = 1000,
+  ): Promise<{ peakActive: number }> {
     let peakActive = 0;
     for (let i = 0; i < maxIterations; i++) {
       peakActive = Math.max(peakActive, registry.active.length);
@@ -104,7 +119,12 @@ describe("lib/uploads/multipart", () => {
     const ac = new AbortController();
 
     const promise = uploadMultipart(
-      { cid: "01HF000000000000000000000A", bucket: "buk", key: "big.bin", file },
+      {
+        cid: "01HF000000000000000000000A",
+        bucket: "buk",
+        key: "big.bin",
+        file,
+      },
       {
         signal: ac.signal,
         onUploadIdReady: vi.fn(),
@@ -120,11 +140,17 @@ describe("lib/uploads/multipart", () => {
     expect(peakActive).toBe(3);
 
     // 25 part presigns + 1 create + 1 complete = 27 control calls
-    const presignCalls = apiCalls.filter((c) => c.url.endsWith("/api/r2/presign"));
+    const presignCalls = apiCalls.filter((c) =>
+      c.url.endsWith("/api/r2/presign"),
+    );
     expect(presignCalls).toHaveLength(25);
-    const createCalls = apiCalls.filter((c) => c.url.endsWith("/api/r2/multipart/create"));
+    const createCalls = apiCalls.filter((c) =>
+      c.url.endsWith("/api/r2/multipart/create"),
+    );
     expect(createCalls).toHaveLength(1);
-    const completeCalls = apiCalls.filter((c) => c.url.endsWith("/api/r2/multipart/complete"));
+    const completeCalls = apiCalls.filter((c) =>
+      c.url.endsWith("/api/r2/multipart/complete"),
+    );
     expect(completeCalls).toHaveLength(1);
 
     const completeJson = completeCalls[0]!.init.json as {
@@ -179,7 +205,12 @@ describe("lib/uploads/multipart", () => {
     const file = fakeFile("big.bin", 100 * 1024 * 1024); // 10 parts
     const ac = new AbortController();
     const promise = uploadMultipart(
-      { cid: "01HF000000000000000000000A", bucket: "buk", key: "big.bin", file },
+      {
+        cid: "01HF000000000000000000000A",
+        bucket: "buk",
+        key: "big.bin",
+        file,
+      },
       {
         signal: ac.signal,
         onUploadIdReady: vi.fn(),
@@ -208,34 +239,39 @@ describe("lib/uploads/multipart", () => {
     expect(result).toBeInstanceOf(Error);
     expect((result as Error & { kind?: string }).kind).toBe("aborted");
 
-    const abortCalls = apiCalls.filter((c) => c.url.endsWith("/api/r2/multipart/abort"));
+    const abortCalls = apiCalls.filter((c) =>
+      c.url.endsWith("/api/r2/multipart/abort"),
+    );
     expect(abortCalls).toHaveLength(1);
     expect(abortCalls[0]!.init.json).toMatchObject({ uploadId: "mp-upload-1" });
   });
 
   it("propagates HTTP failure on /complete as kind='http' and best-effort calls /abort", async () => {
-    apiFetchMock.mockImplementation(async (url: string, init: { method?: string; json?: unknown } = {}) => {
-      apiCalls.push({ url, init });
-      if (url.endsWith("/api/r2/multipart/create")) {
-        return { uploadId: "mp-X" };
-      }
-      if (url.endsWith("/api/r2/multipart/complete")) {
-        const { ApiClientError } = await import("@/lib/api/client");
-        const { ApiErrorCode } = await import("@/lib/api/errors");
-        throw new ApiClientError(
-          ApiErrorCode.InternalUnexpected,
-          "S3 said no",
-          500,
-          "req-1",
-        );
-      }
-      if (url.endsWith("/api/r2/multipart/abort")) return undefined;
-      if (url.endsWith("/api/r2/presign")) {
-        const partNumber = (init.json as { partNumber?: number })?.partNumber ?? 0;
-        return { url: `https://r2/u/part-${partNumber}`, expiresAt: 0 };
-      }
-      throw new Error(`unmocked ${url}`);
-    });
+    apiFetchMock.mockImplementation(
+      async (url: string, init: { method?: string; json?: unknown } = {}) => {
+        apiCalls.push({ url, init });
+        if (url.endsWith("/api/r2/multipart/create")) {
+          return { uploadId: "mp-X" };
+        }
+        if (url.endsWith("/api/r2/multipart/complete")) {
+          const { ApiClientError } = await import("@/lib/api/client");
+          const { ApiErrorCode } = await import("@/lib/api/errors");
+          throw new ApiClientError(
+            ApiErrorCode.InternalUnexpected,
+            "S3 said no",
+            500,
+            "req-1",
+          );
+        }
+        if (url.endsWith("/api/r2/multipart/abort")) return undefined;
+        if (url.endsWith("/api/r2/presign")) {
+          const partNumber =
+            (init.json as { partNumber?: number })?.partNumber ?? 0;
+          return { url: `https://r2/u/part-${partNumber}`, expiresAt: 0 };
+        }
+        throw new Error(`unmocked ${url}`);
+      },
+    );
 
     const file = fakeFile("a.bin", 30 * 1024 * 1024); // 3 parts
     const ac = new AbortController();
@@ -248,7 +284,9 @@ describe("lib/uploads/multipart", () => {
     const err = await promise.catch((e: Error) => e);
 
     expect((err as Error & { kind?: string }).kind).toBe("http");
-    const aborts = apiCalls.filter((c) => c.url.endsWith("/api/r2/multipart/abort"));
+    const aborts = apiCalls.filter((c) =>
+      c.url.endsWith("/api/r2/multipart/abort"),
+    );
     expect(aborts).toHaveLength(1);
   });
 

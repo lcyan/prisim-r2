@@ -86,9 +86,8 @@ vi.mock("@opennextjs/cloudflare", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/db/client")>(
-    "@/lib/db/client",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/db/client")>("@/lib/db/client");
   return {
     ...actual,
     getDb: () => drizzleDb,
@@ -632,7 +631,8 @@ describe("POST /api/r2/delete — token verification", () => {
           cid: ulid(),
           bucket: "my-bucket",
           keys: ["a.txt"],
-          confirmToken: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.9999999999",
+          confirmToken:
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.9999999999",
         },
         csrfToken,
       ),
@@ -745,14 +745,14 @@ describe("POST /api/r2/delete — failure paths", () => {
     // the connection lookup fails because the cid is someone else's.
     const userA = await seedUserAndConnection({ loginAs: false });
     const userB = await seedUserAndConnection({ loginAs: true });
-    const { confirmToken } = await obtainConfirmToken({
+    const { confirmToken } = (await obtainConfirmToken({
       cid: userA.cid, // Note: prepare also validates user-scoped, so we
       // need a fresh prepare for userB. Use userB instead.
       bucket: "my-bucket",
       keys: ["a.txt"],
       // userA isn't logged in; this prepare will 401 — use userB.
       csrfToken: userB.csrfToken,
-    }).catch(() => null) ?? { confirmToken: "" };
+    }).catch(() => null)) ?? { confirmToken: "" };
 
     // The simpler path: userB obtains a valid token for THEIR cid, then
     // swaps cid to userA's at confirm time. Token's payload is keyed by

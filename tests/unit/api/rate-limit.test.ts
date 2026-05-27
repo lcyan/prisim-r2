@@ -85,7 +85,13 @@ describe("checkLimit", () => {
     const start = 10_000;
     // Burn through the limit at t=start.
     for (let i = 0; i < 3; i++) {
-      await checkLimit({ db, key: "t:2", limit: 2, windowMs: 60_000, now: start });
+      await checkLimit({
+        db,
+        key: "t:2",
+        limit: 2,
+        windowMs: 60_000,
+        now: start,
+      });
     }
     // 45s in — 15s should remain.
     const denied = await checkLimit({
@@ -129,8 +135,20 @@ describe("checkLimit", () => {
   });
 
   it("isolates buckets by key — different keys do not share counts", async () => {
-    const a = await checkLimit({ db, key: "user:a", limit: 1, windowMs: 60_000, now: 0 });
-    const b = await checkLimit({ db, key: "user:b", limit: 1, windowMs: 60_000, now: 0 });
+    const a = await checkLimit({
+      db,
+      key: "user:a",
+      limit: 1,
+      windowMs: 60_000,
+      now: 0,
+    });
+    const b = await checkLimit({
+      db,
+      key: "user:b",
+      limit: 1,
+      windowMs: 60_000,
+      now: 0,
+    });
     expect(a.ok).toBe(true);
     expect(b.ok).toBe(true);
     expect(a.count).toBe(1);

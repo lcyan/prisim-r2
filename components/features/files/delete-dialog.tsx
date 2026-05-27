@@ -51,8 +51,7 @@ const T = {
   titleMany: (n: number) => `删除 ${n} 个对象`,
   description: (bucket: string) => (
     <>
-      该操作将永久从{" "}
-      <span className="font-mono text-foreground">{bucket}</span>{" "}
+      该操作将永久从 <span className="font-mono text-foreground">{bucket}</span>{" "}
       移除选中的对象。R2 不保留版本，数据无法恢复。
     </>
   ),
@@ -60,8 +59,7 @@ const T = {
   overflow: (n: number) => `…及 ${n} 个其他`,
   typeBucket: (bucket: string) => (
     <>
-      输入 bucket 名{" "}
-      <span className="font-mono text-foreground">{bucket}</span>{" "}
+      输入 bucket 名 <span className="font-mono text-foreground">{bucket}</span>{" "}
       以确认
     </>
   ),
@@ -151,18 +149,15 @@ function DeleteForm({
       if (result.errors.length > 0) {
         const successCount = result.deleted.length;
         const failCount = result.errors.length;
-        toast.warning(
-          T.partialToast(successCount, failCount),
-          {
-            description: result.errors
-              .slice(0, 3)
-              .map(
-                (e) =>
-                  `${e.key ?? "?"}: ${e.code ?? T.errorCodePlaceholder}${e.message ? ` — ${e.message}` : ""}`,
-              )
-              .join("\n"),
-          },
-        );
+        toast.warning(T.partialToast(successCount, failCount), {
+          description: result.errors
+            .slice(0, 3)
+            .map(
+              (e) =>
+                `${e.key ?? "?"}: ${e.code ?? T.errorCodePlaceholder}${e.message ? ` — ${e.message}` : ""}`,
+            )
+            .join("\n"),
+        });
       } else {
         toast.success(
           result.deleted.length === 1
@@ -187,14 +182,10 @@ function DeleteForm({
             <AlertTriangle className="h-3.5 w-3.5" />
           </span>
           <DialogTitle>
-            {keys.length === 1
-              ? T.titleSingle
-              : T.titleMany(keys.length)}
+            {keys.length === 1 ? T.titleSingle : T.titleMany(keys.length)}
           </DialogTitle>
         </div>
-        <DialogDescription>
-          {T.description(bucket)}
-        </DialogDescription>
+        <DialogDescription>{T.description(bucket)}</DialogDescription>
       </DialogHeader>
 
       <div
@@ -207,11 +198,7 @@ function DeleteForm({
       >
         <ul className="space-y-0.5">
           {visibleKeys.map((k) => (
-            <li
-              key={k}
-              className="truncate text-muted-foreground"
-              title={k}
-            >
+            <li key={k} className="truncate text-muted-foreground" title={k}>
               {k}
             </li>
           ))}
@@ -225,9 +212,7 @@ function DeleteForm({
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <div className="space-y-1.5">
-          <Label htmlFor={confirmId}>
-            {T.typeBucket(bucket)}
-          </Label>
+          <Label htmlFor={confirmId}>{T.typeBucket(bucket)}</Label>
           <Input
             id={confirmId}
             value={confirmation}

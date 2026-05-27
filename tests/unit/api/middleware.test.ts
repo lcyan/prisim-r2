@@ -40,7 +40,10 @@ vi.mock("next-auth/jwt", () => ({
   getToken: vi.fn(async () => fakeJwt.token),
 }));
 
-const fakeSessionStore = new Map<string, { csrfTokenHash: string | null; userId: string; email: string }>();
+const fakeSessionStore = new Map<
+  string,
+  { csrfTokenHash: string | null; userId: string; email: string }
+>();
 
 vi.mock("@opennextjs/cloudflare", () => ({
   getCloudflareContext: () => ({ env: { DB: {}, AUTH_SECRET: "test-secret" } }),
@@ -103,9 +106,7 @@ describe("requireCsrf", () => {
       method: "POST",
       headers: { [CSRF_HEADER_NAME]: token },
     });
-    await expect(
-      requireCsrf(req, { csrfTokenHash }),
-    ).resolves.toBeUndefined();
+    await expect(requireCsrf(req, { csrfTokenHash })).resolves.toBeUndefined();
   });
 
   it("rejects when header is missing", async () => {
@@ -121,9 +122,9 @@ describe("requireCsrf", () => {
       method: "POST",
       headers: { [CSRF_HEADER_NAME]: generateCsrfToken() },
     });
-    await expect(
-      requireCsrf(req, { csrfTokenHash }),
-    ).rejects.toMatchObject({ code: ApiErrorCode.CsrfInvalid });
+    await expect(requireCsrf(req, { csrfTokenHash })).rejects.toMatchObject({
+      code: ApiErrorCode.CsrfInvalid,
+    });
   });
 
   it("rejects when session has no csrf binding (legacy row)", async () => {
@@ -160,15 +161,23 @@ describe("withApi", () => {
   });
 
   it("rejects POST without X-CSRF-Token → 401 csrf.invalid", async () => {
-    await seedSession({ sessionToken: "sess-1", csrfToken: generateCsrfToken() });
+    await seedSession({
+      sessionToken: "sess-1",
+      csrfToken: generateCsrfToken(),
+    });
     const handler = withApi(async () => ({ ok: true }));
-    const res = await handler(new Request("https://x/", { method: "POST", body: "{}" }));
+    const res = await handler(
+      new Request("https://x/", { method: "POST", body: "{}" }),
+    );
     expect(res.status).toBe(401);
     expect((await readJson(res)).error?.code).toBe(ApiErrorCode.CsrfInvalid);
   });
 
   it("rejects POST with wrong X-CSRF-Token → 401 csrf.invalid", async () => {
-    await seedSession({ sessionToken: "sess-2", csrfToken: generateCsrfToken() });
+    await seedSession({
+      sessionToken: "sess-2",
+      csrfToken: generateCsrfToken(),
+    });
     const handler = withApi(async () => ({ ok: true }));
     const res = await handler(
       new Request("https://x/", {
@@ -203,7 +212,10 @@ describe("withApi", () => {
   });
 
   it("does NOT require CSRF on GET", async () => {
-    await seedSession({ sessionToken: "sess-4", csrfToken: generateCsrfToken() });
+    await seedSession({
+      sessionToken: "sess-4",
+      csrfToken: generateCsrfToken(),
+    });
     const handler = withApi(async () => ({ ok: true }));
     const res = await handler(new Request("https://x/", { method: "GET" }));
     expect(res.status).toBe(200);
@@ -219,7 +231,9 @@ describe("withApi", () => {
     const handler = withApi(async () => ({ ok: true }));
     const res = await handler(new Request("https://x/", { method: "GET" }));
     expect(res.status).toBe(401);
-    expect((await readJson(res)).error?.code).toBe(ApiErrorCode.AuthUnauthorized);
+    expect((await readJson(res)).error?.code).toBe(
+      ApiErrorCode.AuthUnauthorized,
+    );
   });
 
   it("maps ZodError thrown in handler to 400 validation.invalid", async () => {
@@ -262,9 +276,13 @@ describe("withApi", () => {
   });
 
   it("passes a handler-returned Response through and injects x-request-id", async () => {
-    await seedSession({ sessionToken: "sess-7", csrfToken: generateCsrfToken() });
-    const handler = withApi(async () =>
-      new Response("hello", { status: 201, headers: { "x-custom": "1" } }),
+    await seedSession({
+      sessionToken: "sess-7",
+      csrfToken: generateCsrfToken(),
+    });
+    const handler = withApi(
+      async () =>
+        new Response("hello", { status: 201, headers: { "x-custom": "1" } }),
     );
     const res = await handler(new Request("https://x/", { method: "GET" }));
     expect(res.status).toBe(201);

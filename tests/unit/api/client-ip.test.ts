@@ -22,16 +22,14 @@ describe("parseClientIp", () => {
 
   it("falls back to the first x-forwarded-for entry", () => {
     expect(
-      parseClientIp(
-        headersWith({ "x-forwarded-for": "5.6.7.8, 9.10.11.12" }),
-      ),
+      parseClientIp(headersWith({ "x-forwarded-for": "5.6.7.8, 9.10.11.12" })),
     ).toBe("5.6.7.8");
   });
 
   it("trims whitespace from both header forms", () => {
-    expect(parseClientIp(headersWith({ "cf-connecting-ip": "  1.1.1.1  " }))).toBe(
-      "1.1.1.1",
-    );
+    expect(
+      parseClientIp(headersWith({ "cf-connecting-ip": "  1.1.1.1  " })),
+    ).toBe("1.1.1.1");
     expect(
       parseClientIp(headersWith({ "x-forwarded-for": "  2.2.2.2 , 3.3.3.3" })),
     ).toBe("2.2.2.2");
@@ -42,7 +40,9 @@ describe("parseClientIp", () => {
   });
 
   it("returns null when cf-connecting-ip is empty/whitespace and xff missing", () => {
-    expect(parseClientIp(headersWith({ "cf-connecting-ip": "   " }))).toBeNull();
+    expect(
+      parseClientIp(headersWith({ "cf-connecting-ip": "   " })),
+    ).toBeNull();
   });
 
   it("returns null when x-forwarded-for is empty string", () => {

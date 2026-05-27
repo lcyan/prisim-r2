@@ -61,9 +61,8 @@ vi.mock("@opennextjs/cloudflare", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/db/client")>(
-    "@/lib/db/client",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/db/client")>("@/lib/db/client");
   return {
     ...actual,
     getDb: () => drizzleDb,
@@ -203,7 +202,9 @@ describe("verifyCredentials (authorize 的纯函数核)", () => {
 
   it("recovery code path: works once, fails on reuse", async () => {
     const codes = generateRecoveryCodes();
-    const hashes = await Promise.all(codes.map((c) => hashRecoveryCode(c, userId)));
+    const hashes = await Promise.all(
+      codes.map((c) => hashRecoveryCode(c, userId)),
+    );
     for (const h of hashes) {
       sqlite
         .prepare(

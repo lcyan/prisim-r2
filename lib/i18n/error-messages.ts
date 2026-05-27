@@ -13,7 +13,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   "resource.not_found": "找不到对应的资源",
   "resource.conflict": "资源状态冲突，请刷新后重试",
   "confirmation.required": "请输入对应名称以确认",
-  "rate_limited": "操作过于频繁，请稍后再试",
+  rate_limited: "操作过于频繁，请稍后再试",
   "connection.invalid_credentials": "R2 凭据无效或已过期",
   "connection.in_use": "连接被引用中，无法删除",
   "internal.unexpected": "服务出现异常，请稍后再试",

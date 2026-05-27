@@ -151,7 +151,11 @@ export async function decryptCredential(
       // Casts: callers may hand us Uint8Array<ArrayBufferLike> (e.g. from D1
       // blob columns); BufferSource accepts the runtime shape, TS just needs
       // the narrower generic. Same applies to encrypt's iv argument.
-      { name: "AES-GCM", iv: iv as BufferSource, additionalData: te.encode(aad) },
+      {
+        name: "AES-GCM",
+        iv: iv as BufferSource,
+        additionalData: te.encode(aad),
+      },
       key,
       ciphertext as BufferSource,
     );

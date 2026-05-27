@@ -123,7 +123,12 @@ describe("fetchObjects", () => {
   it("returns the parsed R2ListResponse shape on success", async () => {
     const body = {
       objects: [
-        { key: "a.txt", size: 12, etag: '"abc"', lastModified: 1_716_000_000_000 },
+        {
+          key: "a.txt",
+          size: 12,
+          etag: '"abc"',
+          lastModified: 1_716_000_000_000,
+        },
       ],
       prefixes: ["sub/"],
       nextCursor: "next-token",

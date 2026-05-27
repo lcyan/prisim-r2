@@ -169,9 +169,9 @@ describe("listObjects", () => {
 
   it("rejects empty bucket with TypeError before send", async () => {
     const { client, send } = makeClient();
-    await expect(
-      listObjects({ client, bucket: "" }),
-    ).rejects.toBeInstanceOf(TypeError);
+    await expect(listObjects({ client, bucket: "" })).rejects.toBeInstanceOf(
+      TypeError,
+    );
     expect(send).not.toHaveBeenCalled();
   });
 
@@ -235,8 +235,8 @@ describe("deleteObjects", () => {
     const res = await deleteObjects({ client, bucket: "b", keys });
 
     expect(send).toHaveBeenCalledTimes(2);
-    const first = (send.mock.calls[0]![0] as DeleteObjectsCommand).input
-      .Delete!.Objects!;
+    const first = (send.mock.calls[0]![0] as DeleteObjectsCommand).input.Delete!
+      .Objects!;
     const second = (send.mock.calls[1]![0] as DeleteObjectsCommand).input
       .Delete!.Objects!;
     expect(first).toHaveLength(1000);
@@ -459,10 +459,7 @@ describe("listBuckets", () => {
   it("sends ListBucketsCommand and maps Buckets to {name, creationDate}", async () => {
     const now = new Date("2026-02-02T00:00:00Z");
     const { client, send } = makeClient(() => ({
-      Buckets: [
-        { Name: "alpha", CreationDate: now },
-        { Name: "beta" },
-      ],
+      Buckets: [{ Name: "alpha", CreationDate: now }, { Name: "beta" }],
     }));
     const res = await listBuckets({ client });
     expect(send.mock.calls[0]![0]).toBeInstanceOf(ListBucketsCommand);

@@ -57,7 +57,6 @@ import { R2CredentialError } from "@/lib/r2/errors";
 import { resolveConnectionForR2 } from "@/lib/r2/route-helpers";
 import { logAudit } from "@/lib/audit/log";
 
-
 type DeleteEnv = DbEnv & CryptoEnv & DeleteTokenEnv;
 
 export const POST = withApi(

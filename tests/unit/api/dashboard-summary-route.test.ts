@@ -20,10 +20,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { ulid } from "ulid";
 
-import {
-  generateCsrfToken,
-  hashCsrfToken,
-} from "@/lib/auth/csrf";
+import { generateCsrfToken, hashCsrfToken } from "@/lib/auth/csrf";
 import { encryptCredential } from "@/lib/crypto/aes-gcm";
 import { schema as realSchema } from "@/lib/db/schema";
 import type { RateLimitDb } from "@/lib/api/rate-limit";
@@ -67,8 +64,7 @@ const { mockDecryptCredential } = vi.hoisted(() => ({
   mockDecryptCredential: vi.fn(async () => "fake-decrypted-credential"),
 }));
 vi.mock("@/lib/crypto/aes-gcm", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/lib/crypto/aes-gcm")>();
+  const actual = await importOriginal<typeof import("@/lib/crypto/aes-gcm")>();
   return {
     ...actual,
     decryptCredential: mockDecryptCredential,
@@ -90,9 +86,8 @@ vi.mock("@opennextjs/cloudflare", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/db/client")>(
-    "@/lib/db/client",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/db/client")>("@/lib/db/client");
   return {
     ...actual,
     getDb: () => drizzleDb,
@@ -230,7 +225,9 @@ beforeEach(() => {
 describe("GET /api/dashboard/summary", () => {
   it("returns DashboardSummary shape and 7-slot opsByDay for range=7d", async () => {
     const { cid } = await seedUserAndConnection();
-    const res = await summaryGET(summaryReq({ connectionId: cid, range: "7d" }));
+    const res = await summaryGET(
+      summaryReq({ connectionId: cid, range: "7d" }),
+    );
     expect(res.status).toBe(200);
     const body = await readJson<{
       bucketsCount: number;
@@ -305,9 +302,13 @@ describe("GET /api/dashboard/summary", () => {
       )
       .run(ulid(), userId, "hash-consumed-1", nowSec - 3600, nowSec);
 
-    const res = await summaryGET(summaryReq({ connectionId: cid, range: "7d" }));
+    const res = await summaryGET(
+      summaryReq({ connectionId: cid, range: "7d" }),
+    );
     expect(res.status).toBe(200);
-    const body = await readJson<{ totp: { recoveryCodesRemaining: number } }>(res);
+    const body = await readJson<{ totp: { recoveryCodesRemaining: number } }>(
+      res,
+    );
     expect(body.totp.recoveryCodesRemaining).toBe(3);
   });
 });

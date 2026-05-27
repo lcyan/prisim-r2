@@ -37,10 +37,7 @@ import {
   useSelectedKeysStore,
   useSelectedKeysCount,
 } from "@/stores/selected-keys";
-import {
-  joinPrefix,
-  segmentsToPrefix,
-} from "@/lib/r2/prefix";
+import { joinPrefix, segmentsToPrefix } from "@/lib/r2/prefix";
 
 const T = {
   pickConnection: "在顶部选择一个连接后即可浏览此 bucket。",
@@ -124,9 +121,10 @@ export default function BucketBrowserPage() {
   // to decide whether to show the large-image skeleton. null = closed.
   // We keep size alongside key because re-deriving it from `items`
   // would race the dialog open against a stale listing after a delete.
-  const [pendingPreview, setPendingPreview] = useState<
-    { key: string; size: number | null } | null
-  >(null);
+  const [pendingPreview, setPendingPreview] = useState<{
+    key: string;
+    size: number | null;
+  } | null>(null);
 
   const {
     data,
@@ -235,9 +233,7 @@ export default function BucketBrowserPage() {
   // anyway. The user can clear the folder selection and re-pick the
   // contents if they want to drop a whole prefix.
   const onBulkDelete = useCallback(() => {
-    const fileKeys = Array.from(selectedKeys).filter(
-      (k) => !k.endsWith("/"),
-    );
+    const fileKeys = Array.from(selectedKeys).filter((k) => !k.endsWith("/"));
     if (fileKeys.length === 0) {
       toast.info(T.noFilesSelected, {
         description: T.bulkSkipsFolders,

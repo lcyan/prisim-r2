@@ -7,10 +7,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 
 import { useAuthEnrollStore } from "@/stores/auth-enroll";
-import {
-  enrollComplete,
-  ApiClientError,
-} from "@/lib/api/client";
+import { enrollComplete, ApiClientError } from "@/lib/api/client";
 import { TotpField } from "@/components/features/auth/TotpField";
 import { QrDisplay } from "@/components/features/auth/QrDisplay";
 import { RecoveryCodeGrid } from "@/components/features/auth/RecoveryCodeGrid";

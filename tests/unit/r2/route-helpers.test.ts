@@ -10,13 +10,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@opennextjs/cloudflare", () => ({
   getCloudflareContext: () => {
-    throw new Error("getCloudflareContext should not be called in helper tests");
+    throw new Error(
+      "getCloudflareContext should not be called in helper tests",
+    );
   },
 }));
 
 import { ApiErrorCode } from "@/lib/api/errors";
 import { R2CredentialError } from "@/lib/r2/errors";
-import { runR2WithAudit, touchConnectionLastUsed } from "@/lib/r2/route-helpers";
+import {
+  runR2WithAudit,
+  touchConnectionLastUsed,
+} from "@/lib/r2/route-helpers";
 import * as auditLog from "@/lib/audit/log";
 import type { Db } from "@/lib/db/client";
 
@@ -168,7 +173,9 @@ describe("touchConnectionLastUsed", () => {
       }),
     ).resolves.toBeUndefined();
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("[list req_01] last_used_at update failed for cid=c_01"),
+      expect.stringContaining(
+        "[list req_01] last_used_at update failed for cid=c_01",
+      ),
       expect.any(Error),
     );
     consoleSpy.mockRestore();

@@ -35,11 +35,7 @@ import type { R2MultipartCompleteResponse } from "@/lib/api/types";
 import { type DbEnv } from "@/lib/db/client";
 import { type CryptoEnv } from "@/lib/crypto/aes-gcm";
 import { completeMultipartUpload } from "@/lib/r2/control";
-import {
-  resolveConnectionForR2,
-  runR2WithAudit,
-} from "@/lib/r2/route-helpers";
-
+import { resolveConnectionForR2, runR2WithAudit } from "@/lib/r2/route-helpers";
 
 type MultipartCompleteEnv = DbEnv & CryptoEnv;
 

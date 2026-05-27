@@ -33,11 +33,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-import {
-  presignGet,
-  presignPut,
-  presignUploadPart,
-} from "@/lib/r2/presign";
+import { presignGet, presignPut, presignUploadPart } from "@/lib/r2/presign";
 
 // The helpers only forward the client into getSignedUrl — they never
 // read off it — so an empty object is enough. Casting documents that
@@ -131,9 +127,7 @@ describe("presignPut: input validation", () => {
   });
 
   it("error message names the offending field (debuggability)", async () => {
-    await expect(presignPut({ ...base, bucket: "" })).rejects.toThrow(
-      /bucket/,
-    );
+    await expect(presignPut({ ...base, bucket: "" })).rejects.toThrow(/bucket/);
   });
 });
 
@@ -241,9 +235,9 @@ describe("presignUploadPart: input validation", () => {
   );
 
   it("throws when ttl is non-positive", async () => {
-    await expect(
-      presignUploadPart({ ...base, ttl: 0 }),
-    ).rejects.toBeInstanceOf(TypeError);
+    await expect(presignUploadPart({ ...base, ttl: 0 })).rejects.toBeInstanceOf(
+      TypeError,
+    );
   });
 });
 

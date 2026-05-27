@@ -330,9 +330,7 @@ function TableBody({
             className="mx-auto h-5 w-5 animate-spin text-muted-foreground"
             strokeWidth={1.5}
           />
-          <p className="mt-3 text-xs text-muted-foreground">
-            {T.loading}
-          </p>
+          <p className="mt-3 text-xs text-muted-foreground">{T.loading}</p>
         </td>
       </tr>
     );
@@ -345,9 +343,7 @@ function TableBody({
           <p className="font-display text-lg italic text-muted-foreground">
             {T.emptyTitle}
           </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {T.emptyHint}
-          </p>
+          <p className="mt-2 text-xs text-muted-foreground">{T.emptyHint}</p>
         </td>
       </tr>
     );

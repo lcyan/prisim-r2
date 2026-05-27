@@ -76,8 +76,12 @@ describe("verifyTotpCode (±1 step)", () => {
   it("rejects non-numeric / wrong length", async () => {
     const t = 1700000000;
     expect((await verifyTotpCode(RFC_SECRET_BYTES, "12345", t)).ok).toBe(false);
-    expect((await verifyTotpCode(RFC_SECRET_BYTES, "abcdef", t)).ok).toBe(false);
-    expect((await verifyTotpCode(RFC_SECRET_BYTES, "1234567", t)).ok).toBe(false);
+    expect((await verifyTotpCode(RFC_SECRET_BYTES, "abcdef", t)).ok).toBe(
+      false,
+    );
+    expect((await verifyTotpCode(RFC_SECRET_BYTES, "1234567", t)).ok).toBe(
+      false,
+    );
   });
 });
 
@@ -99,7 +103,9 @@ describe("buildOtpauthUri", () => {
       label: "admin@example.com",
       secret,
     });
-    expect(uri).toMatch(/^otpauth:\/\/totp\/Prisim%20R2:admin%40example\.com\?/);
+    expect(uri).toMatch(
+      /^otpauth:\/\/totp\/Prisim%20R2:admin%40example\.com\?/,
+    );
     expect(uri).toContain("issuer=Prisim%20R2");
     expect(uri).toContain("secret=" + base32Encode(secret));
     expect(uri).toContain("algorithm=SHA1");

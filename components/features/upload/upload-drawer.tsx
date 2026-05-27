@@ -147,9 +147,7 @@ function DrawerHeader({
       className="flex w-full items-center justify-between gap-3 border-b border-border bg-secondary/50 px-3.5 py-2.5 text-left transition-colors hover:bg-secondary"
     >
       <div className="flex items-center gap-3">
-        <p className="text-xs text-muted-foreground">
-          {T.uploads}
-        </p>
+        <p className="text-xs text-muted-foreground">{T.uploads}</p>
         <div className="flex items-center gap-2.5 text-xs">
           {counts.uploading > 0 ? (
             <StatChip tone="active">

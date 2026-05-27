@@ -23,10 +23,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { withApi } from "@/lib/api/middleware";
 import { ApiErrors } from "@/lib/api/errors";
-import {
-  parseQuery,
-  DashboardSummaryQuerySchema,
-} from "@/lib/api/schemas";
+import { parseQuery, DashboardSummaryQuerySchema } from "@/lib/api/schemas";
 import { RateLimitBundles } from "@/lib/api/rate-limit";
 import { type DbEnv } from "@/lib/db/client";
 import { type CryptoEnv } from "@/lib/crypto/aes-gcm";
@@ -34,7 +31,6 @@ import { listBuckets } from "@/lib/r2/control";
 import { R2CredentialError } from "@/lib/r2/errors";
 import { resolveConnectionForR2 } from "@/lib/r2/route-helpers";
 import { getDashboardSummary } from "@/lib/dashboard/summary";
-
 
 type SummaryEnv = DbEnv & CryptoEnv;
 
@@ -68,7 +64,6 @@ export const GET = withApi(
     });
   },
   {
-    rateLimit: ({ ctx }) =>
-      RateLimitBundles.dashboardSummaryByUser(ctx.userId),
+    rateLimit: ({ ctx }) => RateLimitBundles.dashboardSummaryByUser(ctx.userId),
   },
 );

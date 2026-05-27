@@ -15,7 +15,6 @@ import { requireSession } from "@/lib/api/middleware";
 import { toErrorResponse } from "@/lib/api/errors";
 import { buildCsrfCookie, CSRF_COOKIE_NAME } from "@/lib/auth/csrf";
 
-
 const SEVEN_DAYS = 60 * 60 * 24 * 7;
 
 export async function GET(req: Request): Promise<Response> {

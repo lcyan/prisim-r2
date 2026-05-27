@@ -41,7 +41,6 @@ import { pathSegmentFromEnd } from "@/lib/api/path-id";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 import { logAudit } from "@/lib/audit/log";
 
-
 type ShareDeleteEnv = DbEnv;
 
 export const DELETE = withApi(
@@ -58,10 +57,7 @@ export const DELETE = withApi(
     const removed = await db
       .delete(schema.shares)
       .where(
-        and(
-          eq(schema.shares.id, id),
-          eq(schema.shares.userId, ctx.userId),
-        ),
+        and(eq(schema.shares.id, id), eq(schema.shares.userId, ctx.userId)),
       )
       .returning({
         id: schema.shares.id,

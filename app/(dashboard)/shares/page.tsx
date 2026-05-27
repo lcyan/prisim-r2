@@ -92,9 +92,7 @@ export default function SharesPage() {
 
   // Flatten pages into a single list. We never sort client-side — the
   // server already returns newest-first ordered by (createdAt DESC, id DESC).
-  const rows: ShareSummary[] = data
-    ? data.pages.flatMap((p) => p.items)
-    : [];
+  const rows: ShareSummary[] = data ? data.pages.flatMap((p) => p.items) : [];
 
   // Pending deletion target. Single-row only (no bulk-delete for shares),
   // so this is a string | null rather than a Set.
@@ -106,9 +104,11 @@ export default function SharesPage() {
   // in-flight so we can show a spinner on just one row instead of locking
   // the whole table during the round-trip.
   const revealMutation = useRevealShare();
-  const [revealed, setRevealed] = useState<
-    { url: string; expiresAt: number; objectKey: string } | null
-  >(null);
+  const [revealed, setRevealed] = useState<{
+    url: string;
+    expiresAt: number;
+    objectKey: string;
+  } | null>(null);
   const [revealingId, setRevealingId] = useState<string | null>(null);
 
   async function handleReveal(row: ShareSummary) {
@@ -207,9 +207,7 @@ function Header() {
     <div className="flex items-baseline justify-between">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{T.pageTitle}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {T.pageDesc}
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{T.pageDesc}</p>
       </div>
     </div>
   );
@@ -226,9 +224,7 @@ function WarningBanner() {
     <div className="flex items-start gap-2.5 rounded-md border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
       <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
       <div>
-        <p className="font-medium text-foreground">
-          {T.warning}
-        </p>
+        <p className="font-medium text-foreground">{T.warning}</p>
       </div>
     </div>
   );
@@ -284,9 +280,7 @@ function Body({
             className="mx-auto h-5 w-5 animate-spin text-muted-foreground"
             strokeWidth={1.5}
           />
-          <p className="mt-3 text-xs text-muted-foreground">
-            {T.loading}
-          </p>
+          <p className="mt-3 text-xs text-muted-foreground">{T.loading}</p>
         </td>
       </tr>
     );
@@ -299,9 +293,7 @@ function Body({
           <p className="font-display text-lg italic text-muted-foreground">
             {T.emptyTitle}
           </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {T.emptyHint}
-          </p>
+          <p className="mt-2 text-xs text-muted-foreground">{T.emptyHint}</p>
         </td>
       </tr>
     );
@@ -337,12 +329,13 @@ function Row({
     <tr className="group h-12 border-b border-border/60 transition-colors hover:bg-accent/40">
       <td className="pl-4">
         <div className="flex flex-col gap-0.5">
-          <span className="truncate font-mono text-xs text-foreground" title={row.key}>
+          <span
+            className="truncate font-mono text-xs text-foreground"
+            title={row.key}
+          >
             {row.key}
           </span>
-          <span className="text-xs text-muted-foreground">
-            {row.bucket}
-          </span>
+          <span className="text-xs text-muted-foreground">{row.bucket}</span>
         </div>
       </td>
       <td className="px-2 text-xs text-muted-foreground">

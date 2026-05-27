@@ -82,9 +82,8 @@ vi.mock("@opennextjs/cloudflare", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/db/client")>(
-    "@/lib/db/client",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/db/client")>("@/lib/db/client");
   return {
     ...actual,
     // Both the route and audit log go through getDb(); returning a single
@@ -151,9 +150,11 @@ function makeD1Facade(db: SqliteDb): RateLimitDb {
  *  everything the test needs to call POST as that user. Caller can pass
  *  `loginAs` to also wire the JWT/session — multi-user tests prefer to
  *  defer this so they can switch identities. */
-async function seedUserAndConnection(opts: {
-  loginAs?: boolean;
-} = {}): Promise<{
+async function seedUserAndConnection(
+  opts: {
+    loginAs?: boolean;
+  } = {},
+): Promise<{
   userId: string;
   cid: string;
   csrfToken: string;
@@ -273,7 +274,10 @@ describe("POST /api/r2/presign — happy paths per op", () => {
 
     const start = Date.now();
     const res = await POST(
-      presignReq({ op: "put", cid, bucket: "my-bucket", key: "f.bin" }, csrfToken),
+      presignReq(
+        { op: "put", cid, bucket: "my-bucket", key: "f.bin" },
+        csrfToken,
+      ),
     );
     expect(res.status).toBe(200);
     const body = await readJson(res);
@@ -288,7 +292,10 @@ describe("POST /api/r2/presign — happy paths per op", () => {
     vi.mocked(getSignedUrl).mockResolvedValue("https://r2.example/get-signed");
     const { cid, csrfToken } = await seedUserAndConnection();
     const res = await POST(
-      presignReq({ op: "get", cid, bucket: "my-bucket", key: "f.bin" }, csrfToken),
+      presignReq(
+        { op: "get", cid, bucket: "my-bucket", key: "f.bin" },
+        csrfToken,
+      ),
     );
     expect(res.status).toBe(200);
     expect((await readJson(res)).url).toBe("https://r2.example/get-signed");

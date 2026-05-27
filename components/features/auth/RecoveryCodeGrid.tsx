@@ -57,7 +57,11 @@ export function RecoveryCodeGrid({ codes }: Props) {
           onClick={copyAll}
           className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
         >
-          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          {copied ? (
+            <Check className="h-4 w-4" />
+          ) : (
+            <Copy className="h-4 w-4" />
+          )}
           {copied ? "已复制" : "复制全部"}
         </button>
         <button

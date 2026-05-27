@@ -6,11 +6,7 @@ import { signIn } from "next-auth/react";
 import { AlertTriangle, ArrowRight, Lock, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { describeError } from "@/lib/i18n/error-messages";
-import {
-  preflightTotp,
-  enrollBegin,
-  ApiClientError,
-} from "@/lib/api/client";
+import { preflightTotp, enrollBegin, ApiClientError } from "@/lib/api/client";
 import { useAuthEnrollStore } from "@/stores/auth-enroll";
 import { TotpField } from "@/components/features/auth/TotpField";
 import { AuthField } from "@/components/features/auth/AuthField";
@@ -91,7 +87,10 @@ function LoginForm() {
           router.push("/setup/totp");
           return;
         } catch (err) {
-          if (err instanceof ApiClientError && err.code === "auth.totp.already_enrolled") {
+          if (
+            err instanceof ApiClientError &&
+            err.code === "auth.totp.already_enrolled"
+          ) {
             // 罕见竞态:其它会话已绑定 — 回退到三因素流程
             setError("auth.invalid_credentials");
             return;
@@ -147,9 +146,7 @@ function LoginForm() {
             {T.brandSubtitle}
           </span>
         </div>
-        <p className="text-xs text-muted-foreground">
-          {T.buildBadge}
-        </p>
+        <p className="text-xs text-muted-foreground">{T.buildBadge}</p>
       </header>
 
       <main className="flex flex-1 items-center justify-center px-6 py-10">
@@ -224,9 +221,7 @@ function LoginForm() {
       </main>
 
       <footer className="flex items-center justify-between border-t border-border px-6 py-3">
-        <p className="text-xs text-muted-foreground">
-          {T.footerLeft}
-        </p>
+        <p className="text-xs text-muted-foreground">{T.footerLeft}</p>
         <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
           {T.footerRight}
         </p>

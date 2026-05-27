@@ -17,8 +17,17 @@ function renderSidebar(pathname: string) {
 describe("AppSidebar", () => {
   it("renders all 6 nav items with Chinese labels", () => {
     renderSidebar("/dashboard");
-    for (const label of ["仪表盘", "存储桶", "分享链接", "审计日志", "连接管理", "设置"]) {
-      expect(screen.getByRole("link", { name: new RegExp(label) })).toBeInTheDocument();
+    for (const label of [
+      "仪表盘",
+      "存储桶",
+      "分享链接",
+      "审计日志",
+      "连接管理",
+      "设置",
+    ]) {
+      expect(
+        screen.getByRole("link", { name: new RegExp(label) }),
+      ).toBeInTheDocument();
     }
   });
 

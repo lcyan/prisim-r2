@@ -43,7 +43,8 @@ const T = {
   successToast: "连接已删除",
   successDesc: (name: string) => `已移除「${name}」`,
   failureToast: "删除失败",
-  errInUseWithCount: (n: number) => `连接仍有 ${n} 条活跃分享，请先删除这些分享。`,
+  errInUseWithCount: (n: number) =>
+    `连接仍有 ${n} 条活跃分享，请先删除这些分享。`,
   errInUse: "连接仍有活跃分享，请先删除这些分享。",
   errNotFound: "该连接已不存在。",
   errUnknown: "未知错误",
@@ -129,9 +130,7 @@ function DeleteConnectionForm({
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <div className="space-y-1.5">
-          <Label htmlFor={confirmId}>
-            {T.typeToConfirm(connection.name)}
-          </Label>
+          <Label htmlFor={confirmId}>{T.typeToConfirm(connection.name)}</Label>
           <Input
             id={confirmId}
             value={confirmation}

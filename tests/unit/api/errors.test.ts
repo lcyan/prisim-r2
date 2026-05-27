@@ -7,13 +7,23 @@
 
 import { describe, expect, it } from "vitest";
 import { z, ZodError } from "zod";
-import { ApiError, ApiErrorCode, ApiErrors, toErrorResponse } from "@/lib/api/errors";
+import {
+  ApiError,
+  ApiErrorCode,
+  ApiErrors,
+  toErrorResponse,
+} from "@/lib/api/errors";
 
 const RID = "00000000-0000-0000-0000-000000000001";
 
 async function readBody(res: Response) {
   return (await res.json()) as {
-    error: { code: string; message: string; requestId: string; details?: unknown };
+    error: {
+      code: string;
+      message: string;
+      requestId: string;
+      details?: unknown;
+    };
   };
 }
 

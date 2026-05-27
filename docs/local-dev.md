@@ -157,9 +157,9 @@ instead.
 
 ## Troubleshooting
 
-| Symptom | Likely cause |
-| --- | --- |
-| Login 500 with `D1_ERROR: no such table` | You skipped `pnpm db:migrate:local`, or `wrangler.toml`'s `database_id` is still the placeholder |
-| Login page loads but `/api/csrf` 500s | You're running `pnpm dev` instead of `pnpm preview` |
-| Upload fails instantly, no PUT in DevTools network | Bucket CORS doesn't include `http://localhost:8787` — see step 7 |
-| `crypto.*` error when adding a connection | `.dev.vars`'s `ENCRYPTION_KEY` isn't valid base64 or is shorter than 32 bytes |
+| Symptom                                            | Likely cause                                                                                     |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Login 500 with `D1_ERROR: no such table`           | You skipped `pnpm db:migrate:local`, or `wrangler.toml`'s `database_id` is still the placeholder |
+| Login page loads but `/api/csrf` 500s              | You're running `pnpm dev` instead of `pnpm preview`                                              |
+| Upload fails instantly, no PUT in DevTools network | Bucket CORS doesn't include `http://localhost:8787` — see step 7                                 |
+| `crypto.*` error when adding a connection          | `.dev.vars`'s `ENCRYPTION_KEY` isn't valid base64 or is shorter than 32 bytes                    |

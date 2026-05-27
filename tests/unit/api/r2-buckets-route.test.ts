@@ -25,10 +25,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { ulid } from "ulid";
 
-import {
-  generateCsrfToken,
-  hashCsrfToken,
-} from "@/lib/auth/csrf";
+import { generateCsrfToken, hashCsrfToken } from "@/lib/auth/csrf";
 import { encryptCredential } from "@/lib/crypto/aes-gcm";
 import { schema as realSchema } from "@/lib/db/schema";
 import type { RateLimitDb } from "@/lib/api/rate-limit";
@@ -86,9 +83,8 @@ vi.mock("@opennextjs/cloudflare", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/db/client")>(
-    "@/lib/db/client",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/db/client")>("@/lib/db/client");
   return {
     ...actual,
     // Both the route and audit log go through getDb(); returning a single

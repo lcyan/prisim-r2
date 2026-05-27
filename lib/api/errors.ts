@@ -103,19 +103,14 @@ export const ApiErrors = {
     details?: unknown,
     message = "Too many requests",
   ) =>
-    new ApiError(
-      ApiErrorCode.RateLimited,
-      message,
-      429,
-      details,
-      { "Retry-After": String(retryAfterSeconds) },
-    ),
+    new ApiError(ApiErrorCode.RateLimited, message, 429, details, {
+      "Retry-After": String(retryAfterSeconds),
+    }),
   /** R2 rejected the user-supplied access/secret pair during the
    *  create-connection probe. 400 (not 401) — OUR session is fine. */
   connectionInvalidCredentials: (
     message = "R2 credentials were rejected by Cloudflare",
-  ) =>
-    new ApiError(ApiErrorCode.ConnectionInvalidCredentials, message, 400),
+  ) => new ApiError(ApiErrorCode.ConnectionInvalidCredentials, message, 400),
   /** Deleting the resource would orphan related rows; 409 matches REST
    *  convention for "resource conflict prevents action". */
   connectionInUse: (

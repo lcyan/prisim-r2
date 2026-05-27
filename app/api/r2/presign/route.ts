@@ -38,15 +38,8 @@ import {
 } from "@/lib/api/schemas";
 import { type DbEnv } from "@/lib/db/client";
 import { type CryptoEnv } from "@/lib/crypto/aes-gcm";
-import {
-  presignGet,
-  presignPut,
-  presignUploadPart,
-} from "@/lib/r2/presign";
-import {
-  resolveConnectionForR2,
-  runR2WithAudit,
-} from "@/lib/r2/route-helpers";
+import { presignGet, presignPut, presignUploadPart } from "@/lib/r2/presign";
+import { resolveConnectionForR2, runR2WithAudit } from "@/lib/r2/route-helpers";
 import type { AuditOp } from "@/lib/audit/log";
 
 // Combined env shape — DB binding (for connection lookup + audit insert) +

@@ -124,12 +124,22 @@ export async function uploadSinglePut(
     // surface as 'aborted' rather than 'presign' so the dispatcher labels
     // the task canceled-not-failed.
     if (signal.aborted) {
-      throw new UploadError("aborted", "Upload aborted during presign", undefined, err);
+      throw new UploadError(
+        "aborted",
+        "Upload aborted during presign",
+        undefined,
+        err,
+      );
     }
     if (err instanceof ApiClientError) {
       throw new UploadError("presign", err.message, err.status, err);
     }
-    throw new UploadError("presign", (err as Error).message ?? "presign failed", undefined, err);
+    throw new UploadError(
+      "presign",
+      (err as Error).message ?? "presign failed",
+      undefined,
+      err,
+    );
   }
 
   // Second guard — abort that landed exactly between presign return and
@@ -199,7 +209,8 @@ export function uploadBodyViaXhr(
     xhr.onload = () => {
       cleanup();
       if (xhr.status >= 200 && xhr.status < 300) {
-        const raw = xhr.getResponseHeader("ETag") ?? xhr.getResponseHeader("etag") ?? "";
+        const raw =
+          xhr.getResponseHeader("ETag") ?? xhr.getResponseHeader("etag") ?? "";
         const etag = stripEtagQuotes(raw);
         if (!etag) {
           // R2 always returns an ETag for PutObject / UploadPart; missing

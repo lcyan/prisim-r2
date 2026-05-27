@@ -10,9 +10,9 @@ describe("pathSegmentFromEnd", () => {
   });
 
   it("returns the second-to-last segment at offset 1", () => {
-    expect(
-      pathSegmentFromEnd("https://x/api/share/abc123/reveal", 1),
-    ).toBe("abc123");
+    expect(pathSegmentFromEnd("https://x/api/share/abc123/reveal", 1)).toBe(
+      "abc123",
+    );
   });
 
   it("ignores a trailing slash on the pathname", () => {
@@ -22,9 +22,9 @@ describe("pathSegmentFromEnd", () => {
   });
 
   it("ignores a query string", () => {
-    expect(
-      pathSegmentFromEnd("https://x/api/share/abc?foo=bar", 0),
-    ).toBe("abc");
+    expect(pathSegmentFromEnd("https://x/api/share/abc?foo=bar", 0)).toBe(
+      "abc",
+    );
   });
 
   it("returns '' when the path is shorter than the requested offset", () => {

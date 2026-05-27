@@ -33,7 +33,9 @@ export function OpsByTypeBar({ data }: OpsByTypeBarProps) {
         <li key={row.op}>
           <div className="flex items-center justify-between">
             <span className="truncate font-mono text-xs">{row.op}</span>
-            <span className="font-mono text-muted-foreground tabular-nums">{row.count}</span>
+            <span className="font-mono text-muted-foreground tabular-nums">
+              {row.count}
+            </span>
           </div>
           <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
             <div

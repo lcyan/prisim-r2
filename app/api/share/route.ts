@@ -46,7 +46,6 @@ import {
 import type { ShareListResponse, ShareSummary } from "@/lib/api/types";
 import { getDb, schema, type DbEnv } from "@/lib/db/client";
 
-
 type ShareListEnv = DbEnv;
 
 /**

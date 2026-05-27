@@ -22,9 +22,13 @@ import {
 
 describe("primitive schemas", () => {
   it("UlidSchema accepts valid Crockford base32, rejects others", () => {
-    expect(UlidSchema.safeParse("01HWXYZABCDEFGHJKMNPQRSTVW").success).toBe(true);
+    expect(UlidSchema.safeParse("01HWXYZABCDEFGHJKMNPQRSTVW").success).toBe(
+      true,
+    );
     expect(UlidSchema.safeParse("not-a-ulid").success).toBe(false);
-    expect(UlidSchema.safeParse("01hwxyzabcdefghjkmnpqrstvw").success).toBe(false); // lowercase
+    expect(UlidSchema.safeParse("01hwxyzabcdefghjkmnpqrstvw").success).toBe(
+      false,
+    ); // lowercase
     expect(UlidSchema.safeParse("0".repeat(25)).success).toBe(false); // too short
   });
 
@@ -44,15 +48,31 @@ describe("primitive schemas", () => {
   });
 
   it("ConfirmationTokenSchema requires 16–128 chars", () => {
-    expect(ConfirmationTokenSchema.safeParse("a".repeat(16)).success).toBe(true);
-    expect(ConfirmationTokenSchema.safeParse("a".repeat(15)).success).toBe(false);
-    expect(ConfirmationTokenSchema.safeParse("a".repeat(129)).success).toBe(false);
+    expect(ConfirmationTokenSchema.safeParse("a".repeat(16)).success).toBe(
+      true,
+    );
+    expect(ConfirmationTokenSchema.safeParse("a".repeat(15)).success).toBe(
+      false,
+    );
+    expect(ConfirmationTokenSchema.safeParse("a".repeat(129)).success).toBe(
+      false,
+    );
   });
 
   it("LoginSchema enforces email + min(8) password", () => {
-    expect(LoginSchema.safeParse({ email: "alice@example.com", password: "hunter22!" }).success).toBe(true);
-    expect(LoginSchema.safeParse({ email: "bad", password: "hunter22!" }).success).toBe(false);
-    expect(LoginSchema.safeParse({ email: "alice@example.com", password: "short" }).success).toBe(false);
+    expect(
+      LoginSchema.safeParse({
+        email: "alice@example.com",
+        password: "hunter22!",
+      }).success,
+    ).toBe(true);
+    expect(
+      LoginSchema.safeParse({ email: "bad", password: "hunter22!" }).success,
+    ).toBe(false);
+    expect(
+      LoginSchema.safeParse({ email: "alice@example.com", password: "short" })
+        .success,
+    ).toBe(false);
   });
 });
 
@@ -73,14 +93,18 @@ describe("parseJson helper", () => {
 
   it("throws ZodError for invalid payload (so withApi maps to 400)", async () => {
     const schema = z.object({ n: z.number() });
-    await expect(parseJson(jsonRequest('{"n":"oops"}'), schema)).rejects.toMatchObject({
+    await expect(
+      parseJson(jsonRequest('{"n":"oops"}'), schema),
+    ).rejects.toMatchObject({
       name: "ZodError",
     });
   });
 
   it("throws ZodError (not SyntaxError) for malformed JSON", async () => {
     const schema = z.object({ n: z.number() });
-    await expect(parseJson(jsonRequest("not-json"), schema)).rejects.toMatchObject({
+    await expect(
+      parseJson(jsonRequest("not-json"), schema),
+    ).rejects.toMatchObject({
       name: "ZodError",
     });
   });

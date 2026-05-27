@@ -10,9 +10,7 @@ import { maskAccountId } from "@/lib/format/connections";
 
 describe("maskAccountId", () => {
   it("compresses a 32-char hex ID to first4…last4", () => {
-    expect(maskAccountId("8b21a3f4c705e6d09b8214f6c7a9b3d2")).toBe(
-      "8b21…b3d2",
-    );
+    expect(maskAccountId("8b21a3f4c705e6d09b8214f6c7a9b3d2")).toBe("8b21…b3d2");
   });
 
   it("uses the unicode horizontal ellipsis, not three dots", () => {
