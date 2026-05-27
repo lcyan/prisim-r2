@@ -15,7 +15,7 @@ V2 将无须迁移即可解除单用户限制。
 - **数据库**: Cloudflare D1 (SQLite),通过 Drizzle ORM
 - **认证**: Auth.js v5 Credentials provider + 自研 D1 adapter
 - **R2 SDK**: `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner`
-- **部署**: Cloudflare Pages (`next-on-pages`)
+- **部署**: Cloudflare Workers (`@opennextjs/cloudflare` 适配器,Workers Assets binding)
 - **测试**: Vitest (单元) + Playwright (E2E)
 
 完整的架构说明,包括安全不变量和每次请求的生命周期,见
@@ -33,7 +33,7 @@ ADMIN_EMAIL=me@example.com ADMIN_PASSWORD='at-least-12-chars' \
   pnpm tsx scripts/seed-admin.ts | tee /tmp/seed.sql
 wrangler d1 execute prisim-r2-db --local --file=/tmp/seed.sql
 
-pnpm preview     # http://localhost:8788
+pnpm preview     # http://localhost:8787
 ```
 
 裸 `pnpm dev` (next dev) 故意不带 D1 binding,因此 `/api/*` 会返回 500。
@@ -43,7 +43,7 @@ pnpm preview     # http://localhost:8788
 
 - **本地开发** (`.dev.vars`、本地 D1、种 admin、`pnpm preview`、TOTP
   重置): [`docs/local-dev.zh-CN.md`](./docs/local-dev.zh-CN.md)。
-- **Cloudflare 部署** (Pages 项目配置、生产环境变量、远程 D1 迁移、
+- **Cloudflare 部署** (Workers 项目配置、生产 secrets、远程 D1 迁移、
   生产管理员种入、`pnpm deploy`、`ENCRYPTION_KEY` 轮换):
   [`docs/deploy-cloudflare.zh-CN.md`](./docs/deploy-cloudflare.zh-CN.md)。
 

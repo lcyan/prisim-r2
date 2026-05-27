@@ -2,7 +2,8 @@
 
 # Cloudflare 部署 Runbook
 
-把 Prisim R2 部署到 Cloudflare Pages 的全过程。
+把 Prisim R2 部署到 Cloudflare Workers 的全过程 (通过
+`@opennextjs/cloudflare`)。
 
 **前置**:先按 [`local-dev.zh-CN.md`](./local-dev.zh-CN.md) 把
 本地跑通,确保你已经有:
@@ -31,49 +32,61 @@ openssl rand -base64 32
 换的话要把所有 `connections` 行重新加密,细节见本文最后 "轮换
 `ENCRYPTION_KEY`" 一节。
 
-## 1. 配置 Cloudflare Pages 项目
+## 1. 准备 Cloudflare 上的资源
 
-Cloudflare 控制台 → Workers & Pages → Create application →
-Connect a Git repository → 选你 fork 出来的仓库。
+首次部署需要 Cloudflare 侧具备三样东西:一个 Worker 槽位 (首次跑
+`wrangler deploy` 时自动创建)、一个 D1 数据库,以及把 `name` /
+`database_id` 写进 `wrangler.toml`。
 
-构建配置:
+```bash
+# 创建生产 D1 库。如果账号下已有同名库就跳过。
+wrangler d1 create prisim-r2-db
+```
 
-- **Build command**: `pnpm install --frozen-lockfile && pnpm build:pages`
-- **Build output directory**: `.vercel/output/static`
-- **Node version**: 22 (在 Environment variables 里设 `NODE_VERSION=22`,
-  或者在 Build settings 里直接选)
+打开 `wrangler.toml` 确认:
 
-环境变量 —— Production 和 Preview 两个 environment 都要设:
+- `name = "prisim-r2"` 是你要部署的 Worker 名字 —— 想用别的名字
+  就改这里。
+- `[[d1_databases]]` 的 `database_name` 是 `prisim-r2-db`,
+  `database_id` 是 `wrangler d1 create` 返回的 UUID (或者复用现有
+  库的 UUID)。改动后提交。
 
-| 名字 | 值 |
-| --- | --- |
-| `AUTH_SECRET` | 上一步生成的 48 字节 base64 |
-| `AUTH_URL` | Pages 项目的完整 URL,如 `https://prisim.example.com` |
-| `ENCRYPTION_KEY` | 上一步生成的 32 字节 base64 |
-| `NEXT_PUBLIC_APP_URL` | 同 `AUTH_URL` |
+## 2. 配置生产 secrets
 
-Bindings → D1 database: 把 `DB` 绑定到 `prisim-r2-db` (这个库是
-本地开发 第 3 步 `wrangler d1 create` 时已经在 Cloudflare 远端
-创建好的;如果当时跳过了,现在补一句 `wrangler d1 create prisim-r2-db`
-并把返回的 UUID 也写回 `wrangler.toml` 然后 commit + 推一个新版本)。
+Workers 把生产环境变量当作 **Worker secrets** (静态加密) 存,通过
+`wrangler secret put` 一条一条设。从仓库根目录跑,这样 wrangler
+能读到 `wrangler.toml`:
+
+```bash
+wrangler secret put AUTH_SECRET            # 粘贴第 0 步生成的 48 字节 base64
+wrangler secret put AUTH_URL               # Workers 完整 URL,如 https://prisim.example.com
+wrangler secret put ENCRYPTION_KEY         # 粘贴第 0 步生成的 32 字节 base64
+wrangler secret put NEXT_PUBLIC_APP_URL    # 同 AUTH_URL
+```
+
+每条命令会提示输入一次值。`wrangler secret list` 可以列出已配
+名字而不打印值,方便核对。
 
 > `NEXT_PUBLIC_*` 是构建期读取的,不是运行期。改了之后必须重新
-> 部署一次才生效。
+> 跑一次 `pnpm deploy` 才能进 bundle 生效。
 
-## 2. 应用远程 D1 迁移
+> D1 binding (`DB`) 写在 `wrangler.toml`,每次 `wrangler deploy`
+> 都会自动应用 —— 不需要去 Cloudflare 控制台里手动配 D1。
+
+## 3. 应用远程 D1 迁移
 
 ```bash
 pnpm db:migrate:prod
 ```
 
 这条命令把 `drizzle/migrations/` 下所有 SQL 应用到远端 D1 库。
-**必须在 Cloudflare Pages 环境变量配好之后再跑** —— 远端 D1 的
-状态独立于本地的 `.wrangler/state/`。
+**必须在 Worker secrets 配好之后再跑** —— 远端 D1 的状态独立于
+本地的 `.wrangler/state/`。
 
 每次 `lib/db/schema.ts` 改动并生成新迁移之后,部署前都要再跑
 一次这条命令。
 
-## 3. 种入生产管理员
+## 4. 种入生产管理员
 
 ```bash
 ADMIN_EMAIL=you@example.com \
@@ -89,29 +102,30 @@ wrangler d1 execute prisim-r2-db --remote --file=/tmp/seed-prod.sql
 种完之后立刻把 `/tmp/seed-prod.sql` 删掉,里面是 INSERT
 带哈希,虽然不是明文但没必要留。
 
-## 4. 部署
+## 5. 部署
 
-环境变量、binding、远端迁移都齐了之后,从本地工作目录:
+secrets、binding、远端迁移都齐了之后,从本地工作目录:
 
 ```bash
 pnpm deploy
 ```
 
-它会先跑 `next-on-pages` 再跑 `wrangler pages deploy`。CI 上的
-部署也应当跑同样这两条命令 —— `deploy` 这个 script 故意保持精简,
-可以直接由 GitHub Actions 调用。
+它会先跑 `opennextjs-cloudflare build` (把 Next.js 产物打成
+`.open-next/` 下的 Workers bundle),再跑 `opennextjs-cloudflare
+deploy` (内部就是 `wrangler deploy`)。CI 上同样跑 `pnpm deploy`
+即可 —— 这条命令幂等,可以直接由 GitHub Actions 调用。
 
 第一次正式发布前先做一次 dry-run 自检:
 
 ```bash
-pnpm exec wrangler pages deploy --dry-run
+opennextjs-cloudflare build && pnpm exec wrangler deploy --dry-run
 ```
 
-## 5. 应用每个 R2 桶的配置
+## 6. 应用每个 R2 桶的配置
 
 对每一个生产环境要让 Prisim 浏览/上传的桶都做一次:
 
-1. **CORS** —— 把 Pages 项目的 URL (例如 `https://prisim.example.com`)
+1. **CORS** —— 把 Workers 项目的 URL (例如 `https://prisim.example.com`)
    加进桶的 `AllowedOrigins`。完整规则和 `wrangler` 命令见
    [`r2-cors.zh-CN.md`](./r2-cors.zh-CN.md)。
 2. **分片上传生命周期规则** —— `AbortIncompleteMultipartUpload`
@@ -150,7 +164,8 @@ pnpm test:e2e
    再用新密钥加密 (两侧的 AAD 都还是该行的 `id` ULID)。
 3. 在生产环境仍配置旧密钥的状态下应用脚本 (写一个本地工具,
    连远端 D1,逐行 UPDATE)。
-4. 把 Cloudflare Pages 的 `ENCRYPTION_KEY` 环境变量切换到新密钥。
+4. 把 Cloudflare 上的 `ENCRYPTION_KEY` Worker secret 切换到新密钥
+   (`wrangler secret put ENCRYPTION_KEY`)。
 5. 重新部署 (`pnpm deploy`)。
 
 跳过第 2 步会让每一条连接都不可读,所有 R2 调用静默失败。

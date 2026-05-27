@@ -3,11 +3,11 @@
 // E2E config for Prisim R2. Two opinionated choices worth flagging:
 //
 //   1. webServer runs `pnpm preview`, not `pnpm dev`. `next dev` lacks the
-//      Cloudflare bindings (`getRequestContext().env.DB` is undefined), so
-//      anything touching D1 returns 500 — including /api/auth. The full
-//      next-on-pages + wrangler stack at :8788 is the only thing that
-//      mirrors production. Cold start is slow (~30–60s for the build), so
-//      timeout is generous.
+//      Cloudflare bindings (`getCloudflareContext().env.DB` is undefined),
+//      so anything touching D1 returns 500 — including /api/auth. The full
+//      OpenNext + wrangler stack at :8787 is the only thing that mirrors
+//      production. Cold start is slow (~30–60s for the build), so timeout
+//      is generous.
 //
 //   2. A dedicated "setup" project performs the credential login once and
 //      writes a storageState file under playwright/.auth/. All other
@@ -19,7 +19,7 @@
 
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 8788;
+const PORT = 8787;
 const BASE_URL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`;
 const STORAGE_STATE = "playwright/.auth/admin.json";
 

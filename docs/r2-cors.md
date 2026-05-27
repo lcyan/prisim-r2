@@ -28,7 +28,7 @@ client-visible signal is "Upload failed: TypeError: failed to fetch".
 
 Replace `https://your-prisim.example.com` with the value of
 `NEXT_PUBLIC_APP_URL` (the origin the dashboard runs on). The local
-preview server is `http://localhost:8788` — add it as a second origin
+preview server is `http://localhost:8787` — add it as a second origin
 during development if you want to exercise upload/download locally
 against a real R2 bucket.
 
@@ -60,7 +60,7 @@ deployed origin to `AllowedOrigins`:
 "AllowedOrigins": [
   "https://prisim.example.com",
   "https://staging.prisim.example.com",
-  "http://localhost:8788"
+  "http://localhost:8787"
 ]
 ```
 

@@ -3,7 +3,7 @@ English | [中文](./local-dev.zh-CN.md)
 # Local development runbook
 
 Step-by-step for getting Prisim R2 running on your machine. If you're
-heading to a Cloudflare Pages deploy, get local working first and then
+heading to a Cloudflare Workers deploy, get local working first and then
 read [`deploy-cloudflare.md`](./deploy-cloudflare.md).
 
 ## 0. Prerequisites
@@ -11,7 +11,7 @@ read [`deploy-cloudflare.md`](./deploy-cloudflare.md).
 - `pnpm` (Node 22 LTS or newer).
 - `wrangler` authenticated to your Cloudflare account (`wrangler login`
   once per workstation). You need this even for local dev because
-  `pnpm preview` runs the Cloudflare Pages emulator.
+  `pnpm preview` runs the Workers emulator (via `@opennextjs/cloudflare`).
 - An R2 access token with read+write scope to at least one bucket.
   Prisim never creates buckets — pick one you already own in the
   Cloudflare dashboard (or create one) and grab its access key + secret.
@@ -38,9 +38,9 @@ Create `.dev.vars` in the repo root (gitignored):
 
 ```bash
 AUTH_SECRET=$(openssl rand -base64 48)
-AUTH_URL=http://localhost:8788
+AUTH_URL=http://localhost:8787
 ENCRYPTION_KEY=<the base64 you generated above>
-NEXT_PUBLIC_APP_URL=http://localhost:8788
+NEXT_PUBLIC_APP_URL=http://localhost:8787
 ```
 
 `AUTH_SECRET` and `ENCRYPTION_KEY` are not the same thing.
@@ -96,9 +96,9 @@ hash before applying it.
 pnpm preview
 ```
 
-This runs `next-on-pages` to produce the Cloudflare Pages build, then
-serves it via `wrangler pages dev` on port 8788. Open
-http://localhost:8788 and sign in with the credentials from step 5.
+This runs `opennextjs-cloudflare build` to produce the Workers bundle
+under `.open-next/`, then serves it via `wrangler dev` on port 8787.
+Open http://localhost:8787 and sign in with the credentials from step 5.
 First login forces a TOTP enrollment; scan the QR and you should land
 on an empty connections page. Add a connection with your R2
 credentials to verify the full encrypt → decrypt → R2 probe flow.
@@ -110,7 +110,7 @@ credentials to verify the full encrypt → decrypt → R2 probe flow.
 ## 7. (Optional) R2 CORS for local uploads against a real bucket
 
 If you want to upload/download against a real R2 bucket from
-`http://localhost:8788`, add that origin to the bucket's CORS
+`http://localhost:8787`, add that origin to the bucket's CORS
 `AllowedOrigins`. Full rules and the `wrangler` command live in
 [`r2-cors.md`](./r2-cors.md).
 
@@ -161,5 +161,5 @@ instead.
 | --- | --- |
 | Login 500 with `D1_ERROR: no such table` | You skipped `pnpm db:migrate:local`, or `wrangler.toml`'s `database_id` is still the placeholder |
 | Login page loads but `/api/csrf` 500s | You're running `pnpm dev` instead of `pnpm preview` |
-| Upload fails instantly, no PUT in DevTools network | Bucket CORS doesn't include `http://localhost:8788` — see step 7 |
+| Upload fails instantly, no PUT in DevTools network | Bucket CORS doesn't include `http://localhost:8787` — see step 7 |
 | `crypto.*` error when adding a connection | `.dev.vars`'s `ENCRYPTION_KEY` isn't valid base64 or is shorter than 32 bytes |

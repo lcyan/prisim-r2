@@ -16,7 +16,7 @@ without migration.
 - **DB**: Cloudflare D1 (SQLite) via Drizzle ORM
 - **Auth**: Auth.js v5 Credentials provider + custom D1 adapter
 - **R2 SDK**: `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner`
-- **Deploy**: Cloudflare Pages (`next-on-pages`)
+- **Deploy**: Cloudflare Workers (`@opennextjs/cloudflare` adapter, Workers Assets binding)
 - **Test**: Vitest (unit) + Playwright (E2E)
 
 See [`CLAUDE.md`](./CLAUDE.md) for the full architecture notes including
@@ -34,7 +34,7 @@ ADMIN_EMAIL=me@example.com ADMIN_PASSWORD='at-least-12-chars' \
   pnpm tsx scripts/seed-admin.ts | tee /tmp/seed.sql
 wrangler d1 execute prisim-r2-db --local --file=/tmp/seed.sql
 
-pnpm preview     # http://localhost:8788
+pnpm preview     # http://localhost:8787
 ```
 
 Plain `pnpm dev` (next dev) intentionally lacks the D1 binding and will
@@ -44,7 +44,7 @@ Step-by-step runbooks:
 
 - **Local development** (`.dev.vars`, local D1, seed admin, `pnpm preview`,
   TOTP reset): [`docs/local-dev.md`](./docs/local-dev.md).
-- **Cloudflare deployment** (Pages project setup, prod env vars, remote
+- **Cloudflare deployment** (Workers project setup, prod secrets, remote
   D1 migration, prod admin seed, `pnpm deploy`, `ENCRYPTION_KEY`
   rotation): [`docs/deploy-cloudflare.md`](./docs/deploy-cloudflare.md).
 

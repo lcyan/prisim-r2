@@ -27,7 +27,7 @@
 
 把 `https://your-prisim.example.com` 换成 `NEXT_PUBLIC_APP_URL`
 的值 (控制面板运行的源)。本地的 preview 服务器是
-`http://localhost:8788` —— 如果开发期间想对真实的 R2 桶做上传/下载
+`http://localhost:8787` —— 如果开发期间想对真实的 R2 桶做上传/下载
 本地验证,把它加成第二个源即可。
 
 `ExposeHeaders: ["ETag"]` 是必需的,这样分片上传 UI 才能读取浏览器
@@ -56,7 +56,7 @@ Prisim V1 是单用户,但生产部署一般还是会有一个 staging 环境对
 "AllowedOrigins": [
   "https://prisim.example.com",
   "https://staging.prisim.example.com",
-  "http://localhost:8788"
+  "http://localhost:8787"
 ]
 ```
 
