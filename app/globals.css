@@ -52,6 +52,16 @@
   --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.08);
   --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.18);
 
+  /* shadcn 兼容别名 —— 这些 raw 变量在 :root 上提供给 components/ui/*
+   * 内联 style 用 (Sonner toast 的 --normal-bg、sidebar focus shadow 等)。
+   * @theme inline 块只生成 Tailwind v4 utility,不会自动暴露 var(--popover);
+   * 那里的 inline 引用拿不到值就会渲染透明。
+   * 用 var() 重定向到现有语义 token,主题/暗色切换自动联动。 */
+  --popover: var(--surface);
+  --popover-foreground: var(--fg);
+  --sidebar-accent: var(--primary-soft);
+  --sidebar-border: var(--border);
+
   --font-sans:
     -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
     "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
