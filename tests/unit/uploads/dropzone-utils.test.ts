@@ -10,8 +10,14 @@ import {
   MAX_UPLOAD_BYTES,
   describeQueued,
   describeSkipped,
+  filesToQueuedFiles,
+  isHiddenFile,
   keyForFile,
+  keyForQueuedFile,
+  partitionQueuedFiles,
+  QueuedFileSkipReason,
   validateAndPartitionFiles,
+  type QueuedFile,
 } from "@/lib/uploads/dropzone-utils";
 
 function fakeFile(name: string, size: number): File {
@@ -149,5 +155,139 @@ describe("lib/uploads/dropzone-utils", () => {
         "docs/my file (1).pdf",
       );
     });
+  });
+});
+
+/* ─── Task 2: QueuedFile / partition / readers ─────────────────── */
+
+function realFakeFile(name: string, size: number): File {
+  return new File([new Uint8Array(size)], name, {
+    type: "application/octet-stream",
+  });
+}
+function fakeFileWithRel(rel: string, size: number): File {
+  const base = rel.split("/").pop() ?? rel;
+  const f = realFakeFile(base, size);
+  Object.defineProperty(f, "webkitRelativePath", { value: rel });
+  return f;
+}
+
+describe("filesToQueuedFiles", () => {
+  it("flat files get empty relativePath", () => {
+    const a = realFakeFile("a.txt", 5);
+    const out = filesToQueuedFiles([a]);
+    expect(out).toEqual([{ file: a, name: "a.txt", relativePath: "" }]);
+  });
+
+  it("webkitRelativePath is folded into relativePath, keeping the source folder name", () => {
+    const f = fakeFileWithRel("report/2025/q1.pdf", 9);
+    const out = filesToQueuedFiles([f]);
+    expect(out[0]?.relativePath).toBe("report/2025/");
+    expect(out[0]?.name).toBe("q1.pdf");
+  });
+});
+
+describe("keyForQueuedFile", () => {
+  it.each([
+    ["", "", "a.txt", "a.txt"],
+    ["logs/", "", "a.txt", "logs/a.txt"],
+    ["logs/", "2025/", "a.txt", "logs/2025/a.txt"],
+    ["", "report/2025/", "q1.pdf", "report/2025/q1.pdf"],
+  ])(
+    "target=%j rel=%j name=%j → %j",
+    (prefix, rel, name, expected) => {
+      const qf: QueuedFile = {
+        file: realFakeFile(name, 1),
+        name,
+        relativePath: rel,
+      };
+      expect(keyForQueuedFile(prefix, qf)).toBe(expected);
+    },
+  );
+});
+
+describe("isHiddenFile", () => {
+  it.each([".DS_Store", ".env", "._foo", "Thumbs.db"])(
+    "treats %s as hidden",
+    (name) => expect(isHiddenFile(name)).toBe(true),
+  );
+  it.each(["foo.txt", "report.pdf", "x.docx"])(
+    "treats %s as visible",
+    (name) => expect(isHiddenFile(name)).toBe(false),
+  );
+});
+
+describe("partitionQueuedFiles", () => {
+  const baseArgs = { targetPrefix: "logs/", includeHidden: false };
+
+  it("accepts normal files", () => {
+    const qf: QueuedFile = {
+      file: realFakeFile("a.txt", 10),
+      name: "a.txt",
+      relativePath: "",
+    };
+    const result = partitionQueuedFiles({ ...baseArgs, files: [qf] });
+    expect(result.accepted).toEqual([qf]);
+    expect(result.skipped).toEqual([]);
+  });
+
+  it("rejects empty files", () => {
+    const qf: QueuedFile = {
+      file: realFakeFile("a.txt", 0),
+      name: "a.txt",
+      relativePath: "",
+    };
+    expect(
+      partitionQueuedFiles({ ...baseArgs, files: [qf] }).skipped[0]?.reason,
+    ).toBe(QueuedFileSkipReason.Empty);
+  });
+
+  it("rejects parent-traversal segments", () => {
+    const qf: QueuedFile = {
+      file: realFakeFile("a.txt", 5),
+      name: "a.txt",
+      relativePath: "../sibling/",
+    };
+    expect(
+      partitionQueuedFiles({ ...baseArgs, files: [qf] }).skipped[0]?.reason,
+    ).toBe(QueuedFileSkipReason.ParentTraversal);
+  });
+
+  it("rejects hidden when includeHidden=false", () => {
+    const qf: QueuedFile = {
+      file: realFakeFile(".DS_Store", 5),
+      name: ".DS_Store",
+      relativePath: "",
+    };
+    expect(
+      partitionQueuedFiles({ ...baseArgs, files: [qf] }).skipped[0]?.reason,
+    ).toBe(QueuedFileSkipReason.Hidden);
+  });
+
+  it("allows hidden when includeHidden=true", () => {
+    const qf: QueuedFile = {
+      file: realFakeFile(".env", 5),
+      name: ".env",
+      relativePath: "",
+    };
+    const result = partitionQueuedFiles({
+      ...baseArgs,
+      includeHidden: true,
+      files: [qf],
+    });
+    expect(result.accepted).toHaveLength(1);
+  });
+
+  it("rejects when final key would exceed 1024 utf-8 bytes", () => {
+    // logs/ (5) + seg/ (513+1) + seg/ (513+1) + a.txt (5) = 1038 bytes > 1024
+    const longSeg = "x".repeat(513);
+    const qf: QueuedFile = {
+      file: realFakeFile("a.txt", 5),
+      name: "a.txt",
+      relativePath: `${longSeg}/${longSeg}/`,
+    };
+    expect(
+      partitionQueuedFiles({ ...baseArgs, files: [qf] }).skipped[0]?.reason,
+    ).toBe(QueuedFileSkipReason.KeyTooLong);
   });
 });
