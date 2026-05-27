@@ -1,8 +1,8 @@
 // tests/unit/auth/password.test.ts
 //
 // Behaviour spec for lib/auth/password.ts. Iteration count is the real
-// 600k figure — each hash takes ~150-300ms in Vitest's node runtime, so
-// we keep the suite small.
+// 100k figure (Workers Web Crypto cap) — each hash takes ~25-50ms in
+// Vitest's node runtime, so we keep the suite small.
 
 import { describe, it, expect } from "vitest";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
@@ -33,20 +33,29 @@ describe("PBKDF2 password hashing", () => {
   it("emits the documented storage format", async () => {
     const hash = await hashPassword("x");
     expect(hash).toMatch(
-      /^pbkdf2\$sha256\$600000\$[A-Za-z0-9+/=]+\$[A-Za-z0-9+/=]+$/,
+      /^pbkdf2\$sha256\$100000\$[A-Za-z0-9+/=]+\$[A-Za-z0-9+/=]+$/,
     );
   });
 
   it("returns false for malformed stored hashes", async () => {
     expect(await verifyPassword("x", "")).toBe(false);
     expect(await verifyPassword("x", "not-a-real-hash")).toBe(false);
-    expect(await verifyPassword("x", "pbkdf2$sha256$600000$short")).toBe(false);
-    expect(await verifyPassword("x", "pbkdf2$sha512$600000$AA==$AA==")).toBe(
+    expect(await verifyPassword("x", "pbkdf2$sha256$100000$short")).toBe(false);
+    expect(await verifyPassword("x", "pbkdf2$sha512$100000$AA==$AA==")).toBe(
       false,
     );
-    expect(await verifyPassword("x", "argon2$sha256$600000$AA==$AA==")).toBe(
+    expect(await verifyPassword("x", "argon2$sha256$100000$AA==$AA==")).toBe(
       false,
     );
+  });
+
+  it("returns false (not throws) when stored iter exceeds the Workers cap", async () => {
+    // Legacy rows seeded at 600k iter would otherwise make crypto.subtle
+    // throw NotSupportedError on Workers; verify() must absorb that into a
+    // plain "wrong password" so the route returns 401 instead of 500.
+    const legacy =
+      "pbkdf2$sha256$600000$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+    expect(await verifyPassword("anything", legacy)).toBe(false);
   });
 
   it("rejects empty plaintext at hash time", async () => {

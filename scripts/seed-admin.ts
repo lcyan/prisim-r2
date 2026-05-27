@@ -52,7 +52,12 @@ async function main() {
   process.stdout.write(
     `-- Seed admin: ${esc(email)}\n` +
       `INSERT INTO users (id, email, password_hash, created_at)\n` +
-      `VALUES ('${id}', '${esc(email)}', '${esc(hash)}', ${createdAt});\n`,
+      `VALUES ('${id}', '${esc(email)}', '${esc(hash)}', ${createdAt})\n` +
+      // ON CONFLICT(email) makes the script idempotent: re-running with the
+      // same email rotates the password hash but preserves the existing
+      // ULID (so connections/shares/audit FKs stay intact) and the original
+      // created_at. New emails still insert fresh.
+      `ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash;\n`,
   );
 
   console.error(`✓ admin row prepared`);

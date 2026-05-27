@@ -11,9 +11,15 @@
 //
 // Storage format (single string column users.password_hash):
 //
-//   pbkdf2$sha256$600000$<salt-b64>$<hash-b64>
+//   pbkdf2$sha256$100000$<salt-b64>$<hash-b64>
 //
-// - 600,000 iterations: OWASP 2024 minimum for PBKDF2-SHA256.
+// - 100,000 iterations: this is the **maximum** the Cloudflare Workers
+//   runtime allows for PBKDF2 via Web Crypto (cloudflare/workerd#1346).
+//   OWASP 2024 recommends 600k for PBKDF2-SHA256; we cannot honor that on
+//   Workers and instead rely on TOTP as the second factor for the threat
+//   model where an attacker has the hash. If the workerd cap is raised, bump
+//   ITER and `verifyPassword` will transparently honor the higher value
+//   stored in existing rows.
 // - 16-byte random salt: per-user, regenerated on every hashPassword().
 // - 32-byte derived key: SHA-256 native digest length.
 //
@@ -22,9 +28,14 @@
 
 const ALGO = "pbkdf2";
 const HASH = "sha256";
-const ITER = 600_000;
+const ITER = 100_000;
 const SALT_LEN = 16;
 const KEY_LEN_BITS = 256;
+// Workers Web Crypto refuses PBKDF2 above this iteration count. Older rows
+// hashed at higher iteration counts (e.g. an admin seeded before this cap
+// was discovered) will fail verification at runtime — those rows must be
+// re-seeded.
+const WORKERS_MAX_ITER = 100_000;
 
 const te = new TextEncoder();
 
@@ -97,10 +108,10 @@ export async function verifyPassword(
 // decoy target by verifyPasswordOrDummy when no real user row exists so
 // "email not found" and "wrong password" take the same wall-clock time.
 // The plaintext that derives to an all-zero 32-byte key under all-zero salt
-// + 600k iters is a 256-bit preimage search — infeasible to find, so the
+// + 100k iters is a 256-bit preimage search — infeasible to find, so the
 // dummy compare can never accidentally return true.
 const DUMMY_HASH =
-  "pbkdf2$sha256$600000$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+  "pbkdf2$sha256$100000$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
 /**
  * Like verifyPassword, but when `stored` is null/undefined runs PBKDF2
@@ -137,6 +148,11 @@ async function verifyPasswordImpl(
   if (algo !== ALGO || hash !== HASH) return false;
   const iterations = Number.parseInt(iterStr, 10);
   if (!Number.isInteger(iterations) || iterations < 1) return false;
+  // Workers Web Crypto rejects PBKDF2 > WORKERS_MAX_ITER. A stored hash
+  // above the cap (legacy rows seeded under a higher iter count) cannot be
+  // verified on the runtime, so treat it as a non-match instead of letting
+  // crypto.subtle throw NotSupportedError into the route handler.
+  if (iterations > WORKERS_MAX_ITER) return false;
 
   let salt: Uint8Array<ArrayBuffer>;
   let expected: Uint8Array<ArrayBuffer>;
