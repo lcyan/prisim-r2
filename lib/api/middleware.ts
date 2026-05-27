@@ -80,11 +80,17 @@ export async function requireSession(req: Request): Promise<SessionContext> {
 
   // next-auth's getToken accepts the Web Request directly in v5; we pass
   // through `NextRequest` to satisfy the .ts overload signature.
+  //
+  // `secureCookie` MUST be set explicitly: next-auth v5's default infers it
+  // from `NEXTAUTH_URL`, but this project uses the v5-canonical `AUTH_URL`
+  // env var. With the default off under HTTPS, getToken looks for
+  // `authjs.session-token` while the browser actually sends
+  // `__Secure-authjs.session-token`, the cookie is silently missed, and
+  // every authed API returns 401 even though the user just signed in.
   const token = await getToken({
     req: req as unknown as NextRequest,
     secret,
-    // Match next-auth v5's cookie naming. Auth.js auto-prefixes __Secure-
-    // when the request is HTTPS, so leaving these undefined lets it pick.
+    secureCookie: new URL(req.url).protocol === "https:",
   });
 
   if (
