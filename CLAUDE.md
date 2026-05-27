@@ -14,24 +14,26 @@ Web app for managing Cloudflare R2 buckets (browse / upload / download / delete 
 - **DB**: Cloudflare D1 (SQLite) via Drizzle ORM. Schema in `lib/db/schema.ts`; migrations in `drizzle/migrations/`
 - **Auth**: Auth.js v5 (next-auth `5.0.0-beta.31`) Credentials provider + custom D1 adapter (`lib/auth/adapter.ts`)
 - **R2 SDK**: pinned `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner` (R2 = S3-compatible)
-- **Deploy**: Cloudflare Pages (`next-on-pages`) — every `/api/*` route is edge runtime
+- **Deploy**: Cloudflare Workers (`@opennextjs/cloudflare` adapter) with the [Workers Assets](https://developers.cloudflare.com/workers/static-assets/) binding (`ASSETS`). The build emits `.open-next/worker.js` + `.open-next/assets/`. **Edge runtime declarations are no longer needed** — Workers + `nodejs_compat` is the default runtime for every route, so do NOT add `export const runtime = "edge"` to new handlers.
 - **Test**: Vitest for unit/integration. Playwright is supported for E2E — install (`pnpm dlx playwright install`) and add a `playwright.config.ts` before invoking it; tests go under `tests/e2e/`. Don't add an E2E "for completeness" — it only makes sense when a behavior can't be covered by Vitest (real browser download manager, multipart upload retry across reload, etc.).
 
 ## Commands
 
 ```bash
 # Local dev
-pnpm preview          # next-on-pages && wrangler pages dev → :8788 (REQUIRED for full app)
+pnpm preview          # opennextjs-cloudflare build && opennextjs-cloudflare preview → :8787 (REQUIRED for full app)
 pnpm dev              # next dev → :3000 (UI-only; D1 binding missing → /login returns 500)
 
 # Build / deploy
 pnpm build            # next build (typecheck via next + tsc)
-pnpm build:pages      # next-on-pages (writes .vercel/output/)
-pnpm deploy           # next-on-pages && wrangler pages deploy
+pnpm deploy           # opennextjs-cloudflare build && opennextjs-cloudflare deploy
+
+# Cloudflare env types
+pnpm cf-typegen       # wrangler types — regenerates cloudflare-env.d.ts after editing wrangler.toml bindings
 
 # Quality
 pnpm typecheck        # tsc --noEmit (strict)
-pnpm lint / lint:fix  # eslint . (flat config; ignores .next .vercel .wrangler components/ui)
+pnpm lint / lint:fix  # eslint . (flat config; ignores .next .open-next .wrangler components/ui cloudflare-env.d.ts)
 pnpm format / format:check  # prettier
 
 # Tests (Vitest unit only)
@@ -47,7 +49,7 @@ pnpm db:migrate:local # wrangler d1 migrations apply DB --local (writes .wrangle
 pnpm db:migrate:prod  # wrangler d1 migrations apply DB --remote
 ```
 
-**Local-dev gotcha**: `next dev` silently lacks the Cloudflare bindings (`getRequestContext().env.DB` is undefined), so anything touching D1 (login, /api/\*) 500s. Use `pnpm preview` for any work that hits the server.
+**Local-dev gotcha**: `next dev` silently lacks the Cloudflare bindings (`getCloudflareContext().env.DB` is undefined), so anything touching D1 (login, /api/\*) 500s. Use `pnpm preview` for any work that hits the server.
 
 **Seeding the admin user** (no signup UI):
 
@@ -96,7 +98,7 @@ Handlers return either raw JSON-serializable values (auto-wrapped in `Response.j
 
 ### Two auth configs (do NOT merge)
 
-- `lib/auth/config.ts` — **edge middleware** config. No adapter, no D1, no callbacks beyond `authorized`. `middleware.ts` imports this because Next.js edge middleware runs without `getRequestContext()`.
+- `lib/auth/config.ts` — **edge middleware** config. No adapter, no D1, no callbacks beyond `authorized`. `middleware.ts` imports this because Next.js edge middleware runs without `getCloudflareContext()`.
 - `lib/auth/index.ts` — **full** Auth.js instance for route handlers and server actions. Adds Credentials provider, jwt/session/signOut callbacks, and the D1 adapter. Revocation enforcement (delete D1 session row → next `auth()` returns null) lives here in the `session()` callback.
 
 Sessions use JWT strategy (Credentials forces it) but are DB-backed: on sign-in the `jwt()` callback mints a ULID session token + raw CSRF token, persists sha256 of both in `sessions`, embeds raw tokens in the JWT. CSRF cookie is set by `GET /api/csrf` (not httpOnly — client JS must read it for `X-CSRF-Token`).
@@ -121,7 +123,7 @@ Sessions use JWT strategy (Credentials forces it) but are DB-backed: on sign-in 
 
 ### Audit log
 
-`lib/audit/log.ts` writes to `audit_log` table. **`AuditOp` is a closed string-literal union** — adding a new operation requires adding it to that type, which catches typos at compile time. `logAudit` is no-fail (wraps in try/catch + `console.error`) so telemetry never breaks the user-facing request. Always `await` it in route handlers so the row flushes before Pages spins down the worker.
+`lib/audit/log.ts` writes to `audit_log` table. **`AuditOp` is a closed string-literal union** — adding a new operation requires adding it to that type, which catches typos at compile time. `logAudit` is no-fail (wraps in try/catch + `console.error`) so telemetry never breaks the user-facing request. Always `await` it in route handlers so the row flushes before the Worker invocation completes.
 
 ### Hooks ↔ stores ↔ components
 
@@ -136,13 +138,14 @@ Sessions use JWT strategy (Credentials forces it) but are DB-backed: on sign-in 
 - `lib/db/schema.ts` — Drizzle source of truth. Edit → `pnpm db:gen` → review generated SQL → commit both. The file deliberately omits `import "server-only"` because drizzle-kit imports it from a Node CLI context.
 - `lib/auth/config.ts` vs `lib/auth/index.ts` — see "Two auth configs" above. Don't merge them.
 - `lib/api/middleware.ts` — `withApi` pipeline. New cross-cutting concerns (e.g. tracing) belong here, not in each handler.
-- `app/api/r2/presign/route.ts` — the only edge route that decrypts credentials. Default TTL 900s (15 min); hard cap 7200s.
-- `wrangler.toml` — `compatibility_date = "2026-05-20"`, `compatibility_flags = ["nodejs_compat"]`, `pages_build_output_dir = ".vercel/output/static"`, `[[d1_databases]] binding = "DB" database_name = "prisim-r2-db"`. The `database_id` is a placeholder — replace after `wrangler d1 create`.
+- `app/api/r2/presign/route.ts` — the only route that decrypts credentials. Default TTL 900s (15 min); hard cap 7200s.
+- `wrangler.toml` — Workers + Assets shape: `main = ".open-next/worker.js"`, `compatibility_date = "2026-05-20"`, `compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]`, `keep_names = false` (avoids `__name is not defined` from `next-themes` stringified scripts — see Gotchas), `[assets] directory = ".open-next/assets" binding = "ASSETS"`, `[[d1_databases]] binding = "DB" database_name = "prisim-r2-db"`. Run `pnpm cf-typegen` after editing bindings to refresh `cloudflare-env.d.ts`. The `database_id` is filled in for the current dev env — replace after `wrangler d1 create` for any new environment.
+- `open-next.config.ts` — must use the `defineCloudflareConfig({...})` helper from `@opennextjs/cloudflare`. A hand-rolled `OpenNextConfig` object skips the required Cloudflare overrides (wrapper / converter / proxyExternalRequest defaults) and the build rejects the schema.
 
 ## Code Style
 
 - TypeScript strict. No `any` without a `// reason:` comment.
-- `import "server-only"` at the top of any module that touches D1, env secrets, or anything edge-runtime-only. Vitest aliases this to a no-op stub (`tests/stubs/server-only.ts`).
+- `import "server-only"` at the top of any module that touches D1, env secrets, or anything that must not be bundled into client code. Vitest aliases this to a no-op stub (`tests/stubs/server-only.ts`).
 - Tailwind: prefer semantic shadcn tokens (`bg-background`, `text-muted-foreground`) over raw colors. v4 `@theme inline` already maps these to CSS variables in `app/globals.css`.
 - TanStack Query: one hook per resource, query keys as `const` tuples (`['connections']`, `['objects', bucket, prefix]`).
 - Zustand: UI state only.
@@ -151,16 +154,19 @@ Sessions use JWT strategy (Credentials forces it) but are DB-backed: on sign-in 
 
 ## Environment
 
-`.dev.vars` (local; gitignored) and Cloudflare Pages env vars (prod):
+`.dev.vars` (local; gitignored) and Cloudflare Workers env (prod — set via `wrangler secret put <NAME>`):
 
 ```
 AUTH_SECRET=          # next-auth JWT signing (base64, 48+ bytes)
-AUTH_URL=             # full origin, e.g. http://localhost:8788 in dev
+AUTH_URL=             # full origin, e.g. http://localhost:8787 in dev
 ENCRYPTION_KEY=       # 32-byte AES-256 master key, base64
 NEXT_PUBLIC_APP_URL=  # used for CORS notes shown in user-facing R2 setup
 ```
 
 D1 is wired via the `DB` binding in `wrangler.toml`, not a `DATABASE_URL`.
+
+**`.dev.vars` ports MUST track the `pnpm preview` port.** `AUTH_URL` and `NEXT_PUBLIC_APP_URL` go directly into the Auth.js `callback-url` cookie and into the CORS examples; mismatched ports → login succeeds server-side but the cookie points at the old origin and the post-login redirect lands back on `/login`. Workers default port is `8787` (was `8788` under the prior Pages setup). If you change either,
+`.dev.vars` must match.
 
 **Rotating `ENCRYPTION_KEY` requires re-encrypting every `connections` row** — write the migration script before swapping the env.
 
@@ -174,10 +180,14 @@ D1 is wired via the `DB` binding in `wrangler.toml`, not a `DATABASE_URL`.
 
 ## Gotchas
 
-- **Edge runtime is required on Pages.** Every route handler that touches D1 / `getRequestContext` declares `export const runtime = "edge"`. Node-only APIs fail at deploy time. Use Web Crypto (`crypto.subtle`) — never `node:crypto`.
-- **`next dev` lacks D1 bindings.** Login and any `/api/*` that touches D1 return 500. Use `pnpm preview` (port 8788). This is captured in memory; do not change `pnpm dev` to start `wrangler` — the split is intentional for fast UI-only iteration.
+- **No `export const runtime = "edge"`.** Workers + `nodejs_compat` is the default runtime under `@opennextjs/cloudflare`, so route handlers don't need (and shouldn't carry) an explicit edge-runtime declaration. Web Crypto (`crypto.subtle`) is still preferred over `node:crypto` — the latter is only partially polyfilled.
+- **`next dev` lacks Cloudflare bindings.** Login and any `/api/*` that touches D1 return 500 (`getCloudflareContext().env.DB` is undefined). Use `pnpm preview` (port 8787) — it runs `opennextjs-cloudflare build && opennextjs-cloudflare preview` which wires up wrangler with the real bindings. Do not change `pnpm dev` to start `wrangler` — the split is intentional for fast UI-only iteration.
+- **`.dev.vars` port and wrangler port must match.** If you change the preview port, also edit `AUTH_URL` and `NEXT_PUBLIC_APP_URL` in `.dev.vars`. Out-of-sync values make the Auth.js post-login cookie point at the old origin → login succeeds, but the browser bounces back to `/login`. See the Environment section.
+- **Local D1 sqlite hash drifts when wrangler config form changes.** Miniflare derives the D1 sqlite filename from a hash of the binding spec. Switching `wrangler.toml` (e.g. Pages → Workers, or renaming a binding) makes miniflare create a fresh, empty sqlite under a NEW hash inside `.wrangler/state/v3/d1/miniflare-D1DatabaseObject/`, orphaning the populated one. Recovery: list the directory, identify the old populated `.sqlite` and the new empty one, then `cp <old>.sqlite <new>.sqlite` (keep the old as `.bak`). Verify with `wrangler d1 execute prisim-r2-db --local --command "SELECT name FROM sqlite_master WHERE type='table'"`.
+- **Stale Auth.js cookies after preview-config changes.** Old `authjs.session-token` cookies tied to a previous port / `useSecureCookies` setting can prevent fresh sign-in. If login looks like it succeeds but lands back on `/login` after a config change, clear the browser's site cookies for the dev origin.
+- **`next-themes` + esbuild keep-names.** Without `keep_names = false` in `wrangler.toml`, the bundle injects an `__name(...)` reference into next-themes' stringified inline script and the browser throws `ReferenceError: __name is not defined`. Already set; do not remove. (Requires wrangler ≥ 4.13.0; we are on 4.93+.)
 - **R2 CORS must be configured per bucket.** Presigned PUT from the browser silently fails CORS preflight until the bucket allows the app origin + `PUT`/`GET`. This is user-facing setup, not a code fix.
-- **`@aws-sdk/client-s3` bundle is heavy.** Pages caps a worker bundle around 1 MB. Import individual Commands only; check the bundle when adding a new SDK call.
+- **`@aws-sdk/client-s3` bundle is heavy.** Workers caps a single Worker at 3 MiB compressed (free plan) / 10 MiB (paid). Import individual Commands only; check the bundle when adding a new SDK call.
 - **Tailwind v4 uses `@theme` in CSS.** Do not add a `tailwind.config.{js,ts}` — postcss is configured via `@tailwindcss/postcss` only.
 - **shadcn primitives are generated.** `components/ui/` is in `.prettierignore` and should be regenerated via `pnpm dlx shadcn@latest add <name>`, not hand-edited.
 - **R2 list uses `ContinuationToken`, not pages.** UI must support cursor-based paging. Tokens are opaque — pass through verbatim.
