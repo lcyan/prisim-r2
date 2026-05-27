@@ -10,6 +10,14 @@ main = ".open-next/worker.js"
 compatibility_date = "2026-05-20"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 
+# Disable the default *.workers.dev hostnames — we serve through a custom
+# domain only. `workers_dev = false` turns off the production
+# `prisim-r2.<account>.workers.dev` URL; `preview_urls = false` turns off the
+# per-version `*-prisim-r2.<account>.workers.dev` preview hostnames.
+# Docs: https://developers.cloudflare.com/workers/configuration/previews/
+workers_dev = false
+preview_urls = false
+
 # Disable esbuild's keep-names. Without this, libraries like next-themes that
 # convert scripts to strings can emit an `__name(...)` reference into the
 # stringified payload, and the browser hits `ReferenceError: __name is not
@@ -33,6 +41,17 @@ migrations_dir = "drizzle/migrations"
 # Workers Observability — surfaces console.log / errors / wall time in the
 # Cloudflare dashboard. Free for the first 200k events/day. `audit_log` D1
 # entries are still the durable record; this is only for runtime triage.
+#
+# head_sampling_rate = 1 keeps 100% of invocations (the default samples a
+# fraction once volume scales). `[observability.logs]` makes invocation logs
+# explicit + persisted so they show up in dash > Workers > prisim-r2 > Logs
+# and via `wrangler tail prisim-r2`.
 # Docs: https://developers.cloudflare.com/workers/observability/logs/workers-logs/
 [observability]
 enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+head_sampling_rate = 1
