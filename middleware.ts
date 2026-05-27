@@ -4,7 +4,7 @@
 //
 // Uses the SPLIT config from lib/auth/config.ts (no adapter, no D1) because
 // Next.js middleware runs in the standalone Edge runtime where
-// getRequestContext() is not available. The authConfig.authorized callback
+// getCloudflareContext() is not available. The authConfig.authorized callback
 // is the actual gate; it returns false for unauthenticated requests to
 // non-public paths, which makes Auth.js redirect to /login with a
 // callbackUrl back to the originally requested URL.
