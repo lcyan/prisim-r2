@@ -16,7 +16,21 @@ import type { NextAuthConfig } from "next-auth";
 // Paths that are reachable without a session. Everything else under the
 // matcher in middleware.ts is gated. Keep this list narrow on purpose —
 // adding a route here removes it from the auth wall.
-const PUBLIC_PATHS = ["/", "/login", "/api/auth", "/api/health"];
+//
+// `/setup/totp` is on the list because TOTP enrollment happens BEFORE the
+// user has a session: /api/auth/totp/enroll/begin returns a one-shot grant,
+// the client stashes it in the auth-enroll Zustand store, then navigates
+// to /setup/totp to scan the QR. The page itself bounces back to /login if
+// `draft.grant` is missing (see app/(auth)/setup/totp/page.tsx), so an
+// unauthenticated direct hit reveals nothing. The enrollment grant is a
+// ULID, sha256-hashed in D1, single-use, and expires in 10 minutes.
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/setup/totp",
+  "/api/auth",
+  "/api/health",
+];
 
 export const authConfig: NextAuthConfig = {
   pages: { signIn: "/login" },
