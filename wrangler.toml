@@ -29,3 +29,10 @@ binding = "DB"
 database_name = "prisim-r2-db"
 database_id = "ca97efd0-6267-4632-a35d-539433bff8b7"
 migrations_dir = "drizzle/migrations"
+
+# Workers Observability — surfaces console.log / errors / wall time in the
+# Cloudflare dashboard. Free for the first 200k events/day. `audit_log` D1
+# entries are still the durable record; this is only for runtime triage.
+# Docs: https://developers.cloudflare.com/workers/observability/logs/workers-logs/
+[observability]
+enabled = true
