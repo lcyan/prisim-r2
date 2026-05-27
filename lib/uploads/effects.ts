@@ -5,7 +5,7 @@
 // `window` and fake timers, and so that upload-queue-provider.tsx stays
 // a thin "mount once" component.
 //
-// Two effects live here:
+// Three effects live here:
 //
 //   1. autoRemoveDone — when a task transitions to `done`, schedule it for
 //      removal 5 s later. The drawer renders `done` rows with a static
@@ -21,7 +21,12 @@
 //      removeEventListener rather than assigning to window.onbeforeunload
 //      directly so we cooperate with anything else the app might wire up.
 //
-// Both effects are no-ops on the server. They return a `stop()` function
+//   3. invalidateOnDone — when a task transitions to `done`, invalidate
+//      the React Query cache key the file table uses so the listing
+//      re-fetches. The provider closes over a QueryClient and passes a
+//      callback so this module stays free of `@tanstack/react-query`.
+//
+// All effects are no-ops on the server. They return a `stop()` function
 // for tests; production wiring (UploadQueueProvider) does not call stop.
 
 import {
@@ -29,6 +34,7 @@ import {
   type UploadStatus,
   type UploadTaskInternal,
 } from "@/stores/upload-queue";
+import { objectsQueryKey } from "@/hooks/use-objects";
 
 /** Statuses the user perceives as "still working." Used by both effects:
  *  `beforeUnloadGuard` triggers when at least one task is in this set,
@@ -223,4 +229,57 @@ export function startBeforeUnloadGuard(opts?: {
 function getWindowHost(): BeforeUnloadHost | null {
   if (typeof window === "undefined") return null;
   return window;
+}
+
+/* ─── 3. Invalidate the file listing when an upload completes ────── */
+
+/** Watch the queue for tasks transitioning into `done` and invalidate the
+ *  TanStack Query cache for the (connection, bucket, prefix) the upload
+ *  landed in. Without this, the file table keeps showing the pre-upload
+ *  listing until the user manually refreshes.
+ *
+ *  The callback is `invalidate(queryKey)` rather than a `QueryClient`
+ *  instance so this module stays free of `@tanstack/react-query` —
+ *  `UploadQueueProvider` closes over its provider's QueryClient and passes
+ *  a thin wrapper. Each task fires `invalidate` exactly once: subsequent
+ *  ticks observing the same `done` status are deduped against the previous
+ *  snapshot, matching the contract of the auto-remove effect above. */
+export function startInvalidateOnDone(
+  invalidate: (queryKey: readonly unknown[]) => void,
+): () => void {
+  // Seeded empty (NOT the current snapshot) so a fresh mount sitting on top
+  // of an already-`done` task — possible under React 18 StrictMode's
+  // double-invoke, or if the user navigates back into a page mid-upload-
+  // completion — still fires one invalidate. Without this seed, the first
+  // pass would see prevStatus === "done" and skip.
+  let previous: Map<string, UploadTaskInternal> = new Map();
+
+  const handleChange = () => {
+    const current = useUploadQueueStore.getState().tasks;
+    for (const [id, task] of current) {
+      const prevStatus = previous.get(id)?.status;
+      if (task.status === "done" && prevStatus !== "done") {
+        invalidate(
+          objectsQueryKey(task.cid, task.bucket, prefixOfKey(task.key)),
+        );
+      }
+    }
+    previous = current;
+  };
+
+  handleChange();
+  const unsubscribe = useUploadQueueStore.subscribe(handleChange);
+
+  return () => {
+    unsubscribe();
+  };
+}
+
+/** Pull the directory portion from a full object key. `foo/bar/baz.txt`
+ *  → `foo/bar/`; `top.txt` → ``. Matches the prefix the bucket-browser
+ *  page passes to `useObjects`, so the cache key the effect invalidates
+ *  is the same one the listing query subscribes to. */
+function prefixOfKey(key: string): string {
+  const idx = key.lastIndexOf("/");
+  return idx >= 0 ? key.slice(0, idx + 1) : "";
 }

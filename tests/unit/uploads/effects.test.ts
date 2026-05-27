@@ -238,3 +238,116 @@ function makeStubHost() {
     },
   };
 }
+
+describe("lib/uploads/effects.startInvalidateOnDone", () => {
+  let mods: Awaited<ReturnType<typeof importFreshModules>>;
+
+  beforeEach(async () => {
+    // No fake timers here — the effect is synchronous against store changes.
+    mods = await importFreshModules();
+  });
+
+  it("invalidates with ['objects', cid, bucket, prefix] when a task reaches 'done'", () => {
+    const invalidate = vi.fn();
+    const stop = mods.effects.startInvalidateOnDone(invalidate);
+
+    const id = mods.store.useUploadQueueStore.getState().enqueue({
+      file: fakeFile("baz.txt", 1),
+      cid: "01HF000000000000000000000A",
+      bucket: "buk",
+      key: "foo/bar/baz.txt",
+    });
+    expect(invalidate).not.toHaveBeenCalled();
+
+    mods.store.useUploadQueueStore.getState().setStatus(id, "done");
+    expect(invalidate).toHaveBeenCalledOnce();
+    expect(invalidate).toHaveBeenCalledWith([
+      "objects",
+      "01HF000000000000000000000A",
+      "buk",
+      "foo/bar/",
+    ]);
+
+    stop();
+  });
+
+  it("uses an empty prefix for a top-level key (no slash)", () => {
+    const invalidate = vi.fn();
+    const stop = mods.effects.startInvalidateOnDone(invalidate);
+
+    const id = mods.store.useUploadQueueStore.getState().enqueue({
+      file: fakeFile("top.txt", 1),
+      cid: "01HF000000000000000000000A",
+      bucket: "buk",
+      key: "top.txt",
+    });
+    mods.store.useUploadQueueStore.getState().setStatus(id, "done");
+    expect(invalidate).toHaveBeenCalledWith([
+      "objects",
+      "01HF000000000000000000000A",
+      "buk",
+      "",
+    ]);
+
+    stop();
+  });
+
+  it("does not double-invalidate when the same 'done' task is observed on a later tick", () => {
+    const invalidate = vi.fn();
+    const stop = mods.effects.startInvalidateOnDone(invalidate);
+
+    const id = mods.store.useUploadQueueStore.getState().enqueue({
+      file: fakeFile("a.bin", 1),
+      cid: "01HF000000000000000000000A",
+      bucket: "buk",
+      key: "a.bin",
+    });
+    mods.store.useUploadQueueStore.getState().setStatus(id, "done");
+    expect(invalidate).toHaveBeenCalledOnce();
+
+    // An unrelated store mutation re-runs handleChange. The first task is
+    // still `done` but we already fired for it — second call must NOT
+    // re-fire for the same id.
+    mods.store.useUploadQueueStore.getState().enqueue({
+      file: fakeFile("b.bin", 1),
+      cid: "01HF000000000000000000000A",
+      bucket: "buk",
+      key: "b.bin",
+    });
+    expect(invalidate).toHaveBeenCalledOnce();
+
+    stop();
+  });
+
+  it("does not invalidate for tasks that never reach 'done'", () => {
+    const invalidate = vi.fn();
+    const stop = mods.effects.startInvalidateOnDone(invalidate);
+
+    const id = mods.store.useUploadQueueStore.getState().enqueue({
+      file: fakeFile("a.bin", 1),
+      cid: "01HF000000000000000000000A",
+      bucket: "buk",
+      key: "a.bin",
+    });
+    mods.store.useUploadQueueStore.getState().setStatus(id, "uploading");
+    mods.store.useUploadQueueStore.getState().setError(id, "boom");
+    expect(invalidate).not.toHaveBeenCalled();
+
+    stop();
+  });
+
+  it("stop() unsubscribes — later transitions do not invalidate", () => {
+    const invalidate = vi.fn();
+    const stop = mods.effects.startInvalidateOnDone(invalidate);
+    stop();
+
+    const id = mods.store.useUploadQueueStore.getState().enqueue({
+      file: fakeFile("a.bin", 1),
+      cid: "01HF000000000000000000000A",
+      bucket: "buk",
+      key: "a.bin",
+    });
+    mods.store.useUploadQueueStore.getState().setStatus(id, "done");
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+});
