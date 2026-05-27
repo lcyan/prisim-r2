@@ -36,12 +36,17 @@ export const BucketNameSchema = z
   );
 
 /** Object key: 1–1024 UTF-8 chars; reject leading slash so callers don't
- * accidentally rely on it (R2 ignores it, but it's a footgun). */
+ * accidentally rely on it (R2 ignores it, but it's a footgun). Folder
+ * placeholders (single trailing "/") ARE allowed — used by POST /api/r2/mkdir
+ * to write a 0-byte object with key `<prefix>/`. Bare "/" and any "//" are
+ * still rejected as malformed. */
 export const ObjectKeySchema = z
   .string()
   .min(1)
   .max(1024)
-  .refine((s) => !s.startsWith("/"), "must not start with '/'");
+  .refine((s) => !s.startsWith("/"), "must not start with '/'")
+  .refine((s) => !s.includes("//"), "must not contain '//'")
+  .refine((s) => s !== "/", "must not be bare '/'");
 
 /** Confirmation tokens for destructive ops — random hex from the server. */
 export const ConfirmationTokenSchema = z.string().min(16).max(128);
@@ -240,6 +245,40 @@ export const R2PresignSchema = z.discriminatedUnion("op", [
 ]);
 export type R2PresignInput = z.infer<typeof R2PresignSchema>;
 
+/* ─── r2 mkdir ───────────────────────────────────────────────── */
+//
+// POST /api/r2/mkdir
+//
+// Creates a "folder" by writing a 0-byte object with key `parentPrefix + name + "/"`.
+// AWS Console / s3cmd compatible. On list, R2 surfaces the placeholder both
+// in CommonPrefixes (folder view) and as a 0-byte object in Contents;
+// `useObjectsItems` (hooks/use-objects.ts) filters the latter out.
+//
+// Field rules:
+//   - `parentPrefix`: "" (root) or any string ending in "/" whose first
+//     char is NOT "/". Mirrors what segmentsToPrefix produces.
+//   - `name`: single segment, 1..255 utf-8 bytes, no "/" or control chars.
+//     The route additionally runs `validateFolderName` for "." / ".." /
+//     windows-reserved names — those would pass the regex below but are
+//     rejected with r2.folder_invalid_name.
+
+export const R2MkdirSchema = z
+  .object({
+    cid: UlidSchema,
+    bucket: BucketNameSchema,
+    parentPrefix: z
+      .string()
+      .max(1024)
+      .regex(/^$|^[^/].*\/$/, "must be '' or end with '/' (no leading '/')"),
+    name: z
+      .string()
+      .min(1)
+      .max(255)
+      .regex(/^[^/\x00-\x1f]+$/u, "must not contain '/' or control chars"),
+  })
+  .strict();
+export type R2MkdirInput = z.infer<typeof R2MkdirSchema>;
+
 /* ─── r2 multipart control-plane ─────────────────────────────── */
 //
 // POST /api/r2/multipart/create  → starts a multipart upload; returns the
@@ -435,6 +474,7 @@ export const AUDIT_OP_VALUES = [
   "share.create",
   "share.delete",
   "share.reveal",
+  "r2.mkdir",
   "security.decrypt_failed",
   "auth.login",
   "auth.logout",
