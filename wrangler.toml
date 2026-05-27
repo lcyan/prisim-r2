@@ -27,7 +27,7 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "prisim-r2-db"
-database_id = "ca97efd0-6267-4632-a35d-539433bff8b7"
+database_id = "240b8572-0af9-45c9-aec5-2fedce2cbf3f"
 migrations_dir = "drizzle/migrations"
 
 # Workers Observability — surfaces console.log / errors / wall time in the
