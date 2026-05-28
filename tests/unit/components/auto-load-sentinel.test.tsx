@@ -31,4 +31,11 @@ describe("AutoLoadSentinel", () => {
     expect(() => lastObserver()).toThrow();
     expect(onIntersect).not.toHaveBeenCalled();
   });
+
+  it("ignores non-intersecting entries (locks the isIntersecting guard)", () => {
+    const onIntersect = vi.fn();
+    render(<AutoLoadSentinel enabled={true} onIntersect={onIntersect} />);
+    lastObserver().trigger(false);
+    expect(onIntersect).not.toHaveBeenCalled();
+  });
 });
