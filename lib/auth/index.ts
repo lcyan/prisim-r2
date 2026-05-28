@@ -57,6 +57,18 @@ function getAdapter() {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
+  useSecureCookies: true,
+  cookies: {
+    sessionToken: {
+      name: `__Host-authjs.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true,
+      },
+    },
+  },
   providers: [
     Credentials({
       credentials: {
