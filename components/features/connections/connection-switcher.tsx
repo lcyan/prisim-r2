@@ -393,7 +393,7 @@ export function AddConnectionDialog({ onClose, onAdd }: DialogProps) {
           <div>
             <h2
               id={headingId}
-              className="font-display text-lg font-semibold tracking-tight"
+              className="text-display text-lg font-semibold tracking-tight"
             >
               {T.dialogTitle}
             </h2>

@@ -290,7 +290,7 @@ export default function BucketBrowserPage() {
   // bucket-switcher control to pick a connection first.
   if (!cid) {
     return (
-      <div className="flex flex-col gap-4 p-6">
+      <div className="flex flex-col gap-4 px-6 py-8">
         <div className="rounded-md border border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
           {T.pickConnection}
         </div>
@@ -299,7 +299,7 @@ export default function BucketBrowserPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 p-6">
+    <div className="flex h-full min-h-0 flex-col gap-4 px-6 py-8">
       {/* Dropzone wraps the table so a drag anywhere over the listing
           drops into the current prefix. Browse button + hint render
           above the table from inside the component. */}

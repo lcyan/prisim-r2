@@ -478,7 +478,7 @@ function TableBody({
     return (
       <tr>
         <td colSpan={5} className="px-6 py-20 text-center">
-          <p className="font-display text-lg italic text-muted-foreground">
+          <p className="text-display text-lg font-medium text-foreground">
             {T.emptyTitle}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">{T.emptyHint}</p>

@@ -13,44 +13,48 @@
 
 :root,
 :root[data-theme="blue"] {
-  --primary: #1677ff;
-  --primary-hover: #4391ff;
-  --primary-active: #0e5fd8;
-  --primary-soft: #f0f5ff;
-  --primary-soft-strong: #e6efff;
+  /* 蓝主题:从 #1677ff 微降饱和度到 #2c7be5,让悬停/激活态过渡更舒服;
+     soft 系列同步用半透明 rgba 而非新色，方便覆盖到任意背景。 */
+  --primary: #2c7be5;
+  --primary-hover: #4a92ec;
+  --primary-active: #1f63c4;
+  --primary-soft: rgba(44, 123, 229, 0.08);
+  --primary-soft-strong: rgba(44, 123, 229, 0.14);
   --primary-fg: #ffffff;
 
-  --content-bg: #f5f7fa;
-  --row-hover: #f7f9fc;
-  --hover: rgba(22, 119, 255, 0.06);
-  --info: #1677ff;
-  --info-soft: #f0f5ff;
+  --content-bg: #f7f8fa;
+  --row-hover: #f4f6fa;
+  --hover: rgba(44, 123, 229, 0.06);
+  --info: #2c7be5;
+  --info-soft: rgba(44, 123, 229, 0.08);
 
   /* 通用 token —— 在所有主题下相同 */
-  --fg: #1f2329;
-  --fg-2: #4e5969;
-  --muted: #86909c;
-  --muted-2: #c9cdd4;
-  --border: #e5e6eb;
-  --border-strong: #d1d5db;
+  --fg: #14171c;
+  --fg-2: #4a5160;
+  --muted: #828a98;
+  --muted-2: #c0c5cf;
+  --border: #e6e8ec;
+  --border-strong: #d3d6dc;
   --surface: #ffffff;
-  --code-bg: #f2f3f5;
+  --code-bg: #f1f2f5;
 
-  --success: #00b42a;
-  --success-soft: #e8ffea;
-  --warning: #ff7d00;
-  --warning-soft: #fff7e8;
-  --danger: #f53f3f;
-  --danger-soft: #ffece8;
+  --success: #16a34a;
+  --success-soft: rgba(22, 163, 74, 0.1);
+  --warning: #d97706;
+  --warning-soft: rgba(217, 119, 6, 0.12);
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.1);
 
   --radius-sm: 4px;
   --radius: 6px;
   --radius-lg: 10px;
   --radius-xl: 14px;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.03);
-  --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.18);
+  /* 阴影色带主色微 tint,避免纯黑灰阴影的“塑料感”。
+     RGB(20, 24, 36) 是 navy 偏冷的中性深色,与各主题都合得来。 */
+  --shadow-sm: 0 1px 2px rgba(20, 24, 36, 0.04);
+  --shadow-xs: 0 1px 1.5px rgba(20, 24, 36, 0.035);
+  --shadow-md: 0 6px 18px -6px rgba(20, 24, 36, 0.08);
+  --shadow-lg: 0 24px 56px -12px rgba(20, 24, 36, 0.16);
 
   /* shadcn 兼容别名 —— 这些 raw 变量在 :root 上提供给 components/ui/*
    * 内联 style 用 (Sonner toast 的 --normal-bg、sidebar focus shadow 等)。
@@ -62,88 +66,98 @@
   --sidebar-accent: var(--primary-soft);
   --sidebar-border: var(--border);
 
+  /* next/font 的 latin 变量 + 中文 fallback。Geist 不带 CJK,
+     PingFang SC / 微软雅黑 接住中文渲染。 */
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
-    "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    var(--font-sans-latin), "Geist", -apple-system, BlinkMacSystemFont,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue",
+    Helvetica, Arial, sans-serif;
   --font-mono:
-    "SF Mono", "JetBrains Mono", Monaco, Menlo, Consolas, "Source Han Mono",
-    monospace;
+    var(--font-mono-latin), "Geist Mono", "JetBrains Mono", "SF Mono", Monaco,
+    Menlo, Consolas, "Source Han Mono", monospace;
+  /* Display 共用 Geist,但通过 letter-spacing/weight 在使用点拉出 display 质感。 */
+  --font-display: var(--font-sans);
 }
 
 :root[data-theme="orange"] {
-  --primary: #ff6a00;
-  --primary-hover: #ff8a33;
-  --primary-active: #db5a00;
-  --primary-soft: #fff7ed;
-  --primary-soft-strong: #ffead1;
-  --content-bg: #fffbf5;
-  --row-hover: #fff7ed;
-  --hover: rgba(255, 106, 0, 0.06);
-  --info: #ff6a00;
-  --info-soft: #fff7ed;
+  --primary: #ea580c;
+  --primary-hover: #f37322;
+  --primary-active: #c2410c;
+  --primary-soft: rgba(234, 88, 12, 0.08);
+  --primary-soft-strong: rgba(234, 88, 12, 0.14);
+  --content-bg: #fbf8f5;
+  --row-hover: #f7f1ea;
+  --hover: rgba(234, 88, 12, 0.06);
+  --info: #ea580c;
+  --info-soft: rgba(234, 88, 12, 0.08);
+  --primary-fg: #ffffff;
 }
 
 :root[data-theme="green"] {
-  --primary: #00b96b;
-  --primary-hover: #2fcd8a;
-  --primary-active: #009957;
-  --primary-soft: #ecfdf5;
-  --primary-soft-strong: #d2f7e5;
-  --content-bg: #f6fefa;
-  --row-hover: #ecfdf5;
-  --hover: rgba(0, 185, 107, 0.06);
-  --info: #00b96b;
-  --info-soft: #ecfdf5;
+  --primary: #059669;
+  --primary-hover: #10b981;
+  --primary-active: #047857;
+  --primary-soft: rgba(5, 150, 105, 0.08);
+  --primary-soft-strong: rgba(5, 150, 105, 0.14);
+  --content-bg: #f6faf8;
+  --row-hover: #eef7f2;
+  --hover: rgba(5, 150, 105, 0.06);
+  --info: #059669;
+  --info-soft: rgba(5, 150, 105, 0.08);
+  --primary-fg: #ffffff;
 }
 
-/* 暗色模式:语义层(背景 / 前景 / 边框 / 阴影) */
+/* 暗色模式:语义层(背景 / 前景 / 边框 / 阴影)
+   背景从 #0b0d11(接近纯黑)拉到 #0e1116(带 navy tint),
+   surface 同步带一点 tint 区分卡片与底色。
+   shadow 用 rgba(0,0,0,…) 但 alpha 收敛,避免“黑塌一片”。 */
 :root[data-mode="dark"] {
-  --content-bg: #0b0d11;
-  --surface: #14171c;
-  --fg: #e6e7ea;
-  --fg-2: #b0b4bb;
+  --content-bg: #0e1116;
+  --surface: #161a21;
+  --fg: #e8eaee;
+  --fg-2: #b2b7c1;
   --muted: #6b7280;
   --muted-2: #4b5563;
-  --border: #1f2229;
-  --border-strong: #2a2e36;
-  --row-hover: #1a1d23;
-  --code-bg: #14171c;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.7);
+  --border: #232831;
+  --border-strong: #2f343f;
+  --row-hover: #1c2027;
+  --code-bg: #161a21;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.32);
+  --shadow-xs: 0 1px 1.5px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 8px 22px -8px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 28px 60px -16px rgba(0, 0, 0, 0.55);
 }
 
 /* 暗色 × 各主色:微调 primary 在深底上的对比度 */
 :root[data-theme="blue"][data-mode="dark"] {
-  --primary: #4391ff;
-  --primary-hover: #69a7ff;
-  --primary-active: #1f7aeb;
-  --primary-soft: rgba(67, 145, 255, 0.14);
-  --primary-soft-strong: rgba(67, 145, 255, 0.22);
-  --hover: rgba(67, 145, 255, 0.1);
-  --info: #4391ff;
-  --info-soft: rgba(67, 145, 255, 0.14);
+  --primary: #5b9af2;
+  --primary-hover: #7baef5;
+  --primary-active: #3f80df;
+  --primary-soft: rgba(91, 154, 242, 0.14);
+  --primary-soft-strong: rgba(91, 154, 242, 0.22);
+  --hover: rgba(91, 154, 242, 0.1);
+  --info: #5b9af2;
+  --info-soft: rgba(91, 154, 242, 0.14);
 }
 :root[data-theme="orange"][data-mode="dark"] {
-  --primary: #ff8a33;
-  --primary-hover: #ffa561;
-  --primary-active: #eb6a0e;
-  --primary-soft: rgba(255, 138, 51, 0.14);
-  --primary-soft-strong: rgba(255, 138, 51, 0.22);
-  --hover: rgba(255, 138, 51, 0.1);
-  --info: #ff8a33;
-  --info-soft: rgba(255, 138, 51, 0.14);
+  --primary: #f97316;
+  --primary-hover: #fb8a3c;
+  --primary-active: #ea580c;
+  --primary-soft: rgba(249, 115, 22, 0.14);
+  --primary-soft-strong: rgba(249, 115, 22, 0.22);
+  --hover: rgba(249, 115, 22, 0.1);
+  --info: #f97316;
+  --info-soft: rgba(249, 115, 22, 0.14);
 }
 :root[data-theme="green"][data-mode="dark"] {
-  --primary: #2fcd8a;
-  --primary-hover: #5bdda8;
-  --primary-active: #14b377;
-  --primary-soft: rgba(47, 205, 138, 0.14);
-  --primary-soft-strong: rgba(47, 205, 138, 0.22);
-  --hover: rgba(47, 205, 138, 0.1);
-  --info: #2fcd8a;
-  --info-soft: rgba(47, 205, 138, 0.14);
+  --primary: #34d399;
+  --primary-hover: #5eddae;
+  --primary-active: #10b981;
+  --primary-soft: rgba(52, 211, 153, 0.14);
+  --primary-soft-strong: rgba(52, 211, 153, 0.22);
+  --hover: rgba(52, 211, 153, 0.1);
+  --info: #34d399;
+  --info-soft: rgba(52, 211, 153, 0.14);
 }
 
 /* shadcn ↔ 设计稿 token 桥接（Tailwind v4） */
@@ -175,7 +189,7 @@
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
-  --font-display: var(--font-sans);
+  --font-display: var(--font-display);
   /* Sidebar tokens 绑到现有主题/语义 token,使主色 + 暗色模式自动联动。
      不再维护独立的 --sidebar-* 块。 */
   --color-sidebar: var(--surface);
@@ -199,17 +213,112 @@ body {
   height: 100%;
 }
 
+html {
+  /* 平滑滚动:面包屑/anchor 跳转更舒服。
+     prefers-reduced-motion 用户保持瞬时跳。 */
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 body {
   font-family: var(--font-sans);
   color: var(--fg);
   background: var(--content-bg);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.55;
+  font-feature-settings:
+    "rlig" 1,
+    "calt" 1,
+    "ss01" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 code,
 .mono {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 数字密集元素全局 tabular-nums:KPI 卡片、表格数字列、面包屑计数。
+   单字符宽度让一列数字垂直对齐,扫读更顺。 */
+.tabular-nums,
+[data-tabular-nums],
+table tbody td.tabular,
+table tbody td.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Display 排版 utility:配合 font-display token,让标题真有 display 的质感 */
+.text-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.018em;
+  font-feature-settings:
+    "ss01" 1,
+    "cv11" 1;
+}
+
+/* Editorial-spec / Letterhead 风:数字罗马字小撑开,适合 audit 头部、错误码、面包屑等。 */
+.tracking-eyebrow {
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* 选中行/连接的 signal bar — 在行最左侧画一道主色细竖线,
+   原代码引用了 `.signal-bar` 但未定义,这里补齐。 */
+.signal-bar {
+  position: relative;
+}
+.signal-bar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--primary);
+  opacity: 0.92;
+}
+
+/* 全屏极淡 grain overlay,打破纯色背景的塑料感。
+   pointer-events-none + position: fixed 不影响交互;只在亮色主题用,
+   暗色下 SVG 噪点本身偏黑会让对比变脏。 */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.025;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-size: 160px 160px;
+}
+
+:root[data-mode="dark"] body::after {
+  opacity: 0.04;
+  mix-blend-mode: screen;
+}
+
+/* 让 body::after 不挡 sticky 头/侧栏。所有应用层级 ≥ 1 即可保证。 */
+header,
+main,
+aside,
+nav,
+[data-slot="sidebar-container"] {
+  position: relative;
+  z-index: 1;
+}
+
+/* 链接的微 press 反馈。Button 已经在 cva 里用 active:scale-[0.98] 控制,
+   不要在这里给 button 叠加,否则 transform 复合会显怪。 */
+a:active:not([role="button"]) {
+  transform: translateY(0.5px);
 }

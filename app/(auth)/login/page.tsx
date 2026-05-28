@@ -4,7 +4,7 @@ import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { AlertTriangle, ArrowRight, Lock, Mail } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { describeError } from "@/lib/i18n/error-messages";
 import { preflightTotp, enrollBegin, ApiClientError } from "@/lib/api/client";
 import { useAuthEnrollStore } from "@/stores/auth-enroll";
@@ -139,14 +139,16 @@ function LoginForm() {
       <header className="flex items-center justify-between border-b border-border px-6 py-3">
         <div className="flex items-center gap-2">
           <PrismMark size={22} />
-          <span className="font-display text-lg font-semibold tracking-tight">
+          <span className="text-display text-lg font-semibold tracking-tight">
             Prisim
           </span>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-[11px] uppercase tracking-eyebrow text-muted-foreground">
             {T.brandSubtitle}
           </span>
         </div>
-        <p className="text-xs text-muted-foreground">{T.buildBadge}</p>
+        <p className="font-mono text-[10px] uppercase tracking-eyebrow text-muted-foreground">
+          {T.buildBadge}
+        </p>
       </header>
 
       <main className="flex flex-1 items-center justify-center px-6 py-10">
@@ -194,20 +196,17 @@ function LoginForm() {
 
             {error ? <ErrorBanner code={error} /> : null}
 
-            <button
+            <Button
               type="submit"
+              size="lg"
               disabled={pending || !email || !password}
-              className={cn(
-                "group inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-all",
-                "hover:opacity-95 active:translate-y-px",
-                "disabled:cursor-not-allowed disabled:opacity-50",
-              )}
+              className="group w-full"
             >
               {pending ? T.authenticating : T.signIn}
               {!pending ? (
-                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
               ) : null}
-            </button>
+            </Button>
           </form>
 
           <p className="mt-8 text-center text-xs leading-relaxed text-muted-foreground">
@@ -273,12 +272,12 @@ function ErrorBanner({ code }: { code: string }) {
 function Letterhead() {
   return (
     <div className="text-center">
-      <h1 className="font-display text-3xl font-semibold tracking-tight">
+      <h1 className="text-display text-3xl font-semibold tracking-tight">
         {T.letterheadTitle}
       </h1>
       <div className="mx-auto mt-3 flex items-center justify-center gap-2">
         <span className="h-px w-12 bg-border" aria-hidden />
-        <span className="text-xs text-muted-foreground">
+        <span className="text-[11px] uppercase tracking-eyebrow text-muted-foreground">
           {T.letterheadCenter}
         </span>
         <span className="h-px w-12 bg-border" aria-hidden />

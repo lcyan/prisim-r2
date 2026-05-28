@@ -5,6 +5,7 @@ import { AlertCircle, Database, Loader2 } from "lucide-react";
 
 import { useBuckets } from "@/hooks/use-buckets";
 import { useActiveConnectionStore } from "@/stores/active-connection";
+import { cn } from "@/lib/utils";
 
 const T = {
   title: "存储桶",
@@ -64,7 +65,7 @@ export default function BucketsPage() {
   if (data.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm">
-        <p className="font-display text-lg italic text-muted-foreground">
+        <p className="text-display text-lg font-medium text-foreground">
           {T.empty}
         </p>
         <p className="max-w-md text-xs text-muted-foreground">{T.emptyHint}</p>
@@ -73,34 +74,53 @@ export default function BucketsPage() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 p-6">
+    <div className="flex h-full flex-col gap-6 px-6 py-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{T.title}</h1>
-        <p className="mt-1 text-xs text-muted-foreground">{data.length} 个</p>
+        <p className="text-[11px] font-medium uppercase tracking-eyebrow text-muted-foreground">
+          R2
+        </p>
+        <h1 className="text-display mt-1 text-2xl font-semibold tracking-tight">
+          {T.title}
+        </h1>
+        <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
+          {data.length} 个
+        </p>
       </header>
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {data.map((bucket) => (
           <Link
             key={bucket.name}
             href={`/buckets/${encodeURIComponent(bucket.name)}`}
-            className="group flex flex-col gap-2 rounded-lg border border-border bg-card p-4 shadow-xs transition-colors hover:border-primary/40"
+            className={cn(
+              "group relative flex flex-col gap-3 overflow-hidden rounded-lg border border-border bg-card p-4 shadow-xs",
+              "transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-md",
+              // 顶部细线在 hover 时染上主色
+              "before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-primary/0 before:transition-colors before:duration-300",
+              "hover:before:bg-primary/60",
+            )}
           >
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary text-primary transition-colors duration-200 group-hover:bg-primary/15">
                 <Database className="h-4 w-4" strokeWidth={1.75} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-mono text-sm font-medium">
+                <p className="truncate font-mono text-sm font-medium tracking-tight">
                   {bucket.name}
                 </p>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
                   创建于 {T.created(bucket.createdAt)}
                 </p>
               </div>
             </div>
-            <p className="text-xs text-primary opacity-0 transition-opacity group-hover:opacity-100">
-              {T.enter} →
-            </p>
+            <div className="flex items-center justify-end gap-1 text-xs text-primary opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+              <span>{T.enter}</span>
+              <span
+                aria-hidden
+                className="transition-transform duration-200 group-hover:translate-x-0.5"
+              >
+                →
+              </span>
+            </div>
           </Link>
         ))}
       </section>

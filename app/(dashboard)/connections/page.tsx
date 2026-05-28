@@ -65,11 +65,13 @@ export default function ConnectionsSettingsPage() {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col p-6">
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-5 px-6 py-8">
+      <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs text-muted-foreground">{T.eyebrow}</p>
-          <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight">
+          <p className="text-[11px] font-medium uppercase tracking-eyebrow text-muted-foreground">
+            {T.eyebrow}
+          </p>
+          <h1 className="text-display mt-1 text-2xl font-semibold tracking-tight">
             {T.title}
           </h1>
           <p className="mt-2 max-w-prose text-sm text-muted-foreground">

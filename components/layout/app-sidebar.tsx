@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { PrismMark } from "@/components/brand/logo";
+import { cn } from "@/lib/utils";
 import {
   Sidebar,
   SidebarContent,
@@ -102,11 +103,13 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-1.5">
+        <div className="flex items-center gap-2.5 px-2 py-2">
           <PrismMark size={28} className="shrink-0" />
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <p className="truncate text-sm font-semibold">{T.brand}</p>
-            <p className="truncate text-[11px] text-muted-foreground">
+            <p className="truncate text-sm font-semibold tracking-tight">
+              {T.brand}
+            </p>
+            <p className="mt-0.5 truncate text-[10px] uppercase tracking-eyebrow text-muted-foreground">
               {T.brandSub}
             </p>
           </div>
@@ -114,7 +117,9 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>{T.groupMain}</SidebarGroupLabel>
+          <SidebarGroupLabel className="tracking-eyebrow text-[10px]">
+            {T.groupMain}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {MAIN_NAV.map((item) => (
@@ -128,7 +133,9 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup>
-          <SidebarGroupLabel>{T.groupAdmin}</SidebarGroupLabel>
+          <SidebarGroupLabel className="tracking-eyebrow text-[10px]">
+            {T.groupAdmin}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {ADMIN_NAV.map((item) => (
@@ -149,10 +156,23 @@ export function AppSidebar() {
 function NavRow({ item, active }: { item: NavItem; active: boolean }) {
   const Icon = item.icon;
   return (
+    // hover 时图标轻微右移,作为微 affordance;active 项的视觉指示
+    // 仍由 SidebarMenuButton 自带的 data-[active=true]:bg-sidebar-accent
+    // 提供,不在外层再叠 signal-bar,避免双重视觉提示。
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-        <Link href={item.href} data-active={active}>
-          <Icon className="h-4 w-4" strokeWidth={1.75} />
+        <Link
+          href={item.href}
+          data-active={active}
+          className="group/nav transition-colors"
+        >
+          <Icon
+            className={cn(
+              "h-4 w-4 transition-transform duration-200 ease-out",
+              !active && "group-hover/nav:translate-x-0.5",
+            )}
+            strokeWidth={1.75}
+          />
           <span>{item.label}</span>
         </Link>
       </SidebarMenuButton>

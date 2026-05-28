@@ -134,7 +134,7 @@ export default function SharesPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 p-6">
+    <div className="flex h-full min-h-0 flex-col gap-5 px-6 py-8">
       <Header />
       <WarningBanner />
 
@@ -206,8 +206,15 @@ function Header() {
   return (
     <div className="flex items-baseline justify-between">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{T.pageTitle}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{T.pageDesc}</p>
+        <p className="text-[11px] font-medium uppercase tracking-eyebrow text-muted-foreground">
+          Presigned URL
+        </p>
+        <h1 className="text-display mt-1 text-2xl font-semibold tracking-tight">
+          {T.pageTitle}
+        </h1>
+        <p className="mt-1.5 max-w-prose text-sm text-muted-foreground">
+          {T.pageDesc}
+        </p>
       </div>
     </div>
   );
@@ -221,8 +228,19 @@ function Header() {
  */
 function WarningBanner() {
   return (
-    <div className="flex items-start gap-2.5 rounded-md border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
-      <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+    // Token-based warning surface — left signal stripe + warning soft bg.
+    <div
+      role="alert"
+      className="relative flex items-start gap-3 overflow-hidden rounded-md border border-[color:var(--warning)]/35 bg-[color:var(--warning-soft)] px-4 py-3 text-sm"
+    >
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-[3px] bg-[color:var(--warning)]"
+      />
+      <ShieldAlert
+        className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--warning)]"
+        strokeWidth={2}
+      />
       <div>
         <p className="font-medium text-foreground">{T.warning}</p>
       </div>
@@ -290,7 +308,7 @@ function Body({
     return (
       <tr>
         <td colSpan={4} className="px-6 py-20 text-center">
-          <p className="font-display text-lg italic text-muted-foreground">
+          <p className="text-display text-lg font-medium text-foreground">
             {T.emptyTitle}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">{T.emptyHint}</p>

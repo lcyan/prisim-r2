@@ -181,10 +181,10 @@ function ConnectionsTableHead({
 function ConnectionsEmpty() {
   return (
     <div className="rounded-lg border border-dashed border-border bg-card/40 px-6 py-12 text-center">
-      <p className="font-display text-base font-medium text-foreground">
+      <p className="text-display text-base font-medium text-foreground">
         {T.empty}
       </p>
-      <p className="mt-1 max-w-md text-balance text-sm text-muted-foreground">
+      <p className="mt-2 max-w-md text-balance text-sm text-muted-foreground">
         {T.emptyHint}
       </p>
     </div>

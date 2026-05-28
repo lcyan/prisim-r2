@@ -11,6 +11,7 @@ import { enrollComplete, ApiClientError } from "@/lib/api/client";
 import { TotpField } from "@/components/features/auth/TotpField";
 import { QrDisplay } from "@/components/features/auth/QrDisplay";
 import { RecoveryCodeGrid } from "@/components/features/auth/RecoveryCodeGrid";
+import { Button } from "@/components/ui/button";
 import { describeError } from "@/lib/i18n/error-messages";
 
 export default function SetupTotpPage() {
@@ -121,8 +122,13 @@ export default function SetupTotpPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-12">
       <header>
-        <h1 className="text-2xl font-semibold">绑定 Authenticator</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="text-[11px] font-medium uppercase tracking-eyebrow text-muted-foreground">
+          双因素认证
+        </p>
+        <h1 className="text-display mt-1 text-2xl font-semibold tracking-tight">
+          绑定 Authenticator
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           首次登录需要绑定一次性密码 (TOTP) 以保护账号。
         </p>
       </header>
@@ -139,20 +145,18 @@ export default function SetupTotpPage() {
             autoFocus
             label="6 位验证码"
           />
-          <button
-            type="submit"
-            disabled={pending}
-            className="h-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60"
-          >
+          <Button type="submit" size="lg" disabled={pending}>
             {pending ? "正在验证…" : "继续"}
-          </button>
+          </Button>
         </form>
       )}
 
       {step === "saved" && (
         <section className="flex flex-col gap-5">
           <div>
-            <h2 className="text-lg font-semibold">已绑定 ✓</h2>
+            <h2 className="text-display text-lg font-semibold tracking-tight">
+              已绑定 ✓
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               请妥善保存以下恢复码,Authenticator 丢失时可用任一恢复码登录。
               <span className="text-destructive">该列表仅此一次显示。</span>
@@ -167,14 +171,14 @@ export default function SetupTotpPage() {
             />
             我已安全保存这些恢复码
           </label>
-          <button
+          <Button
             type="button"
+            size="lg"
             disabled={!confirmedSaved || pending}
             onClick={finishAndSignIn}
-            className="h-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60"
           >
             {pending ? "正在登录…" : "完成并登录"}
-          </button>
+          </Button>
         </section>
       )}
     </main>

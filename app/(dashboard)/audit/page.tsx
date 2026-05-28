@@ -77,7 +77,7 @@ export default function AuditPage() {
   const rows: AuditEntry[] = data ? data.pages.flatMap((p) => p.items) : [];
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 p-6">
+    <div className="flex h-full min-h-0 flex-col gap-5 px-6 py-8">
       <Header />
       <FilterBar
         op={opFilter}
@@ -139,8 +139,15 @@ function Header() {
   return (
     <div className="flex items-baseline justify-between">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{T.pageTitle}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{T.pageDesc}</p>
+        <p className="text-[11px] font-medium uppercase tracking-eyebrow text-muted-foreground">
+          只读
+        </p>
+        <h1 className="text-display mt-1 text-2xl font-semibold tracking-tight">
+          {T.pageTitle}
+        </h1>
+        <p className="mt-1.5 max-w-prose text-sm text-muted-foreground">
+          {T.pageDesc}
+        </p>
       </div>
     </div>
   );
@@ -248,7 +255,7 @@ function Body({
     return (
       <tr>
         <td colSpan={6} className="px-6 py-20 text-center">
-          <p className="font-display text-lg italic text-muted-foreground">
+          <p className="text-display text-lg font-medium text-foreground">
             {T.emptyTitle}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">{T.emptyHint}</p>

@@ -73,16 +73,34 @@ export default function DashboardPage() {
   const opsDelta = formatDelta(data.ops.count, data.ops.previousCount);
 
   return (
-    <div className="flex h-full flex-col gap-4 p-6">
+    <div className="flex h-full flex-col gap-5 px-6 py-8">
       {data.totp.recoveryCodesRemaining <= 3 && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
-          {T.lowRecoveryCodes(data.totp.recoveryCodesRemaining)}
+        <div
+          role="alert"
+          className="relative flex items-start gap-3 overflow-hidden rounded-md border border-[color:var(--warning)]/40 bg-[color:var(--warning-soft)] px-4 py-3 text-sm text-foreground"
+        >
+          <span
+            aria-hidden
+            className="absolute inset-y-0 left-0 w-[3px] bg-[color:var(--warning)]"
+          />
+          <AlertCircle
+            className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--warning)]"
+            strokeWidth={2}
+          />
+          <p className="text-sm">
+            {T.lowRecoveryCodes(data.totp.recoveryCodesRemaining)}
+          </p>
         </div>
       )}
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{T.title}</h1>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="text-[11px] font-medium uppercase tracking-eyebrow text-muted-foreground">
+            概览
+          </p>
+          <h1 className="text-display mt-1 text-2xl font-semibold tracking-tight">
+            {T.title}
+          </h1>
+          <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
             {T.subTitle(data.bucketsCount)}
           </p>
         </div>
@@ -116,12 +134,16 @@ export default function DashboardPage() {
       </section>
 
       <section className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <div className="rounded-lg border border-border bg-card p-4 shadow-xs lg:col-span-2">
-          <h2 className="mb-3 text-sm font-semibold">{T.chartArea(range)}</h2>
+        <div className="rounded-lg border border-border bg-card p-5 shadow-xs lg:col-span-2">
+          <h2 className="text-display mb-3 text-sm font-semibold tracking-tight">
+            {T.chartArea(range)}
+          </h2>
           <OpsAreaChart data={data.opsByDay} />
         </div>
-        <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
-          <h2 className="mb-3 text-sm font-semibold">{T.chartBars}</h2>
+        <div className="rounded-lg border border-border bg-card p-5 shadow-xs">
+          <h2 className="text-display mb-3 text-sm font-semibold tracking-tight">
+            {T.chartBars}
+          </h2>
           <OpsByTypeBar data={data.opsByType} />
         </div>
       </section>
