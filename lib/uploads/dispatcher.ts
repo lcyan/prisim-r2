@@ -43,6 +43,7 @@
 //   * No SSR. The module reads from a browser-only store and starts a
 //     browser-only subscription. Importing it from server code is a bug.
 
+import { ApiClientError } from "@/lib/api/client";
 import {
   useUploadQueueStore,
   type UploadTaskInternal,
@@ -57,6 +58,28 @@ import { MULTIPART_THRESHOLD_BYTES, uploadMultipart } from "./multipart";
 
 /** Maximum number of files in flight at once. */
 export const FILE_CONCURRENCY = 3;
+
+/** Maximum number of times a single task will be silently re-queued after
+ *  hitting a 429. After this we mark the task failed and let the user
+ *  click retry manually. */
+export const MAX_RATE_LIMIT_ATTEMPTS = 5;
+
+interface RetryBudget {
+  attempts: number;
+  nextEligibleAt: number;
+}
+const retryBudget = new Map<string, RetryBudget>();
+
+/** Exponential backoff capped at 8s — 1s, 2s, 4s, 8s, 8s. */
+export function computeBackoffDelayMs(attempt: number): number {
+  if (attempt <= 0) return 0;
+  const exp = Math.min(attempt - 1, 3); // cap exponent at 3 → 8s
+  return Math.min(1000 * 2 ** exp, 8000);
+}
+
+export function shouldGiveUp(attempt: number): boolean {
+  return attempt >= MAX_RATE_LIMIT_ATTEMPTS;
+}
 
 /** Minimum interval between store.setProgress writes per task. 200 ms is
  *  fast enough that the bar feels live and slow enough that 5 large files
@@ -116,6 +139,7 @@ export function stopUploadDispatcher(): void {
   unsubscribe = null;
   inFlight.clear();
   progressByTask.clear();
+  retryBudget.clear();
 }
 
 /* ─── scheduling ─────────────────────────────────────────────── */
@@ -160,10 +184,13 @@ function claimAndRun(): void {
 function findNextQueued(
   tasks: Map<string, UploadTaskInternal>,
 ): UploadTaskInternal | null {
+  const now = Date.now();
   let earliest: UploadTaskInternal | null = null;
   for (const task of tasks.values()) {
     if (task.status !== "queued") continue;
     if (inFlight.has(task.id)) continue;
+    const budget = retryBudget.get(task.id);
+    if (budget && budget.nextEligibleAt > now) continue;
     if (!earliest || task.createdAt < earliest.createdAt) {
       earliest = task;
     }
@@ -243,6 +270,7 @@ async function runTask(id: string): Promise<void> {
     // whatever the last throttled sample was.
     useUploadQueueStore.getState().setProgress(id, task.totalBytes);
     useUploadQueueStore.getState().setStatus(id, "done");
+    retryBudget.delete(id);
   } catch (err) {
     // Status precedence: an external cancel already wrote 'canceled'. Don't
     // step on the user's click — only mark 'failed' if the current status is
@@ -254,6 +282,35 @@ async function runTask(id: string): Promise<void> {
 
     if (err instanceof UploadError && err.kind === "aborted") {
       useUploadQueueStore.getState().setStatus(id, "canceled");
+      return;
+    }
+
+    // 429 from a presign call — re-queue with bounded exponential backoff so
+    // folder uploads with dozens of files don't surface a hard failure when
+    // they trip the 60/min/user presign rate limit. The store stays clean of
+    // retry metadata; the dispatcher owns the schedule.
+    if (
+      err instanceof ApiClientError &&
+      (err as ApiClientError & { code?: string }).code === "rate_limited"
+    ) {
+      const budget = retryBudget.get(id) ?? { attempts: 0, nextEligibleAt: 0 };
+      const nextAttempt = budget.attempts + 1;
+      if (shouldGiveUp(nextAttempt)) {
+        retryBudget.delete(id);
+        useUploadQueueStore
+          .getState()
+          .setError(id, "上传被限速,请稍后手动重试");
+        return;
+      }
+      const delay = computeBackoffDelayMs(nextAttempt);
+      retryBudget.set(id, {
+        attempts: nextAttempt,
+        nextEligibleAt: Date.now() + delay,
+      });
+      // Move back to queued so findNextQueued will retry when the timer fires.
+      useUploadQueueStore.getState().setStatus(id, "queued");
+      // Re-schedule after the delay.
+      setTimeout(() => schedule(), delay);
       return;
     }
 
