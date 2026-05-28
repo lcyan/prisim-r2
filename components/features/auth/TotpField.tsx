@@ -10,6 +10,9 @@ interface Props {
   disabled?: boolean;
   error?: string | null;
   label?: string;
+  /** Form input name so submit-time FormData can read the raw DOM value
+   *  even when a password manager autofills without firing React onChange. */
+  name?: string;
   /** 6 位 OTP 或 8 位恢复码(8-10 字符含连字符) */
   maxLength?: number;
   autoFocus?: boolean;
@@ -22,6 +25,7 @@ export const TotpField = forwardRef<HTMLInputElement, Props>(function TotpField(
     disabled,
     error,
     label = "验证码",
+    name,
     maxLength = 10,
     autoFocus,
   },
@@ -36,6 +40,7 @@ export const TotpField = forwardRef<HTMLInputElement, Props>(function TotpField(
       <input
         ref={ref}
         type="text"
+        name={name}
         inputMode="text"
         autoComplete="one-time-code"
         maxLength={maxLength}

@@ -65,20 +65,34 @@ function LoginForm() {
   const [otp, setOtp] = useState("");
   const enrollDraft = useAuthEnrollStore();
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Read values from the form via FormData rather than React state. 1Password
+    // (and similar password managers) often set `input.value` directly without
+    // dispatching a React-tracked change event, so the React state can lag the
+    // DOM. FormData always reflects the live DOM value at submit time.
+    const formData = new FormData(e.currentTarget);
+    const submittedEmail = String(formData.get("email") ?? "").trim();
+    const submittedPassword = String(formData.get("password") ?? "");
+    const submittedOtp = String(formData.get("otp") ?? "").trim();
+    // Keep React state in sync so the UI (errors / disabled / re-renders)
+    // reflects what was actually submitted.
+    if (submittedEmail !== email) setEmail(submittedEmail);
+    if (submittedPassword !== password) setPassword(submittedPassword);
+    if (submittedOtp !== otp) setOtp(submittedOtp);
+
     setError(null);
     setPending(true);
     try {
       // 1. preflight
-      const { enrolled } = await preflightTotp(email);
+      const { enrolled } = await preflightTotp(submittedEmail);
 
       // 2. enrolled === false → 调 enroll/begin → push /setup/totp
       if (!enrolled) {
         try {
-          const begin = await enrollBegin(email, password);
+          const begin = await enrollBegin(submittedEmail, submittedPassword);
           enrollDraft.set({
-            email,
+            email: submittedEmail,
             grant: begin.grant,
             otpauthUri: begin.otpauthUri,
             qrSvg: begin.qrSvg,
@@ -105,14 +119,14 @@ function LoginForm() {
       }
 
       // 3. enrolled === true → OTP 必填 + 调 signIn
-      if (!otp || otp.trim().length === 0) {
+      if (submittedOtp.length === 0) {
         setError("auth.otp.required");
         return;
       }
       const res = await signIn("credentials", {
-        email,
-        password,
-        otp,
+        email: submittedEmail,
+        password: submittedPassword,
+        otp: submittedOtp,
         redirect: false,
       });
       if (!res || res.error) {
@@ -162,6 +176,7 @@ function LoginForm() {
               invalid={!!error}
               inputProps={{
                 type: "email",
+                name: "email",
                 autoComplete: "email",
                 autoFocus: true,
                 required: true,
@@ -178,6 +193,7 @@ function LoginForm() {
               invalid={!!error}
               inputProps={{
                 type: "password",
+                name: "password",
                 autoComplete: "current-password",
                 required: true,
                 value: password,
@@ -188,6 +204,7 @@ function LoginForm() {
             />
 
             <TotpField
+              name="otp"
               value={otp}
               onChange={setOtp}
               disabled={pending}
