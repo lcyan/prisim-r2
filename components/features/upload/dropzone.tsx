@@ -4,9 +4,9 @@
 //
 // Drag-and-drop / click-to-browse upload surface. Wraps an arbitrary
 // children region (typically the object browser table) and converts a
-// drop event into a batch of upload tasks via the Zustand store. Once
-// queued, the dispatcher (lib/uploads/dispatcher.ts) takes over — this
-// component never touches a presigned URL or the R2 SDK directly.
+// drop event into a batch of upload tasks via the Zustand store. Files
+// are routed into the staging store; ConfirmUploadCard takes over the
+// user-facing confirm step and the dispatcher only sees committed batches.
 //
 // Visual model:
 //   * The dropzone is invisible until something is dragged over the
@@ -46,26 +46,20 @@ import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import {
-  describeQueued,
-  describeSkipped,
-  keyForFile,
-  validateAndPartitionFiles,
+  filesToQueuedFiles,
+  readDropAsQueuedFiles,
+  type QueuedFile,
 } from "@/lib/uploads/dropzone-utils";
-import { useUploadQueueStore } from "@/stores/upload-queue";
+import { useUploadStagingStore } from "@/stores/upload-staging";
 
 const T = {
   noConnection: "未选择连接",
   noConnectionHint: "请先在顶部选择一个连接和 bucket。",
-  skippedToast: (n: number) => `已跳过 ${n} 个文件`,
-  noFilesQueued: "未加入上传队列",
   hintLine1: "将文件拖到本页任意位置，或",
   hintBrowse: "浏览",
   hintLine3: "选择文件。",
+  hintBrowseFolder: "或上传文件夹",
   maxFileSize: "每个文件最大 5 GB",
-  enqueueInto: (bucket: string, prefix: string) =>
-    prefix.length > 0
-      ? `上传到 ${bucket}/${prefix}`
-      : `上传到 ${bucket}/（根目录）`,
   dropTitle: "释放鼠标即可上传到",
   noBucket: "（未选择 bucket）",
 } as const;
@@ -94,9 +88,11 @@ export function Dropzone({
   children,
   className,
 }: DropzoneProps) {
-  const enqueueMany = useUploadQueueStore((s) => s.enqueueMany);
+  const openStaging = useUploadStagingStore((s) => s.open);
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputId = useId();
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
 
   // dragenter/dragleave fire on every child boundary crossing. Using a
   // ref + state counter rather than a single boolean avoids the visible
@@ -107,37 +103,17 @@ export function Dropzone({
   const ready = Boolean(cid && bucket);
 
   const handleFiles = useCallback(
-    (files: File[]) => {
-      if (files.length === 0) return;
+    (queued: QueuedFile[]) => {
+      if (queued.length === 0) return;
       if (!ready || !cid) {
         toast.error(T.noConnection, {
           description: T.noConnectionHint,
         });
         return;
       }
-      const { accepted, skipped } = validateAndPartitionFiles(files);
-
-      if (skipped.length > 0) {
-        const desc = describeSkipped(skipped);
-        toast.error(
-          accepted.length > 0
-            ? T.skippedToast(skipped.length)
-            : T.noFilesQueued,
-          desc ? { description: desc } : undefined,
-        );
-      }
-      if (accepted.length === 0) return;
-
-      enqueueMany(cid, bucket, accepted, (file) => keyForFile(prefix, file));
-
-      const title = describeQueued(accepted);
-      if (title) {
-        toast.success(title, {
-          description: T.enqueueInto(bucket, prefix),
-        });
-      }
+      openStaging({ files: queued, targetPrefix: prefix });
     },
-    [ready, cid, bucket, prefix, enqueueMany],
+    [ready, cid, prefix, openStaging],
   );
 
   /* ─── drag handlers ─────────────────────────────────────────── */
@@ -179,13 +155,28 @@ export function Dropzone({
   );
 
   const handleDrop = useCallback(
-    (event: ReactDragEvent<HTMLDivElement>) => {
+    async (event: ReactDragEvent<HTMLDivElement>) => {
       if (!hasFiles(event.dataTransfer)) return;
       event.preventDefault();
       dragCounterRef.current = 0;
       setIsDragging(false);
-      const files = Array.from(event.dataTransfer.files);
-      handleFiles(files);
+
+      const dt = event.dataTransfer;
+      // Use DataTransferItem.webkitGetAsEntry when present (lets us walk
+      // a dropped folder); fall back to flat files for older browsers.
+      const supportsEntries =
+        dt.items &&
+        dt.items.length > 0 &&
+        typeof (
+          dt.items[0] as DataTransferItem & {
+            webkitGetAsEntry?: () => unknown;
+          }
+        ).webkitGetAsEntry === "function";
+
+      const queued: QueuedFile[] = supportsEntries
+        ? await readDropAsQueuedFiles(dt.items)
+        : filesToQueuedFiles(Array.from(dt.files));
+      handleFiles(queued);
     },
     [handleFiles],
   );
@@ -196,10 +187,18 @@ export function Dropzone({
     inputRef.current?.click();
   }, []);
 
+  const handleBrowseFolderClick = useCallback(() => {
+    folderInputRef.current?.click();
+  }, []);
+
   const handleInputChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = event.target.files ? Array.from(event.target.files) : [];
-      handleFiles(files);
+      const files = event.target.files;
+      if (!files || files.length === 0) {
+        event.target.value = "";
+        return;
+      }
+      handleFiles(filesToQueuedFiles(files));
       // Reset so the same file can be re-selected (browsers fire change
       // only when the selection differs from the previous one).
       event.target.value = "";
@@ -214,7 +213,9 @@ export function Dropzone({
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      onDrop={(e) => {
+        void handleDrop(e);
+      }}
       className={cn("relative", className)}
       data-testid="dropzone"
       aria-busy={isDragging || undefined}
@@ -235,7 +236,17 @@ export function Dropzone({
             >
               {T.hintBrowse}
             </button>
-            {T.hintLine3}
+            {T.hintLine3}{" "}
+            <span aria-hidden>·</span>{" "}
+            <button
+              type="button"
+              onClick={handleBrowseFolderClick}
+              disabled={!ready}
+              className="font-medium text-foreground underline-offset-2 transition-colors hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
+              aria-controls={folderInputId}
+            >
+              {T.hintBrowseFolder}
+            </button>
           </span>
         </span>
         <span className="text-xs text-muted-foreground">{T.maxFileSize}</span>
@@ -254,6 +265,22 @@ export function Dropzone({
           // the labelled Browse button.
           tabIndex={-1}
           aria-hidden
+        />
+
+        {/* Hidden folder picker driven by the second Browse button. */}
+        <input
+          ref={folderInputRef}
+          id={folderInputId}
+          type="file"
+          multiple
+          className="sr-only"
+          onChange={handleInputChange}
+          tabIndex={-1}
+          aria-hidden
+          // webkitdirectory/directory are non-standard and missing from React's
+          // HTMLInputElement attribute types. Spread to bypass the TS type gap
+          // without scattering @ts-expect-error pragmas.
+          {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
         />
       </div>
 
