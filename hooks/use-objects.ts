@@ -30,6 +30,7 @@
 //     the upload / delete hooks will reach for `invalidateQueries` against
 //     `objectsQueryKey(...)` to refresh this one.
 
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   useInfiniteQuery,
   type UseInfiniteQueryResult,
@@ -144,4 +145,138 @@ export function useObjects({
       lastPage.nextCursor ?? undefined,
     staleTime: OBJECTS_STALE_TIME_MS,
   });
+}
+
+/* ─── derived selectors (Task 9) ─────────────────────────────── */
+//
+// `useObjects` returns paged R2ListResponse. The ObjectTable wants a flat
+// row list AND the page-marker for the current prefix removed (R2 lists the
+// 0-byte placeholder under `Contents` when we list the prefix itself; the
+// row would otherwise show up as a zero-byte "file" named like the folder).
+// `useObjectsItems` is the selector that does that.
+
+/** Row shape consumed by ObjectTable. The local `ObjectsItemRow` union is
+ *  intentionally a duplicate of `ObjectRow` in
+ *  `components/features/files/object-table.tsx` — they describe the same
+ *  thing from opposite sides of an import boundary. Task 17 collapses the
+ *  two by switching ObjectTable to consume this type. Until then, keep
+ *  them structurally identical (kind + key, file extras: size, lastModified). */
+export type ObjectsItemRow =
+  | { kind: "prefix"; key: string }
+  | {
+      kind: "file";
+      key: string;
+      size: number | null;
+      lastModified: number | null;
+    };
+
+export interface ObjectsItemsView {
+  items: ObjectsItemRow[];
+  total: number;
+  hasNext: boolean;
+  isFetchingNext: boolean;
+}
+
+/** Flatten the paged listing into a single ObjectsItemRow[]. Filters out
+ *  the 0-byte placeholder whose key equals `currentPrefix` — that's the
+ *  folder-placeholder convention (lib/r2/control.ts:putEmptyObject). The
+ *  filter is a no-op at the root (`currentPrefix === ""`) because R2 keys
+ *  are never empty. */
+export function useObjectsItems(
+  query: UseInfiniteQueryResult<
+    InfiniteData<R2ListResponse, string | undefined>,
+    Error
+  >,
+  currentPrefix: string,
+): ObjectsItemsView {
+  const items = useMemo<ObjectsItemRow[]>(() => {
+    const pages = query.data?.pages ?? [];
+    const rows: ObjectsItemRow[] = [];
+    for (const p of pages) {
+      for (const pre of p.prefixes) {
+        rows.push({ kind: "prefix", key: pre });
+      }
+      for (const o of p.objects) {
+        if (o.key === currentPrefix) continue;
+        rows.push({
+          kind: "file",
+          key: o.key,
+          size: o.size,
+          lastModified: o.lastModified,
+        });
+      }
+    }
+    return rows;
+  }, [query.data, currentPrefix]);
+
+  return {
+    items,
+    total: items.length,
+    hasNext: Boolean(query.hasNextPage),
+    isFetchingNext: Boolean(query.isFetchingNextPage),
+  };
+}
+
+/* ─── load-all (Task 9) ──────────────────────────────────────── */
+
+/** Cap on a single `loadAll()` invocation. The route serves up to 200 keys
+ *  per page; 5 pages = 1000 keys, which bounds DOM size without forcing the
+ *  table to virtualize. `cappedOnLastRun` lets the UI surface a "still more
+ *  to load — refine your prefix" hint. */
+export const LOAD_ALL_PAGE_CAP = 5;
+
+export interface LoadAllController {
+  isLoadingAll: boolean;
+  /** True iff the last `loadAll()` exited because of the page cap (not
+   *  because the listing actually ended). Reset to false at the start of
+   *  each new `loadAll()`. */
+  cappedOnLastRun: boolean;
+  loadAll: () => Promise<void>;
+  /** Best-effort cancellation. The in-flight `fetchNextPage` is NOT aborted
+   *  — TanStack does not expose cancellation here — but the loop exits at
+   *  its next iteration boundary. */
+  stop: () => void;
+}
+
+/** Drive `query.fetchNextPage()` in a loop until the listing ends, the cap
+ *  is reached, or `stop()` is called. Reads `hasNextPage` freshly each
+ *  iteration so a query object whose `hasNextPage` is a live getter (the
+ *  TanStack-returned one is) is followed in real time. */
+export function useLoadAllObjects(
+  query: UseInfiniteQueryResult<
+    InfiniteData<R2ListResponse, string | undefined>,
+    Error
+  >,
+): LoadAllController {
+  const [isLoadingAll, setIsLoadingAll] = useState(false);
+  const [cappedOnLastRun, setCappedOnLastRun] = useState(false);
+  const stopRef = useRef(false);
+
+  const stop = useCallback(() => {
+    stopRef.current = true;
+  }, []);
+
+  const loadAll = useCallback(async () => {
+    stopRef.current = false;
+    setIsLoadingAll(true);
+    setCappedOnLastRun(false);
+    try {
+      let pages = 0;
+      while (
+        !stopRef.current &&
+        query.hasNextPage &&
+        pages < LOAD_ALL_PAGE_CAP
+      ) {
+        await query.fetchNextPage();
+        pages += 1;
+      }
+      if (!stopRef.current && query.hasNextPage && pages >= LOAD_ALL_PAGE_CAP) {
+        setCappedOnLastRun(true);
+      }
+    } finally {
+      setIsLoadingAll(false);
+    }
+  }, [query]);
+
+  return { isLoadingAll, cappedOnLastRun, loadAll, stop };
 }
