@@ -234,16 +234,20 @@ function getWindowHost(): BeforeUnloadHost | null {
 /* ─── 3. Invalidate the file listing when an upload completes ────── */
 
 /** Watch the queue for tasks transitioning into `done` and invalidate the
- *  TanStack Query cache for the (connection, bucket, prefix) the upload
- *  landed in. Without this, the file table keeps showing the pre-upload
- *  listing until the user manually refreshes.
+ *  TanStack Query cache for every (connection, bucket, ancestor-prefix)
+ *  the upload landed under — the file's own prefix AND every parent up
+ *  to the root. Without this, dropping a folder `logo/` onto the root
+ *  view invalidates `["objects", cid, bucket, "logo/"]` but the page
+ *  the user is looking at is keyed `["objects", cid, bucket, ""]`, so
+ *  the new `logo/` row never shows up until manual refresh.
  *
  *  The callback is `invalidate(queryKey)` rather than a `QueryClient`
  *  instance so this module stays free of `@tanstack/react-query` —
  *  `UploadQueueProvider` closes over its provider's QueryClient and passes
- *  a thin wrapper. Each task fires `invalidate` exactly once: subsequent
- *  ticks observing the same `done` status are deduped against the previous
- *  snapshot, matching the contract of the auto-remove effect above. */
+ *  a thin wrapper. Each task fires `invalidate` once per ancestor prefix
+ *  exactly once: subsequent ticks observing the same `done` status are
+ *  deduped against the previous snapshot, matching the contract of the
+ *  auto-remove effect above. */
 export function startInvalidateOnDone(
   invalidate: (queryKey: readonly unknown[]) => void,
 ): () => void {
@@ -259,9 +263,9 @@ export function startInvalidateOnDone(
     for (const [id, task] of current) {
       const prevStatus = previous.get(id)?.status;
       if (task.status === "done" && prevStatus !== "done") {
-        invalidate(
-          objectsQueryKey(task.cid, task.bucket, prefixOfKey(task.key)),
-        );
+        for (const prefix of ancestorPrefixes(prefixOfKey(task.key))) {
+          invalidate(objectsQueryKey(task.cid, task.bucket, prefix));
+        }
       }
     }
     previous = current;
@@ -282,4 +286,27 @@ export function startInvalidateOnDone(
 function prefixOfKey(key: string): string {
   const idx = key.lastIndexOf("/");
   return idx >= 0 ? key.slice(0, idx + 1) : "";
+}
+
+/** Expand a prefix into itself plus every ancestor up to root. `foo/bar/`
+ *  → `["foo/bar/", "foo/", ""]`; `""` → `[""]`. The bucket browser only
+ *  subscribes to ONE prefix at a time, but we don't know which one from
+ *  here, so we invalidate the whole chain — only the active listing
+ *  refetches (TanStack Query's default refetchType="active"); inactive
+ *  ancestor cache entries are just marked stale, no extra network. */
+function ancestorPrefixes(prefix: string): readonly string[] {
+  if (prefix === "") return [""];
+  const result: string[] = [prefix];
+  // Walk: "foo/bar/" → "foo/" → "" by trimming the last segment each step.
+  // slice(0, -1) drops the trailing "/", lastIndexOf("/") gives the parent
+  // boundary, +1 keeps the trailing slash on the parent.
+  let cursor = prefix.slice(0, -1);
+  while (cursor.length > 0) {
+    const idx = cursor.lastIndexOf("/");
+    if (idx < 0) break;
+    result.push(cursor.slice(0, idx + 1));
+    cursor = cursor.slice(0, idx);
+  }
+  result.push("");
+  return result;
 }

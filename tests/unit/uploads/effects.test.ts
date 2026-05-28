@@ -247,7 +247,7 @@ describe("lib/uploads/effects.startInvalidateOnDone", () => {
     mods = await importFreshModules();
   });
 
-  it("invalidates with ['objects', cid, bucket, prefix] when a task reaches 'done'", () => {
+  it("invalidates the file's prefix AND every ancestor when a task reaches 'done'", () => {
     const invalidate = vi.fn();
     const stop = mods.effects.startInvalidateOnDone(invalidate);
 
@@ -260,12 +260,28 @@ describe("lib/uploads/effects.startInvalidateOnDone", () => {
     expect(invalidate).not.toHaveBeenCalled();
 
     mods.store.useUploadQueueStore.getState().setStatus(id, "done");
-    expect(invalidate).toHaveBeenCalledOnce();
-    expect(invalidate).toHaveBeenCalledWith([
+    // Folder upload regression: a key under `foo/bar/` must also invalidate
+    // `foo/` and root, because the user may be viewing any ancestor when
+    // the dispatcher reports done. Without this, dropping a folder onto
+    // root leaves the root listing stale.
+    expect(invalidate).toHaveBeenCalledTimes(3);
+    expect(invalidate).toHaveBeenNthCalledWith(1, [
       "objects",
       "01HF000000000000000000000A",
       "buk",
       "foo/bar/",
+    ]);
+    expect(invalidate).toHaveBeenNthCalledWith(2, [
+      "objects",
+      "01HF000000000000000000000A",
+      "buk",
+      "foo/",
+    ]);
+    expect(invalidate).toHaveBeenNthCalledWith(3, [
+      "objects",
+      "01HF000000000000000000000A",
+      "buk",
+      "",
     ]);
 
     stop();
@@ -283,6 +299,42 @@ describe("lib/uploads/effects.startInvalidateOnDone", () => {
     });
     mods.store.useUploadQueueStore.getState().setStatus(id, "done");
     expect(invalidate).toHaveBeenCalledWith([
+      "objects",
+      "01HF000000000000000000000A",
+      "buk",
+      "",
+    ]);
+
+    stop();
+  });
+
+  it("folder upload onto root invalidates the root listing (regression)", () => {
+    // Folder drop: user is browsing prefix "" and drops `logo/` which contains
+    // `logo/x.png`. Before the ancestor walk, the effect only invalidated
+    // `[..., "logo/"]` and the root listing stayed stale until manual
+    // refresh — observed bug from the bucket browser.
+    const invalidate = vi.fn();
+    const stop = mods.effects.startInvalidateOnDone(invalidate);
+
+    const id = mods.store.useUploadQueueStore.getState().enqueue({
+      file: fakeFile("x.png", 1),
+      cid: "01HF000000000000000000000A",
+      bucket: "buk",
+      key: "logo/x.png",
+    });
+    mods.store.useUploadQueueStore.getState().setStatus(id, "done");
+
+    // Both prefixes are invalidated; only the active query (root in the
+    // observed bug) refetches, the inactive `logo/` is just marked stale.
+    expect(invalidate).toHaveBeenCalledTimes(2);
+    const calls = invalidate.mock.calls.map((c) => c[0]);
+    expect(calls).toContainEqual([
+      "objects",
+      "01HF000000000000000000000A",
+      "buk",
+      "logo/",
+    ]);
+    expect(calls).toContainEqual([
       "objects",
       "01HF000000000000000000000A",
       "buk",
