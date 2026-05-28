@@ -29,7 +29,7 @@ vi.mock("@/lib/api/client", () => ({
 }));
 
 import { useMkdirMutation } from "@/hooks/use-mkdir";
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, ApiClientError } from "@/lib/api/client";
 import { objectsQueryKey } from "@/hooks/use-objects";
 
 function wrapper(qc: QueryClient) {
@@ -121,6 +121,47 @@ describe("useMkdirMutation", () => {
       ),
     ).rejects.toThrow("boom");
 
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("propagates ApiClientError.code so callsites can branch on r2.folder_invalid_name etc.", async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const spy = vi.spyOn(qc, "invalidateQueries");
+    // The mock's ApiClientError stub is structurally identical to the real one
+    // for our purposes (carries `code` + extends Error). The point of this test
+    // is to lock in that `mutateAsync`'s rejection preserves the `code` field —
+    // callsites do `if (err instanceof ApiClientError && err.code === "r2.folder_invalid_name") ...`.
+    const apiErr = new ApiClientError(
+      "r2.folder_invalid_name",
+      "Folder name invalid",
+      400,
+      "req-test",
+    );
+    (apiFetch as ReturnType<typeof vi.fn>).mockRejectedValue(apiErr);
+    const { result } = renderHook(() => useMkdirMutation(), {
+      wrapper: wrapper(qc),
+    });
+
+    let caught: unknown;
+    try {
+      await act(async () => {
+        await result.current.mutateAsync({
+          cid: CID,
+          bucket: "b",
+          parentPrefix: "",
+          name: ".",
+        });
+      });
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(ApiClientError);
+    expect((caught as InstanceType<typeof ApiClientError>).code).toBe(
+      "r2.folder_invalid_name",
+    );
     expect(spy).not.toHaveBeenCalled();
   });
 });
