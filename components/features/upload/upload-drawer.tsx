@@ -49,6 +49,11 @@ export interface UploadTask {
   speed: number;
   status: UploadStatus;
   errorMsg?: string;
+  /** Full R2 key the file is being uploaded to. The drawer extracts the
+   *  parent-path portion (everything up to and including the last '/')
+   *  and renders it as a small grey line above the filename, so folder
+   *  uploads are visually distinguishable from root-level uploads. */
+  displayPath?: string;
 }
 
 interface UploadDrawerProps {
@@ -226,12 +231,22 @@ function UploadRow({
     <div className="flex items-center gap-3 px-3.5 py-2.5">
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
-          <p
-            className="truncate text-xs font-medium text-foreground"
-            title={task.filename}
-          >
-            {task.filename}
-          </p>
+          <div className="min-w-0">
+            {task.displayPath && pathPrefix(task.displayPath) && (
+              <div
+                className="truncate text-[10px] leading-tight text-muted-foreground/70"
+                title={pathPrefix(task.displayPath)}
+              >
+                {pathPrefix(task.displayPath)}
+              </div>
+            )}
+            <p
+              className="truncate text-xs font-medium text-foreground"
+              title={task.filename}
+            >
+              {task.filename}
+            </p>
+          </div>
           <ProgressLabel status={task.status} percent={percent} />
         </div>
 
@@ -398,4 +413,11 @@ function ControlButton({
       {children}
     </button>
   );
+}
+
+/** Extract the parent-path portion of a full R2 key — everything up to
+ *  and including the last '/'. Returns "" for root-level keys (no '/'). */
+function pathPrefix(fullKey: string): string {
+  const idx = fullKey.lastIndexOf("/");
+  return idx >= 0 ? fullKey.slice(0, idx + 1) : "";
 }

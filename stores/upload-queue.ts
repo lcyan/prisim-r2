@@ -432,6 +432,7 @@ export function toUploadDrawerTask(task: UploadTaskInternal): DrawerUploadTask {
     speed: task._emaSpeed,
     status,
     errorMsg: task.errorMsg,
+    displayPath: task.key,
   };
 }
 
