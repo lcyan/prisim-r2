@@ -35,6 +35,7 @@
 
 import {
   type DragEvent as ReactDragEvent,
+  type ChangeEvent as ReactChangeEvent,
   type ReactNode,
   useCallback,
   useId,
@@ -192,7 +193,7 @@ export function Dropzone({
   }, []);
 
   const handleInputChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
+    (event: ReactChangeEvent<HTMLInputElement>) => {
       const files = event.target.files;
       if (!files || files.length === 0) {
         event.target.value = "";
