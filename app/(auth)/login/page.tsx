@@ -39,9 +39,6 @@ const T = {
   footerRight: "cloudflare pages",
 } as const;
 
-const SESSION_READY_RETRIES = 5;
-const SESSION_READY_RETRY_MS = 150;
-
 export default function LoginPage() {
   // useSearchParams must live inside a Suspense boundary so Next.js can
   // bail out to CSR at build time instead of failing static prerender.
@@ -153,13 +150,7 @@ function LoginForm() {
       const target = pickPostLoginRoute(res.url ?? callbackUrl, {
         origin: window.location.origin,
       });
-      const sessionReady = await waitForSignedInSession();
-      if (!sessionReady) {
-        setError("auth.upstream_error");
-        return;
-      }
-      router.replace(target);
-      router.refresh();
+      window.location.assign(target);
       keepLocked = true;
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -295,26 +286,6 @@ function LoginShell() {
       </main>
     </div>
   );
-}
-
-async function waitForSignedInSession(): Promise<boolean> {
-  for (let attempt = 0; attempt < SESSION_READY_RETRIES; attempt++) {
-    const res = await fetch("/api/auth/session", {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    });
-    if (res.ok) {
-      const body = (await res.json()) as { user?: unknown };
-      if (body.user) return true;
-    }
-    if (attempt < SESSION_READY_RETRIES - 1) {
-      await new Promise((resolve) =>
-        window.setTimeout(resolve, SESSION_READY_RETRY_MS),
-      );
-    }
-  }
-  return false;
 }
 
 /* ──────────────────────────────────────────────────────────── */
