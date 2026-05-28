@@ -139,4 +139,22 @@ describe("PrefixPicker", () => {
     // The invalid name was rejected, so no ghost row appeared.
     expect(screen.queryByText(/📁 \.\.\//)).not.toBeInTheDocument();
   });
+
+  it("\"选择此处\" footer button commits the current prefix via onSelect", async () => {
+    const onSelect = vi.fn();
+    render(
+      <PrefixPicker
+        cid="c1"
+        bucket="b"
+        initialPrefix=""
+        onSelect={onSelect}
+        onCancel={vi.fn()}
+      />,
+      { wrapper: withQuery(freshClient()) },
+    );
+    await screen.findByText("📁 logs/");
+    fireEvent.click(screen.getByText("📁 logs/"));
+    fireEvent.click(screen.getByText("选择此处"));
+    expect(onSelect).toHaveBeenCalledWith("logs/");
+  });
 });
