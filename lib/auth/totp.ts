@@ -11,6 +11,10 @@ const ALGORITHM = "SHA-1";
 /** RFC 4648 §6 — base32 (no padding). */
 const B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
+export function normalizeTotpCandidate(candidate: string): string {
+  return candidate.replace(/\s/g, "");
+}
+
 export function base32Encode(bytes: Uint8Array): string {
   let bits = 0;
   let value = 0;
@@ -116,7 +120,8 @@ export async function verifyTotpCode(
   candidate: string,
   nowUnixSeconds: number = Math.floor(Date.now() / 1000),
 ): Promise<VerifyResult> {
-  if (!/^\d{6}$/.test(candidate)) return { ok: false };
+  const normalized = normalizeTotpCandidate(candidate);
+  if (!/^\d{6}$/.test(normalized)) return { ok: false };
   let matched: number | undefined;
   let anyMatch = 0;
   for (const delta of [-1, 0, 1]) {
@@ -124,7 +129,7 @@ export async function verifyTotpCode(
     const expected = await generateTotpCode(secret, t);
     let diff = 0;
     for (let i = 0; i < DIGITS; i++) {
-      diff |= expected.charCodeAt(i) ^ candidate.charCodeAt(i);
+      diff |= expected.charCodeAt(i) ^ normalized.charCodeAt(i);
     }
     if (diff === 0) {
       anyMatch = 1;

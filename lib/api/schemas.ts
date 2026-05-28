@@ -15,6 +15,7 @@
 // the typecheck error in the handler is the cue that you forgot.
 
 import { z } from "zod";
+import { normalizeTotpCandidate } from "@/lib/auth/totp";
 
 /* ─── shared primitives ──────────────────────────────────────── */
 
@@ -575,6 +576,10 @@ export const TotpEnrollCompleteSchema = z.object({
     .max(254)
     .transform((s) => s.toLowerCase().trim()),
   grant: z.string().min(16).max(64),
-  code: z.string().regex(/^\d{6}$/, "code 必须是 6 位数字"),
+  code: z
+    .string()
+    .max(16)
+    .transform(normalizeTotpCandidate)
+    .pipe(z.string().regex(/^\d{6}$/, "code 必须是 6 位数字")),
 });
 export type TotpEnrollCompleteInput = z.infer<typeof TotpEnrollCompleteSchema>;

@@ -24,6 +24,29 @@ describe("pickHomeRoute", () => {
     ).toBe("/buckets/dev/sub");
   });
 
+  it("respects same-origin absolute callbackUrls", () => {
+    expect(
+      pickHomeRoute(
+        { activeConnectionId: null, activeBucket: null },
+        "http://localhost:8787/buckets/dev",
+        "http://localhost:8787",
+      ),
+    ).toBe("/buckets/dev");
+  });
+
+  it("rejects auth callbackUrls that would bounce back to login", () => {
+    expect(
+      pickHomeRoute({ activeConnectionId: null, activeBucket: null }, "/login"),
+    ).toBe("/dashboard");
+    expect(
+      pickHomeRoute(
+        { activeConnectionId: null, activeBucket: null },
+        "http://localhost:8787/login?callbackUrl=%2Fdashboard",
+        "http://localhost:8787",
+      ),
+    ).toBe("/dashboard");
+  });
+
   it("rejects external callbackUrls (open-redirect guard)", () => {
     expect(
       pickHomeRoute(

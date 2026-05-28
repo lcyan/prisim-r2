@@ -51,6 +51,15 @@ describe("verifyTotpCode (±1 step)", () => {
     expect(result.matchedStep).toBe(Math.floor(t / 30));
   });
 
+  it("accepts whitespace-grouped codes from password managers", async () => {
+    const t = 1700000000;
+    const code = await generateTotpCode(RFC_SECRET_BYTES, t);
+    const grouped = `${code.slice(0, 3)} ${code.slice(3)}`;
+    const result = await verifyTotpCode(RFC_SECRET_BYTES, grouped, t);
+    expect(result.ok).toBe(true);
+    expect(result.matchedStep).toBe(Math.floor(t / 30));
+  });
+
   it("accepts previous step (clock drift +30s)", async () => {
     const t = 1700000000;
     const earlierCode = await generateTotpCode(RFC_SECRET_BYTES, t - 30);

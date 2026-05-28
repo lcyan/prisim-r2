@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, type FormEvent } from "react";
+import { Suspense, useRef, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { AlertTriangle, ArrowRight, Lock, Mail } from "lucide-react";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { describeError } from "@/lib/i18n/error-messages";
 import { preflightTotp, enrollBegin, ApiClientError } from "@/lib/api/client";
 import { useAuthEnrollStore } from "@/stores/auth-enroll";
+import { pickPostLoginRoute } from "@/lib/auth/redirect";
 import { TotpField } from "@/components/features/auth/TotpField";
 import { AuthField } from "@/components/features/auth/AuthField";
 import { PrismMark } from "@/components/brand/logo";
@@ -51,22 +52,24 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // Default to "/" so the post-login bounce runs through HomeRedirector,
-  // which respects the persisted activeBucket and routes the user back
-  // to the bucket they were last browsing. An explicit callbackUrl from
-  // an interrupted navigation (Auth.js sets one when middleware blocks a
-  // gated path) still wins so deep links keep working.
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  // An explicit callbackUrl from an interrupted navigation (Auth.js sets one
+  // when middleware blocks a gated path) wins when it points at a business
+  // page; auth pages fall back to the dashboard to avoid login loops.
+  const callbackUrl = searchParams.get("callbackUrl");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [otp, setOtp] = useState("");
+  const submittingRef = useRef(false);
   const enrollDraft = useAuthEnrollStore();
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+
     // Read values from the form via FormData rather than React state. 1Password
     // (and similar password managers) often set `input.value` directly without
     // dispatching a React-tracked change event, so the React state can lag the
@@ -81,6 +84,13 @@ function LoginForm() {
     if (submittedPassword !== password) setPassword(submittedPassword);
     if (submittedOtp !== otp) setOtp(submittedOtp);
 
+    if (!submittedEmail || !submittedPassword) {
+      setError("auth.invalid_credentials");
+      submittingRef.current = false;
+      return;
+    }
+
+    let keepLocked = false;
     setError(null);
     setPending(true);
     try {
@@ -99,6 +109,7 @@ function LoginForm() {
             secretBase32: begin.secretBase32,
           });
           router.push("/setup/totp");
+          keepLocked = true;
           return;
         } catch (err) {
           if (
@@ -133,8 +144,11 @@ function LoginForm() {
         setError("auth.invalid_credentials");
         return;
       }
-      router.replace(callbackUrl);
+      router.replace(
+        pickPostLoginRoute(callbackUrl, { origin: window.location.origin }),
+      );
       router.refresh();
+      keepLocked = true;
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(err.code === "rate_limited" ? "rate_limited" : err.code);
@@ -142,7 +156,10 @@ function LoginForm() {
       }
       setError("auth.upstream_error");
     } finally {
-      setPending(false);
+      if (!keepLocked) {
+        submittingRef.current = false;
+        setPending(false);
+      }
     }
   }
 
@@ -216,7 +233,7 @@ function LoginForm() {
             <Button
               type="submit"
               size="lg"
-              disabled={pending || !email || !password}
+              disabled={pending}
               className="group w-full"
             >
               {pending ? T.authenticating : T.signIn}

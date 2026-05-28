@@ -19,7 +19,11 @@ export function HomeRedirector() {
   useEffect(() => {
     const callbackUrl = search.get("callbackUrl");
     router.replace(
-      pickHomeRoute(useActiveConnectionStore.getState(), callbackUrl),
+      pickHomeRoute(
+        useActiveConnectionStore.getState(),
+        callbackUrl,
+        window.location.origin,
+      ),
     );
   }, [router, search]);
 

@@ -156,6 +156,20 @@ describe("verifyCredentials (authorize 的纯函数核)", () => {
     expect(user).toEqual({ id: userId, email: "u@example.com" });
   });
 
+  it("returns user when 1Password submits a whitespace-grouped otp", async () => {
+    const verify = await importVerify();
+    const code = await generateTotpCode(
+      totpSecret,
+      Math.floor(Date.now() / 1000),
+    );
+    const user = await verify({
+      email: "u@example.com",
+      password: "correct-horse-battery",
+      otp: `${code.slice(0, 3)} ${code.slice(3)}`,
+    });
+    expect(user).toEqual({ id: userId, email: "u@example.com" });
+  });
+
   it("returns null for wrong OTP", async () => {
     const verify = await importVerify();
     const user = await verify({

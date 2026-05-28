@@ -44,7 +44,7 @@ import { decryptCredential } from "@/lib/crypto/aes-gcm";
 import { getDb, type DbEnv } from "@/lib/db/client";
 
 import { hashRecoveryCode, normalizeRecoveryCode } from "./recovery-codes";
-import { base32Decode, verifyTotpCode } from "./totp";
+import { base32Decode, normalizeTotpCandidate, verifyTotpCode } from "./totp";
 import {
   consumeRecoveryCode,
   consumeSignInGrant,
@@ -212,10 +212,11 @@ export async function verifyCredentials(
   const secret = base32Decode(secretBase32);
 
   // 6-digit numeric → TOTP path; anything else → recovery code path.
-  if (/^\d{6}$/.test(input.otp)) {
+  const totpCandidate = normalizeTotpCandidate(input.otp);
+  if (/^\d{6}$/.test(totpCandidate)) {
     const verifyResult = await verifyTotpCode(
       secret,
-      input.otp,
+      totpCandidate,
       Math.floor(Date.now() / 1000),
     );
     if (!verifyResult.ok) {

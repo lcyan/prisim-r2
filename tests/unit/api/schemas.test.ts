@@ -16,6 +16,7 @@ import {
   R2MultipartCreateSchema,
   R2PresignSchema,
   R2_PRESIGN_MAX_TTL_SECONDS,
+  TotpEnrollCompleteSchema,
   UlidSchema,
   parseJson,
 } from "@/lib/api/schemas";
@@ -349,6 +350,22 @@ describe("R2 multipart schemas", () => {
         uploadId: "",
       });
       expect(r.success).toBe(false);
+    });
+  });
+});
+
+describe("TOTP schemas", () => {
+  it("normalizes whitespace-grouped enrollment codes", () => {
+    const result = TotpEnrollCompleteSchema.safeParse({
+      email: "ADMIN@EXAMPLE.COM",
+      grant: "01HWXYZABCDEFGHJKMNPQRSTVW",
+      code: "123 456",
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) throw new Error("expected schema to accept code");
+    expect(result.data).toMatchObject({
+      email: "admin@example.com",
+      code: "123456",
     });
   });
 });
