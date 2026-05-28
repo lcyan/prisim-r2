@@ -339,3 +339,17 @@ export interface DashboardSummary {
   recentActivity: AuditEntry[];
   totp: { recoveryCodesRemaining: number };
 }
+
+/**
+ * Response shape for POST /api/r2/mkdir. `alreadyExisted` distinguishes
+ * "created" from "no-op the row was already there" so the toast copy
+ * can differ without making the route 409 / 200 a header dance.
+ *
+ *   - `key` — final key written: `parentPrefix + name + "/"`.
+ *   - `alreadyExisted` — true when HeadObject probe found the placeholder
+ *     already there; false when PutObject wrote a fresh 0-byte object.
+ */
+export interface R2MkdirResponse {
+  key: string;
+  alreadyExisted: boolean;
+}
