@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: ["tests/unit/**/*.test.{ts,tsx}"],
-    setupFiles: ["./tests/setup.ts"],
+    setupFiles: ["./tests/setup.ts", "./tests/stubs/intersection-observer.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
