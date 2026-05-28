@@ -18,13 +18,14 @@
 //     no-op with the real call site. The action surface staying inert here
 //     means task 14 can ship before tasks 15+ are written.
 
-import { type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import {
   AlertTriangle,
   Download,
   Eye,
   FileText,
   Folder,
+  FolderPlus,
   Image as ImageIcon,
   Loader2,
   MoreHorizontal,
@@ -34,6 +35,7 @@ import {
 
 import { useSelectedKeysStore } from "@/stores/selected-keys";
 import { cn, formatBytes, formatRelative } from "@/lib/utils";
+import { AutoLoadSentinel } from "./auto-load-sentinel";
 
 const T = {
   selectAll: "选中本页所有行",
@@ -104,6 +106,16 @@ export interface ObjectTableProps {
   selectedCount: number;
   /** Called from the "Clear selection" banner button. */
   onClearSelection: () => void;
+  /** Total rendered rows count after placeholder filter. Falls back to
+   *  items.length when not provided. */
+  total?: number;
+  /** Called when the user submits a new folder name in the toolbar.
+   *  Routed to POST /api/r2/mkdir at the page level. */
+  onMkdir?: (name: string) => void;
+  /** "全部加载" button → controller from useLoadAllObjects. */
+  onLoadAll?: () => void;
+  onStopLoadAll?: () => void;
+  isLoadingAll?: boolean;
 }
 
 /** Extract the trailing segment of a prefix key (`"a/b/c/" → "c"`).
@@ -139,12 +151,53 @@ export function ObjectTable({
   onLoadMore,
   selectedCount,
   onClearSelection,
+  total,
+  onMkdir,
+  onLoadAll,
+  onStopLoadAll,
+  isLoadingAll,
 }: ObjectTableProps) {
   // Subscribe directly to the store so the table updates the instant a
   // checkbox flips, without round-tripping through the page.
   const selectedKeys = useSelectedKeysStore((s) => s.selectedKeys);
   const toggle = useSelectedKeysStore((s) => s.toggle);
   const setSelection = useSelectedKeysStore((s) => s.setSelection);
+
+  // Auto-load toggle. We read localStorage in a useState lazy initializer
+  // (NOT a useEffect) so we never trigger react-hooks/set-state-in-effect
+  // — the value is correct on first render. `try/catch` covers
+  // server-side prerender and sandboxed/private-browsing modes where
+  // localStorage throws or is unavailable.
+  const [autoLoadEnabled, setAutoLoadEnabledState] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      return (
+        window.localStorage.getItem("prisim-r2:auto-load-objects") !== "false"
+      );
+    } catch {
+      return true;
+    }
+  });
+  const setAutoLoadEnabled = (v: boolean) => {
+    setAutoLoadEnabledState(v);
+    try {
+      window.localStorage.setItem("prisim-r2:auto-load-objects", String(v));
+    } catch {
+      /* private-browsing / sandbox: skip persistence, keep in-memory state */
+    }
+  };
+
+  const [mkdirOpen, setMkdirOpen] = useState(false);
+  const [mkdirName, setMkdirName] = useState("");
+  const submitMkdir = () => {
+    const name = mkdirName.trim();
+    if (!name) return;
+    onMkdir?.(name);
+    setMkdirName("");
+    setMkdirOpen(false);
+  };
+
+  const displayTotal = total ?? items.length;
 
   const allKeys = items.map((i) => i.key);
   const allSelected =
@@ -174,6 +227,76 @@ export function ObjectTable({
         onClearSelection={onClearSelection}
         onBulkDelete={() => onBulkDelete?.()}
       />
+
+      {/* Toolbar (Task 17) */}
+      <div className="flex items-center justify-between border-b border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">
+        <div>
+          {hasNextPage
+            ? `已加载 ${displayTotal} 项 · 还有更多`
+            : `全部 ${displayTotal} 项`}
+        </div>
+        <div className="flex items-center gap-3">
+          {onMkdir &&
+            (mkdirOpen ? (
+              <input
+                type="text"
+                autoFocus
+                value={mkdirName}
+                placeholder="文件夹名"
+                onChange={(e) => setMkdirName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submitMkdir();
+                  if (e.key === "Escape") {
+                    setMkdirOpen(false);
+                    setMkdirName("");
+                  }
+                }}
+                onBlur={() => setMkdirOpen(false)}
+                className="rounded border border-input bg-background px-2 py-0.5"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setMkdirOpen(true)}
+                className="inline-flex items-center gap-1 hover:text-foreground"
+              >
+                <FolderPlus className="size-3" />
+                新建文件夹
+              </button>
+            ))}
+
+          <label className="inline-flex items-center gap-1">
+            <input
+              type="checkbox"
+              checked={autoLoadEnabled}
+              onChange={(e) => setAutoLoadEnabled(e.target.checked)}
+              aria-label="自动加载"
+            />
+            自动加载
+          </label>
+
+          {hasNextPage &&
+            onLoadAll &&
+            (isLoadingAll ? (
+              <button
+                type="button"
+                onClick={onStopLoadAll}
+                className="inline-flex items-center gap-1 hover:text-foreground"
+              >
+                <Loader2 className="size-3 animate-spin" />
+                停止
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onLoadAll}
+                className="hover:text-foreground"
+              >
+                全部加载
+              </button>
+            ))}
+        </div>
+      </div>
 
       <div className="flex-1 overflow-auto">
         <table className="w-full table-fixed border-collapse text-sm">
@@ -230,6 +353,11 @@ export function ObjectTable({
             </button>
           </div>
         ) : null}
+
+        <AutoLoadSentinel
+          enabled={autoLoadEnabled && hasNextPage && !isFetchingNextPage}
+          onIntersect={onLoadMore}
+        />
       </div>
     </div>
   );
