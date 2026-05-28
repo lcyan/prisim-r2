@@ -70,15 +70,45 @@ interface RetryBudget {
 }
 const retryBudget = new Map<string, RetryBudget>();
 
-/** Exponential backoff capped at 8s — 1s, 2s, 4s, 8s, 8s. */
-export function computeBackoffDelayMs(attempt: number): number {
+/**
+ * Exponential backoff capped at 8s — base 1s, 2s, 4s, 8s, 8s — with up to
+ * ±15% multiplicative jitter to avoid thundering-herd retries when several
+ * tasks hit 429 in the same instant (FILE_CONCURRENCY = 3 means three
+ * concurrent presigns can land in the same second on a folder upload).
+ *
+ * The `rng` parameter exists so tests can pin the jitter to a specific value
+ * (pass `() => 0.5` to recover the un-jittered base, `() => 0` for the lower
+ * edge, `() => 1` for the upper edge). Production callers omit it and the
+ * default `Math.random` decorrelates retries across tasks.
+ */
+export function computeBackoffDelayMs(
+  attempt: number,
+  rng: () => number = Math.random,
+): number {
   if (attempt <= 0) return 0;
   const exp = Math.min(attempt - 1, 3); // cap exponent at 3 → 8s
-  return Math.min(1000 * 2 ** exp, 8000);
+  const base = Math.min(1000 * 2 ** exp, 8000);
+  // 0.85x .. 1.15x — keep the net spread within ±15% per the plan.
+  const jitter = 0.85 + rng() * 0.3;
+  return Math.round(base * jitter);
 }
 
 export function shouldGiveUp(attempt: number): boolean {
   return attempt >= MAX_RATE_LIMIT_ATTEMPTS;
+}
+
+/**
+ * Clear any pending rate-limit retry budget for a task. Called from the
+ * store when the user cancels or manually retries — both signal that the
+ * earlier 429 history is no longer relevant and the next attempt should
+ * start from a fresh budget.
+ *
+ * Safe to call for unknown ids — Map.delete is a no-op when the key is
+ * absent. This is the only externally consumable mutator on the budget
+ * map; the dispatcher's own cleanups happen inline in runTask.
+ */
+export function clearRetryBudget(id: string): void {
+  retryBudget.delete(id);
 }
 
 /**
@@ -314,6 +344,11 @@ async function runTask(id: string): Promise<void> {
     if (current === "canceled" || current === "done") return;
 
     if (err instanceof UploadError && err.kind === "aborted") {
+      // Exiting via cancel — any leftover 429 history is irrelevant to a
+      // future user-initiated retry. Clearing here covers the "user cancelled
+      // a task that had previously hit 429 once" path that the store-side
+      // clearRetryBudget call would otherwise duplicate (both are safe).
+      retryBudget.delete(id);
       useUploadQueueStore.getState().setStatus(id, "canceled");
       return;
     }
@@ -348,6 +383,12 @@ async function runTask(id: string): Promise<void> {
       return;
     }
 
+    // Non-rate-limit failure — the task is exiting without re-queuing, so
+    // any 429 history accrued earlier must NOT bias a later manual retry.
+    // Without this delete, a task that 429'd once then failed with (say) an
+    // auth.unauthorized or a network error would leave `attempts >= 1`
+    // behind, shrinking the next attempt's budget.
+    retryBudget.delete(id);
     const msg = err instanceof Error ? err.message : "Upload failed";
     useUploadQueueStore.getState().setError(id, msg);
   }

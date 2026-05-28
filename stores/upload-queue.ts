@@ -38,6 +38,13 @@ import { create } from "zustand";
 import { ulid } from "ulid";
 
 import type { UploadTask as DrawerUploadTask } from "@/components/features/upload/upload-drawer";
+// Cyclic import note: dispatcher.ts imports `useUploadQueueStore` from this
+// file. ES modules tolerate the cycle because both bindings are only
+// dereferenced inside functions (not at module-top-level evaluation), so by
+// the time `cancel`/`retry` calls `clearRetryBudget`, dispatcher.ts is fully
+// initialized. The dispatcher does not import anything from the store at
+// top-level eval time either, so the order doesn't matter.
+import { clearRetryBudget } from "@/lib/uploads/dispatcher";
 
 /* ─── public state machine types ─────────────────────────────── */
 
@@ -327,6 +334,11 @@ export const useUploadQueueStore = create<UploadQueueState>()((set) => ({
       // to happen exactly once even under React 18 strict-mode double-invoke
       // because Zustand only calls the updater once per actual set().
       existing.abortController?.abort();
+      // Drop any pending 429 retry budget — once the user cancels, the
+      // earlier rate-limit history must not penalize a later retry click.
+      // Mirrors the dispatcher's own delete in the aborted-branch catch;
+      // both fire for a mid-flight cancel, and Map.delete is idempotent.
+      clearRetryBudget(id);
       const tasks = patchTask(state.tasks, id, (t) => ({
         ...t,
         status: "canceled" as const,
@@ -341,6 +353,9 @@ export const useUploadQueueStore = create<UploadQueueState>()((set) => ({
       if (existing.status !== "failed" && existing.status !== "canceled") {
         return {};
       }
+      // User explicitly asked for a fresh attempt — clear any leftover 429
+      // budget so the next round of presigns starts from attempt 1.
+      clearRetryBudget(id);
       const now = Date.now();
       const tasks = patchTask(state.tasks, id, (t) => ({
         ...t,
@@ -380,6 +395,11 @@ export const useUploadQueueStore = create<UploadQueueState>()((set) => ({
         // dispatcher's tracking map. The caller should cancel() first.
         return {};
       }
+      // Belt-and-braces: if a canceled task is dismissed and somehow still
+      // had a retry-budget entry (e.g. cancel happened before our store-side
+      // cleanup landed in a prior version), drop it now so the Map doesn't
+      // leak entries for ids no longer in the store.
+      clearRetryBudget(id);
       const next = new Map(state.tasks);
       next.delete(id);
       return { tasks: next };

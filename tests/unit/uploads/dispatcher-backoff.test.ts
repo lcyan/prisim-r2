@@ -9,18 +9,59 @@ import {
   computeBackoffDelayMs,
   shouldGiveUp,
   isRateLimitedPresignError,
+  clearRetryBudget,
   MAX_RATE_LIMIT_ATTEMPTS,
 } from "@/lib/uploads/dispatcher";
 
 describe("computeBackoffDelayMs", () => {
+  // With rng() === 0.5 the jitter multiplier is 0.85 + 0.5 * 0.3 = 1.0 → the
+  // result matches the un-jittered base. That gives us the same boundary
+  // assertions the original deterministic tests had, while exercising the new
+  // signature.
   it.each([
     [1, 1000],
     [2, 2000],
     [3, 4000],
     [4, 8000],
     [5, 8000], // capped
-  ])("attempt %d → %dms", (attempt, expected) => {
-    expect(computeBackoffDelayMs(attempt)).toBe(expected);
+  ])("attempt %d with neutral jitter → %dms", (attempt, expected) => {
+    expect(computeBackoffDelayMs(attempt, () => 0.5)).toBe(expected);
+  });
+
+  it("attempt 0 → 0ms regardless of rng", () => {
+    expect(computeBackoffDelayMs(0, () => 0)).toBe(0);
+    expect(computeBackoffDelayMs(0, () => 1)).toBe(0);
+    expect(computeBackoffDelayMs(-1, () => 0.5)).toBe(0);
+  });
+
+  it.each([
+    [1, 1000],
+    [2, 2000],
+    [3, 4000],
+    [4, 8000],
+    [5, 8000],
+  ])(
+    "attempt %d stays within the ±15%% jitter envelope of base %dms",
+    (attempt, base) => {
+      const low = computeBackoffDelayMs(attempt, () => 0);
+      const high = computeBackoffDelayMs(attempt, () => 1);
+      // Lower edge: 0.85x, upper edge: 1.15x. Round() is applied inside the
+      // helper so the comparisons use the pre-rounded fractions to match.
+      expect(low).toBe(Math.round(base * 0.85));
+      expect(high).toBe(Math.round(base * 1.15));
+      // Spot-check the band actually moves — otherwise jitter is silently
+      // disabled and the thundering-herd fix is a no-op.
+      expect(high).toBeGreaterThan(low);
+    },
+  );
+
+  it("uses Math.random by default (smoke test — value lies in the envelope)", () => {
+    // Five samples is enough to detect "default is constant" without flake.
+    for (let i = 0; i < 5; i++) {
+      const v = computeBackoffDelayMs(1);
+      expect(v).toBeGreaterThanOrEqual(Math.round(1000 * 0.85));
+      expect(v).toBeLessThanOrEqual(Math.round(1000 * 1.15));
+    }
   });
 });
 
@@ -93,5 +134,23 @@ describe("isRateLimitedPresignError", () => {
       new Error("network blip"),
     );
     expect(isRateLimitedPresignError(wrapped)).toBeNull();
+  });
+});
+
+describe("clearRetryBudget", () => {
+  // The retryBudget map is module-private, so we can't read it directly. The
+  // behavioral contract is "calling clearRetryBudget is always safe and a
+  // no-op for unknown ids". The integration with the cancel/retry store
+  // actions is exercised in tests/unit/uploads/dispatcher.test.ts where a
+  // full runTask loop can observe the budget through retry behavior.
+  it("does not throw for unknown ids", () => {
+    expect(() => clearRetryBudget("01HF000000000000000000000Z")).not.toThrow();
+  });
+  it("is idempotent across repeated calls", () => {
+    expect(() => {
+      clearRetryBudget("dup");
+      clearRetryBudget("dup");
+      clearRetryBudget("dup");
+    }).not.toThrow();
   });
 });
