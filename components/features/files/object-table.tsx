@@ -251,7 +251,17 @@ export function ObjectTable({
                     setMkdirName("");
                   }
                 }}
-                onBlur={() => setMkdirOpen(false)}
+                onBlur={() => {
+                  // Commit on blur if the user typed a non-empty name —
+                  // otherwise they'd lose their input by clicking away.
+                  // Empty/whitespace-only just closes the input.
+                  if (mkdirName.trim()) {
+                    submitMkdir();
+                  } else {
+                    setMkdirOpen(false);
+                    setMkdirName("");
+                  }
+                }}
                 className="rounded border border-input bg-background px-2 py-0.5"
               />
             ) : (

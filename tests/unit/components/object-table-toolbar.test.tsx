@@ -99,6 +99,9 @@ describe("ObjectTable toolbar (Task 17)", () => {
     fireEvent.change(input, { target: { value: "logs" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onMkdir).toHaveBeenCalledWith("logs");
+    // Post-submit: input unmounts; new-folder button is back.
+    expect(screen.queryByPlaceholderText("文件夹名")).not.toBeInTheDocument();
+    expect(screen.getByText("新建文件夹")).toBeInTheDocument();
   });
 
   it("'全部加载' button calls onLoadAll", () => {
