@@ -115,6 +115,10 @@ pnpm deploy
 deploy` (内部就是 `wrangler deploy`)。CI 上同样跑 `pnpm deploy`
 即可 —— 这条命令幂等,可以直接由 GitHub Actions 调用。
 
+> 想要每次 `git push` 自动构建+部署 (省掉本地 `pnpm deploy`),用
+> Cloudflare 官方的 Workers Builds (Git 集成),配置见
+> [`workers-builds.zh-CN.md`](./workers-builds.zh-CN.md)。
+
 第一次正式发布前先做一次 dry-run 自检:
 
 ```bash

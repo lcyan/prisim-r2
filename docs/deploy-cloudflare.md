@@ -124,6 +124,11 @@ into a Workers bundle under `.open-next/`) and then
 deploys should run the same `pnpm deploy` — it's idempotent and safe
 to invoke from GitHub Actions.
 
+> Want each `git push` to auto-build + deploy (and skip local
+> `pnpm deploy` entirely)? Use Cloudflare's first-party Workers Builds
+> (Git integration) — full setup in
+> [`workers-builds.md`](./workers-builds.md).
+
 Sanity-check with a dry run before the first real push:
 
 ```bash
