@@ -81,6 +81,39 @@ export function shouldGiveUp(attempt: number): boolean {
   return attempt >= MAX_RATE_LIMIT_ATTEMPTS;
 }
 
+/**
+ * Return the underlying rate_limited ApiClientError if `err` represents a
+ * rate-limited presign failure, otherwise null.
+ *
+ * Why both branches:
+ *   * Realistic path: the upload helpers (single-put.ts / multipart.ts) wrap
+ *     any ApiClientError thrown from the presign apiFetch in
+ *     `new UploadError("presign", msg, status, err)`. So by the time the
+ *     dispatcher's catch sees it, the rate_limited ApiClientError lives on
+ *     `.cause`.
+ *   * Defensive path: if a future code path short-circuits the wrap and
+ *     throws an ApiClientError directly, we still want to retry it.
+ *
+ * Only the `presign` kind is eligible — `"http"` (a 429 from R2 itself) is
+ * out of scope for the backoff plan and might need a different strategy.
+ */
+export function isRateLimitedPresignError(
+  err: unknown,
+): ApiClientError | null {
+  if (
+    err instanceof UploadError &&
+    err.kind === "presign" &&
+    err.cause instanceof ApiClientError &&
+    err.cause.code === "rate_limited"
+  ) {
+    return err.cause;
+  }
+  if (err instanceof ApiClientError && err.code === "rate_limited") {
+    return err;
+  }
+  return null;
+}
+
 /** Minimum interval between store.setProgress writes per task. 200 ms is
  *  fast enough that the bar feels live and slow enough that 5 large files
  *  uploading simultaneously won't flood React with re-renders. */
@@ -289,10 +322,11 @@ async function runTask(id: string): Promise<void> {
     // folder uploads with dozens of files don't surface a hard failure when
     // they trip the 60/min/user presign rate limit. The store stays clean of
     // retry metadata; the dispatcher owns the schedule.
-    if (
-      err instanceof ApiClientError &&
-      (err as ApiClientError & { code?: string }).code === "rate_limited"
-    ) {
+    //
+    // The upload helpers wrap ApiClientError inside UploadError(kind='presign'),
+    // so isRateLimitedPresignError unwraps both shapes (wrapped + bare).
+    const rateLimited = isRateLimitedPresignError(err);
+    if (rateLimited) {
       const budget = retryBudget.get(id) ?? { attempts: 0, nextEligibleAt: 0 };
       const nextAttempt = budget.attempts + 1;
       if (shouldGiveUp(nextAttempt)) {
