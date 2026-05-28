@@ -1,12 +1,13 @@
 // tests/unit/stores/upload-staging.test.ts
 //
-// Spec for the confirm-upload modal's short-lived staging store. Five
+// Spec for the confirm-upload modal's short-lived staging store. Six
 // concerns:
 //
 //   * Initial state: closed, empty, hidden-files off.
-//   * `set()` opens the modal with files + target prefix.
+//   * `open()` opens the modal with files + target prefix.
 //   * `setTargetPrefix` updates target prefix without closing the modal.
 //   * `toggleIncludeHidden` flips the boolean.
+//   * `open()` preserves includeHidden across opens within one session.
 //   * `reset()` returns to the initial state.
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -30,11 +31,11 @@ describe("upload-staging store", () => {
     expect(s.targetPrefix).toBe("");
   });
 
-  it("set() opens the modal with files and target prefix", () => {
+  it("open() opens the modal with files and target prefix", () => {
     const files: QueuedFile[] = [
       { file: fakeFile("a.txt"), name: "a.txt", relativePath: "" },
     ];
-    useUploadStagingStore.getState().set({
+    useUploadStagingStore.getState().open({
       files,
       targetPrefix: "logs/",
     });
@@ -45,7 +46,7 @@ describe("upload-staging store", () => {
   });
 
   it("setTargetPrefix updates only target prefix", () => {
-    useUploadStagingStore.getState().set({
+    useUploadStagingStore.getState().open({
       files: [{ file: fakeFile("a.txt"), name: "a.txt", relativePath: "" }],
       targetPrefix: "logs/",
     });
@@ -61,8 +62,18 @@ describe("upload-staging store", () => {
     expect(useUploadStagingStore.getState().includeHidden).toBe(false);
   });
 
+  it("open() preserves includeHidden from a previous toggle (modal re-open within one session)", () => {
+    useUploadStagingStore.getState().toggleIncludeHidden();
+    expect(useUploadStagingStore.getState().includeHidden).toBe(true);
+    useUploadStagingStore.getState().open({
+      files: [{ file: fakeFile("a.txt"), name: "a.txt", relativePath: "" }],
+      targetPrefix: "logs/",
+    });
+    expect(useUploadStagingStore.getState().includeHidden).toBe(true);
+  });
+
   it("reset() clears everything and closes the modal", () => {
-    useUploadStagingStore.getState().set({
+    useUploadStagingStore.getState().open({
       files: [{ file: fakeFile("a.txt"), name: "a.txt", relativePath: "" }],
       targetPrefix: "logs/",
     });

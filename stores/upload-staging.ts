@@ -27,7 +27,7 @@ interface UploadStagingState {
 
   /** Open the modal with a set of files. Caller picks the default
    *  targetPrefix (usually the page's current browsing prefix). */
-  set: (args: { files: QueuedFile[]; targetPrefix: string }) => void;
+  open: (args: { files: QueuedFile[]; targetPrefix: string }) => void;
   setTargetPrefix: (next: string) => void;
   toggleIncludeHidden: () => void;
   reset: () => void;
@@ -39,12 +39,12 @@ export const useUploadStagingStore = create<UploadStagingState>()((set) => ({
   includeHidden: false,
   isOpen: false,
 
-  set: (args) =>
+  open: (args) =>
     set({
       files: args.files,
       targetPrefix: args.targetPrefix,
       isOpen: true,
-      // includeHidden intentionally preserved across set() — a user
+      // includeHidden intentionally preserved across open() — a user
       // re-opening the modal in one session expects the toggle to stick.
       // reset() is the hard-clear path.
     }),
