@@ -58,6 +58,10 @@ const T = {
   tooManyDownloads: "下载请求过多。请稍候再试。",
   connectionMissing: "找不到连接。请到「连接管理」重新添加。",
   errUnknown: "未知错误",
+  mkdirAlreadyExists: "文件夹已存在",
+  mkdirCreated: (name: string) => `已创建 ${name}/`,
+  mkdirFailed: "无法创建文件夹",
+  uploadEnqueued: (n: number) => `已入队 ${n} 个文件`,
 } as const;
 
 /**
@@ -242,12 +246,12 @@ export default function BucketBrowserPage() {
         {
           onSuccess: (data) => {
             toast.success(
-              data.alreadyExisted ? "文件夹已存在" : `已创建 ${name}/`,
+              data.alreadyExisted ? T.mkdirAlreadyExists : T.mkdirCreated(name),
             );
           },
           onError: (err) => {
-            toast.error("无法创建文件夹", {
-              description: err instanceof Error ? err.message : "未知错误",
+            toast.error(T.mkdirFailed, {
+              description: err instanceof Error ? err.message : T.errUnknown,
             });
           },
         },
@@ -276,7 +280,7 @@ export default function BucketBrowserPage() {
             : `${args.targetPrefix}${file.name}`;
         },
       );
-      toast.success(`已入队 ${args.accepted.length} 个文件`);
+      toast.success(T.uploadEnqueued(args.accepted.length));
     },
     [cid, bucket, enqueueMany],
   );
