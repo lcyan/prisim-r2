@@ -39,6 +39,9 @@ const T = {
   footerRight: "cloudflare pages",
 } as const;
 
+const SESSION_READY_RETRIES = 5;
+const SESSION_READY_RETRY_MS = 150;
+
 export default function LoginPage() {
   // useSearchParams must live inside a Suspense boundary so Next.js can
   // bail out to CSR at build time instead of failing static prerender.
@@ -138,15 +141,24 @@ function LoginForm() {
         email: submittedEmail,
         password: submittedPassword,
         otp: submittedOtp,
+        callbackUrl: pickPostLoginRoute(callbackUrl, {
+          origin: window.location.origin,
+        }),
         redirect: false,
       });
       if (!res || res.error) {
         setError("auth.invalid_credentials");
         return;
       }
-      router.replace(
-        pickPostLoginRoute(callbackUrl, { origin: window.location.origin }),
-      );
+      const target = pickPostLoginRoute(res.url ?? callbackUrl, {
+        origin: window.location.origin,
+      });
+      const sessionReady = await waitForSignedInSession();
+      if (!sessionReady) {
+        setError("auth.upstream_error");
+        return;
+      }
+      router.replace(target);
       router.refresh();
       keepLocked = true;
     } catch (err) {
@@ -198,8 +210,10 @@ function LoginForm() {
                 autoFocus: true,
                 required: true,
                 value: email,
-                onChange: (e) => setEmail(e.target.value),
-                disabled: pending,
+                onChange: (e) => {
+                  if (!submittingRef.current) setEmail(e.target.value);
+                },
+                readOnly: pending,
                 placeholder: T.emailPlaceholder,
               }}
             />
@@ -214,8 +228,10 @@ function LoginForm() {
                 autoComplete: "current-password",
                 required: true,
                 value: password,
-                onChange: (e) => setPassword(e.target.value),
-                disabled: pending,
+                onChange: (e) => {
+                  if (!submittingRef.current) setPassword(e.target.value);
+                },
+                readOnly: pending,
                 placeholder: "••••••••••••",
               }}
             />
@@ -223,8 +239,10 @@ function LoginForm() {
             <TotpField
               name="otp"
               value={otp}
-              onChange={setOtp}
-              disabled={pending}
+              onChange={(value) => {
+                if (!submittingRef.current) setOtp(value);
+              }}
+              readOnly={pending}
               label="验证码(首次登录可留空)"
             />
 
@@ -277,6 +295,26 @@ function LoginShell() {
       </main>
     </div>
   );
+}
+
+async function waitForSignedInSession(): Promise<boolean> {
+  for (let attempt = 0; attempt < SESSION_READY_RETRIES; attempt++) {
+    const res = await fetch("/api/auth/session", {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const body = (await res.json()) as { user?: unknown };
+      if (body.user) return true;
+    }
+    if (attempt < SESSION_READY_RETRIES - 1) {
+      await new Promise((resolve) =>
+        window.setTimeout(resolve, SESSION_READY_RETRY_MS),
+      );
+    }
+  }
+  return false;
 }
 
 /* ──────────────────────────────────────────────────────────── */

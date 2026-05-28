@@ -8,6 +8,7 @@ interface Props {
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
+  readOnly?: boolean;
   error?: string | null;
   label?: string;
   /** Form input name so submit-time FormData can read the raw DOM value
@@ -23,6 +24,7 @@ export const TotpField = forwardRef<HTMLInputElement, Props>(function TotpField(
     value,
     onChange,
     disabled,
+    readOnly,
     error,
     label = "验证码",
     name,
@@ -45,6 +47,7 @@ export const TotpField = forwardRef<HTMLInputElement, Props>(function TotpField(
         autoComplete="one-time-code"
         maxLength={maxLength}
         disabled={disabled}
+        readOnly={readOnly}
         autoFocus={autoFocus}
         value={value}
         onChange={(e) => onChange(e.target.value)}
