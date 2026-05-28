@@ -28,7 +28,13 @@ import { DeleteDialog } from "@/components/features/files/delete-dialog";
 import { PreviewDialog } from "@/components/features/files/preview-dialog";
 import { ShareDialog } from "@/components/features/share/share-dialog";
 import { Dropzone } from "@/components/features/upload/dropzone";
-import { useObjects } from "@/hooks/use-objects";
+import { ConfirmUploadCard } from "@/components/features/upload/confirm-upload-card";
+import {
+  useObjects,
+  useObjectsItems,
+  useLoadAllObjects,
+} from "@/hooks/use-objects";
+import { useMkdirMutation } from "@/hooks/use-mkdir";
 import { useDownloadObject } from "@/hooks/use-download";
 import { ApiClientError } from "@/lib/api/client";
 import { ApiErrorCode } from "@/lib/api/errors";
@@ -37,7 +43,12 @@ import {
   useSelectedKeysStore,
   useSelectedKeysCount,
 } from "@/stores/selected-keys";
+import { useUploadQueueStore } from "@/stores/upload-queue";
 import { joinPrefix, segmentsToPrefix } from "@/lib/r2/prefix";
+import {
+  keyForQueuedFile,
+  type QueuedFile,
+} from "@/lib/uploads/dropzone-utils";
 
 const T = {
   pickConnection: "在顶部选择一个连接后即可浏览此 bucket。",
@@ -126,38 +137,14 @@ export default function BucketBrowserPage() {
     size: number | null;
   } | null>(null);
 
-  const {
-    data,
-    error,
-    isPending,
-    isError,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    refetch,
-  } = useObjects({ cid, bucket, prefix });
-
-  // Flatten the paginated cache into one display list. Folders first (matches
-  // the convention every cloud-storage UI uses) then files; both rendered as
-  // rows by ObjectTable.
-  const items = useMemo(() => {
-    if (!data) return [];
-    const folders = data.pages
-      .flatMap((page) => page.prefixes)
-      .map((p) => ({
-        kind: "prefix" as const,
-        key: p,
-      }));
-    const files = data.pages.flatMap((page) =>
-      page.objects.map((o) => ({
-        kind: "file" as const,
-        key: o.key,
-        size: o.size,
-        lastModified: o.lastModified,
-      })),
-    );
-    return [...folders, ...files];
-  }, [data]);
+  // View selectors derived from the infinite query. `useObjectsItems` strips
+  // the 0-byte placeholder for the current prefix and flattens prefixes/files
+  // into one row list. `useLoadAllObjects` drives `fetchNextPage` in a
+  // bounded loop (cap is enforced inside the hook).
+  const query = useObjects({ cid, bucket, prefix });
+  const view = useObjectsItems(query, prefix);
+  const loadAll = useLoadAllObjects(query);
+  const { error, isPending, isError, fetchNextPage, refetch } = query;
 
   const handleNavigate = (target: string) => {
     // Three call sites for this handler:
@@ -243,6 +230,57 @@ export default function BucketBrowserPage() {
     setPendingDelete(fileKeys);
   }, [selectedKeys]);
 
+  // Mkdir: invoked by the ObjectTable toolbar. On success the mutation hook
+  // invalidates the parent-prefix listing so the new folder row appears
+  // without an extra refetch from here.
+  const mkdir = useMkdirMutation();
+  const handleMkdir = useCallback(
+    (name: string) => {
+      if (!cid) return;
+      mkdir.mutate(
+        { cid, bucket, parentPrefix: prefix, name },
+        {
+          onSuccess: (data) => {
+            toast.success(
+              data.alreadyExisted ? "文件夹已存在" : `已创建 ${name}/`,
+            );
+          },
+          onError: (err) => {
+            toast.error("无法创建文件夹", {
+              description: err instanceof Error ? err.message : "未知错误",
+            });
+          },
+        },
+      );
+    },
+    [cid, bucket, prefix, mkdir],
+  );
+
+  // Upload commit: fired by ConfirmUploadCard after the user confirms the
+  // staging modal. Hands every accepted QueuedFile to the upload-queue store;
+  // the dispatcher subscribes to the queue and starts the actual transfers.
+  // `keyForQueuedFile` already encodes the chosen target prefix + relative
+  // folder path so a folder drop preserves its tree.
+  const enqueueMany = useUploadQueueStore((s) => s.enqueueMany);
+  const handleUploadCommit = useCallback(
+    (args: { accepted: QueuedFile[]; targetPrefix: string }) => {
+      if (!cid) return;
+      enqueueMany(
+        cid,
+        bucket,
+        args.accepted.map((qf) => qf.file),
+        (file) => {
+          const matching = args.accepted.find((qf) => qf.file === file);
+          return matching
+            ? keyForQueuedFile(args.targetPrefix, matching)
+            : `${args.targetPrefix}${file.name}`;
+        },
+      );
+      toast.success(`已入队 ${args.accepted.length} 个文件`);
+    },
+    [cid, bucket, enqueueMany],
+  );
+
   // While a connection is required to fetch anything useful, render the
   // breadcrumb anyway so the user understands the route + can use the
   // bucket-switcher control to pick a connection first.
@@ -263,7 +301,13 @@ export default function BucketBrowserPage() {
           above the table from inside the component. */}
       <Dropzone cid={cid} bucket={bucket} prefix={prefix}>
         <ObjectTable
-          items={items}
+          // `view.items` is `ObjectsItemRow[]` from hooks/use-objects.ts.
+          // It is structurally identical to `ObjectRow` here (kind + key,
+          // file rows also carry size + lastModified) but the two types
+          // live on opposite sides of an import boundary today. Task 9/17
+          // documented the duplicate; collapsing it is a future cleanup.
+          items={view.items as unknown as ObjectRow[]}
+          total={view.total}
           isLoading={isPending}
           isError={isError}
           errorMessage={error?.message ?? null}
@@ -271,13 +315,22 @@ export default function BucketBrowserPage() {
           onFolderClick={onFolderClick}
           onAction={onRowAction}
           onBulkDelete={onBulkDelete}
-          hasNextPage={Boolean(hasNextPage)}
-          isFetchingNextPage={isFetchingNextPage}
+          hasNextPage={view.hasNext}
+          isFetchingNextPage={view.isFetchingNext}
           onLoadMore={() => void fetchNextPage()}
+          onMkdir={handleMkdir}
+          onLoadAll={() => void loadAll.loadAll()}
+          onStopLoadAll={loadAll.stop}
+          isLoadingAll={loadAll.isLoadingAll}
           selectedCount={selectedCount}
           onClearSelection={clearSelection}
         />
       </Dropzone>
+      <ConfirmUploadCard
+        cid={cid}
+        bucket={bucket}
+        onCommit={handleUploadCommit}
+      />
       <DeleteDialog
         open={pendingDelete !== null}
         onOpenChange={(open) => {
