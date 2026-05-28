@@ -107,4 +107,16 @@ describe("ConfirmUploadCard", () => {
     fireEvent.click(screen.getByText(/取消/));
     expect(useUploadStagingStore.getState().isOpen).toBe(false);
   });
+
+  it("commit closes the staging store (parent doesn't need its own reset)", () => {
+    useUploadStagingStore.getState().open({
+      files: [{ file: fakeFile("a.txt"), name: "a.txt", relativePath: "" }],
+      targetPrefix: "logs/",
+    });
+    render(<ConfirmUploadCard cid="c1" bucket="b" onCommit={vi.fn()} />, {
+      wrapper: withQC(freshClient()),
+    });
+    fireEvent.click(screen.getByText(/开始上传/));
+    expect(useUploadStagingStore.getState().isOpen).toBe(false);
+  });
 });

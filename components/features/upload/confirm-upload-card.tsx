@@ -12,8 +12,10 @@
 //
 // The card is mounted unconditionally by the layout shell; it returns
 // `null` when the staging store is closed. Commit fires the parent's
-// `onCommit({ accepted, targetPrefix })` — this component does NOT
-// enqueue uploads itself. The parent owns the dispatcher contract.
+// `onCommit({ accepted, targetPrefix })` and then `reset()`s the staging
+// store so the parent does NOT have to re-implement that bookkeeping —
+// this component does NOT enqueue uploads itself. The parent owns the
+// dispatcher contract; the modal owns its own visibility lifecycle.
 //
 // Why a separate "staging" store + "commit" callback (vs. wiring straight
 // into upload-queue):
@@ -96,13 +98,12 @@ export function ConfirmUploadCard({
   );
   const reset = useUploadStagingStore((s) => s.reset);
 
-  // The text input is a controlled local copy of targetPrefix. The picker
-  // commits via `setTargetPrefix` AND mirrors directly into `manualPrefix`
-  // below, so no store→input sync effect is needed — nothing else mutates
-  // the store while the modal is open. If a future caller needs to push
-  // the prefix from outside, the cleanest fix is remount-via-key, not a
-  // setState-in-effect (which the project's react-hooks lint rejects).
-  const [manualPrefix, setManualPrefix] = useState(targetPrefix);
+  // The text input binds directly to the store's targetPrefix — there is
+  // no local copy. This way the input always reflects the canonical store
+  // value (e.g. when the picker writes via `setTargetPrefix`, or when a
+  // future `.open(...)` call seeds a different prefix). Per-keystroke
+  // writes to the store are fine: nothing else observes partial values
+  // until commit, and the partitioner already memos on `targetPrefix`.
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const partition = useMemo(
@@ -137,6 +138,7 @@ export function ConfirmUploadCard({
 
   const handleCommit = () => {
     onCommit({ accepted: partition.accepted, targetPrefix });
+    reset();
   };
 
   const handleCancel = () => {
@@ -144,11 +146,13 @@ export function ConfirmUploadCard({
   };
 
   const handleManualBlur = () => {
-    // Normalize: empty string OR trailing slash. We don't aggressively
-    // reject — the partitioner / presign route is the final gatekeeper.
-    let next = manualPrefix.trim();
+    // Normalize: strip a leading slash, ensure a trailing slash (unless
+    // empty == root). We don't aggressively reject — the partitioner /
+    // presign route is the final gatekeeper.
+    let next = targetPrefix.trim();
+    if (next.startsWith("/")) next = next.slice(1);
     if (next.length > 0 && !next.endsWith("/")) next = `${next}/`;
-    setTargetPrefix(next);
+    if (next !== targetPrefix) setTargetPrefix(next);
   };
 
   return (
@@ -176,13 +180,13 @@ export function ConfirmUploadCard({
           <div className="relative flex items-center gap-2">
             <input
               type="text"
-              value={manualPrefix}
-              onChange={(e) => setManualPrefix(e.target.value)}
+              value={targetPrefix}
+              onChange={(e) => setTargetPrefix(e.target.value)}
               onBlur={handleManualBlur}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  handleManualBlur();
+                  (e.currentTarget as HTMLInputElement).blur();
                 }
               }}
               placeholder={T.targetPlaceholder}
@@ -204,7 +208,6 @@ export function ConfirmUploadCard({
                   initialPrefix={targetPrefix}
                   onSelect={(p) => {
                     setTargetPrefix(p);
-                    setManualPrefix(p);
                     setPickerOpen(false);
                   }}
                   onCancel={() => setPickerOpen(false)}
@@ -227,7 +230,7 @@ export function ConfirmUploadCard({
 
         {/* Conflict banner */}
         {conflictCount > 0 && (
-          <div className="mb-3 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+          <div className="mb-3 rounded border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
             {T.conflictBanner(conflictCount)}
           </div>
         )}
@@ -260,9 +263,7 @@ export function ConfirmUploadCard({
                   </span>
                   <span className="flex shrink-0 items-center gap-2 tabular-nums text-muted-foreground">
                     {conflict && (
-                      <span className="text-amber-600 dark:text-amber-400">
-                        覆盖
-                      </span>
+                      <span className="text-warning">覆盖</span>
                     )}
                     {formatBytes(qf.file.size)}
                   </span>
@@ -314,7 +315,7 @@ export function ConfirmUploadCard({
             disabled={partition.accepted.length === 0}
             className={
               conflictCount > 0
-                ? "rounded bg-amber-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-500/90 disabled:opacity-50"
+                ? "rounded bg-warning px-3 py-1.5 text-sm font-medium text-white hover:bg-warning/90 disabled:opacity-50"
                 : "rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             }
           >
