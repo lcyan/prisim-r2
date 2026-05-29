@@ -1,18 +1,13 @@
 "use client";
 
-import { useState } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
 
 import { useDashboardSummary } from "@/hooks/use-dashboard";
 import { useActiveConnectionStore } from "@/stores/active-connection";
 import { KpiCard } from "@/components/features/dashboard/kpi-card";
-import { OpsAreaChart } from "@/components/features/dashboard/ops-area-chart";
+import { OpsByDayBar } from "@/components/features/dashboard/ops-by-day-bar";
 import { OpsByTypeBar } from "@/components/features/dashboard/ops-by-type-bar";
 import { RecentActivity } from "@/components/features/dashboard/recent-activity";
-import {
-  RangeToggle,
-  type DashboardRange,
-} from "@/components/features/dashboard/range-toggle";
 import { formatDelta } from "@/components/features/dashboard/format-delta";
 
 const T = {
@@ -24,23 +19,19 @@ const T = {
   kpiBuckets: "Bucket 数",
   kpiShares: "活跃分享",
   shareExpiring: (n: number) => `${n} 个 7 天内过期`,
-  kpiOps: (range: DashboardRange) => `${range === "7d" ? "7" : "30"} 天操作`,
-  kpiFailures: (range: DashboardRange) =>
-    `${range === "7d" ? "7" : "30"} 天失败率`,
+  kpiOps: "7 天操作",
+  kpiFailures: "7 天失败率",
   failureHint: (n: number) => `共 ${n} 次`,
-  chartArea: (range: DashboardRange) =>
-    `操作量 · ${range === "7d" ? "7" : "30"} 天`,
+  chartArea: "操作量 · 7 天",
   chartBars: "操作类型 · 7 天",
   lowRecoveryCodes: (n: number) => `你的恢复码仅剩 ${n} 个，建议重新生成一批。`,
 } as const;
 
 export default function DashboardPage() {
   const activeId = useActiveConnectionStore((s) => s.activeConnectionId);
-  const [range, setRange] = useState<DashboardRange>("30d");
-
   const { data, isPending, isError, error } = useDashboardSummary(
     activeId,
-    range,
+    "7d",
   );
 
   if (!activeId) {
@@ -92,19 +83,16 @@ export default function DashboardPage() {
           </p>
         </div>
       )}
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-medium uppercase tracking-eyebrow text-muted-foreground">
-            概览
-          </p>
-          <h1 className="text-display mt-1 text-2xl font-semibold tracking-tight">
-            {T.title}
-          </h1>
-          <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
-            {T.subTitle(data.bucketsCount)}
-          </p>
-        </div>
-        <RangeToggle value={range} onChange={setRange} />
+      <header>
+        <p className="text-[11px] font-medium uppercase tracking-eyebrow text-muted-foreground">
+          概览
+        </p>
+        <h1 className="text-display mt-1 text-2xl font-semibold tracking-tight">
+          {T.title}
+        </h1>
+        <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
+          {T.subTitle(data.bucketsCount)}
+        </p>
       </header>
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -122,12 +110,12 @@ export default function DashboardPage() {
           }
         />
         <KpiCard
-          label={T.kpiOps(range)}
+          label={T.kpiOps}
           value={data.ops.count.toLocaleString()}
           delta={opsDelta}
         />
         <KpiCard
-          label={T.kpiFailures(range)}
+          label={T.kpiFailures}
           value={`${data.failures.ratePct.toFixed(2)}%`}
           hint={T.failureHint(data.failures.count)}
         />
@@ -136,9 +124,9 @@ export default function DashboardPage() {
       <section className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <div className="rounded-lg border border-border bg-card p-5 shadow-xs lg:col-span-2">
           <h2 className="text-display mb-3 text-sm font-semibold tracking-tight">
-            {T.chartArea(range)}
+            {T.chartArea}
           </h2>
-          <OpsAreaChart data={data.opsByDay} />
+          <OpsByDayBar data={data.opsByDay} />
         </div>
         <div className="rounded-lg border border-border bg-card p-5 shadow-xs">
           <h2 className="text-display mb-3 text-sm font-semibold tracking-tight">

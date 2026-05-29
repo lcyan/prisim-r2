@@ -57,10 +57,21 @@ function getAdapter() {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
+  // Force secure-cookie mode + pin the session cookie name. Auth.js v5
+  // normally infers `useSecureCookies` from the request URL /
+  // NEXTAUTH_URL, but this project uses the v5-canonical AUTH_URL env var
+  // and the inference falls through under @opennextjs/cloudflare — the
+  // credentials callback would respond without Set-Cookie for the
+  // session JWT, leaving the browser cookieless and every subsequent
+  // request bouncing back to /login. Using the `__Host-` prefix (rather
+  // than the v5 default `__Secure-`) is strictly more restrictive:
+  // forces Path=/, forbids Domain, prevents sibling-subdomain takeover.
+  // NOTE: lib/api/middleware.requireSession passes the matching
+  // cookieName to getToken — both ends MUST stay in lockstep.
   useSecureCookies: true,
   cookies: {
     sessionToken: {
-      name: `__Host-authjs.session-token`,
+      name: "__Host-authjs.session-token",
       options: {
         httpOnly: true,
         sameSite: "lax",
