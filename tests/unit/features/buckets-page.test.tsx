@@ -56,9 +56,9 @@ describe("BucketsPage", () => {
     setActiveConnection({ activeConnectionId: "01" });
     vi.mocked(useBuckets).mockReturnValue({
       data: [
-        { name: "assets", createdAt: Date.now() },
-        { name: "backups", createdAt: Date.now() },
-        { name: "logs", createdAt: null },
+        { name: "assets", createdAt: Date.now(), usage: null },
+        { name: "backups", createdAt: Date.now(), usage: null },
+        { name: "logs", createdAt: null, usage: null },
       ],
       isPending: false,
       isError: false,
@@ -80,6 +80,73 @@ describe("BucketsPage", () => {
     } as never);
     render(withQuery(<BucketsPage />));
     expect(screen.getByText(/无法加载/)).toBeInTheDocument();
+  });
+
+  it("renders cached usage on bucket cards", () => {
+    setActiveConnection({ activeConnectionId: "01" });
+    vi.mocked(useBuckets).mockReturnValue({
+      data: [
+        {
+          name: "assets",
+          createdAt: Date.now(),
+          usage: {
+            objectCount: 1280,
+            totalBytes: 1536 * 1024 * 1024,
+            scannedAt: Date.now(),
+            stale: false,
+            truncated: false,
+            error: null,
+          },
+        },
+      ],
+      isPending: false,
+      isError: false,
+    } as never);
+
+    render(withQuery(<BucketsPage />));
+
+    expect(screen.getByText("1.5 GB")).toBeInTheDocument();
+    expect(screen.getByText("1,280 个对象")).toBeInTheDocument();
+  });
+
+  it("shows usage loading state when no cache exists", () => {
+    setActiveConnection({ activeConnectionId: "01" });
+    vi.mocked(useBuckets).mockReturnValue({
+      data: [{ name: "assets", createdAt: null, usage: null }],
+      isPending: false,
+      isError: false,
+    } as never);
+
+    render(withQuery(<BucketsPage />));
+
+    expect(screen.getByText("统计中…")).toBeInTheDocument();
+  });
+
+  it("marks truncated usage as approximate", () => {
+    setActiveConnection({ activeConnectionId: "01" });
+    vi.mocked(useBuckets).mockReturnValue({
+      data: [
+        {
+          name: "assets",
+          createdAt: null,
+          usage: {
+            objectCount: 20000,
+            totalBytes: 10 * 1024 * 1024,
+            scannedAt: Date.now(),
+            stale: false,
+            truncated: true,
+            error: null,
+          },
+        },
+      ],
+      isPending: false,
+      isError: false,
+    } as never);
+
+    render(withQuery(<BucketsPage />));
+
+    expect(screen.getByText("≥ 10 MB")).toBeInTheDocument();
+    expect(screen.getByText("≥ 20,000 个对象")).toBeInTheDocument();
   });
 
   it("prompts for connection when none active", () => {

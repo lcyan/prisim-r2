@@ -40,10 +40,19 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { withApi } from "@/lib/api/middleware";
 import { ApiErrors } from "@/lib/api/errors";
 import { parseQuery, R2BucketsQuerySchema } from "@/lib/api/schemas";
-import type { BucketSummary } from "@/lib/api/types";
 import { type DbEnv } from "@/lib/db/client";
 import { type CryptoEnv } from "@/lib/crypto/aes-gcm";
-import { listBuckets } from "@/lib/r2/control";
+import type { BucketSummary } from "@/lib/api/types";
+import {
+  BUCKET_USAGE_MAX_BUCKETS_PER_REQUEST,
+  BUCKET_USAGE_MAX_OBJECTS_PER_BUCKET,
+  BUCKET_USAGE_MAX_PAGES_PER_BUCKET,
+  readBucketUsageCache,
+  upsertBucketUsageFailure,
+  upsertBucketUsageSuccess,
+  usageNeedsRefresh,
+} from "@/lib/r2/bucket-usage-cache";
+import { listBuckets, summarizeBucketUsage } from "@/lib/r2/control";
 import { R2CredentialError } from "@/lib/r2/errors";
 import {
   resolveConnectionForR2,
@@ -77,19 +86,53 @@ export const GET = withApi(async (req, ctx) => {
     throw err;
   }
 
-  // Normalize to the wire shape. R2 always returns a Name in practice but
-  // the SDK types it as optional, so we filter rather than emit empty
-  // strings. CreationDate maps to epoch ms or null — Date → number keeps
-  // the JSON stable across runtimes.
-  const buckets: BucketSummary[] = [];
+  const bucketBasics: Array<{ name: string; createdAt: number | null }> = [];
   for (const b of raw) {
     if (typeof b.name !== "string" || b.name.length === 0) continue;
-    buckets.push({
+    bucketBasics.push({
       name: b.name,
       createdAt: b.creationDate ? b.creationDate.getTime() : null,
     });
   }
 
+  const cached = await readBucketUsageCache(
+    db,
+    { userId: ctx.userId, connectionId: connection.id },
+    bucketBasics.map((b) => b.name),
+  );
+  const nowMs = Date.now();
+  const buckets: BucketSummary[] = bucketBasics.map((bucket) => ({
+    ...bucket,
+    usage: cached.get(bucket.name) ?? null,
+  }));
+
+  const refreshTargets = buckets
+    .filter((bucket) => usageNeedsRefresh(bucket.usage, nowMs))
+    .slice(0, BUCKET_USAGE_MAX_BUCKETS_PER_REQUEST);
+
+  for (const bucket of refreshTargets) {
+    const now = new Date();
+    try {
+      const usage = await summarizeBucketUsage({
+        client,
+        bucket: bucket.name,
+        maxObjects: BUCKET_USAGE_MAX_OBJECTS_PER_BUCKET,
+        maxPages: BUCKET_USAGE_MAX_PAGES_PER_BUCKET,
+      });
+      bucket.usage = await upsertBucketUsageSuccess(
+        db,
+        { userId: ctx.userId, connectionId: connection.id, bucket: bucket.name },
+        usage,
+        now,
+      );
+    } catch {
+      bucket.usage = await upsertBucketUsageFailure(
+        db,
+        { userId: ctx.userId, connectionId: connection.id, bucket: bucket.name },
+        now,
+      );
+    }
+  }
   await touchConnectionLastUsed(db, {
     connectionId: connection.id,
     userId: ctx.userId,

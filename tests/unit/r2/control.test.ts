@@ -47,6 +47,7 @@ import {
   deleteObjects,
   listBuckets,
   listObjects,
+  summarizeBucketUsage,
 } from "@/lib/r2/control";
 
 // A throwaway client that records every command and replies with
@@ -188,6 +189,66 @@ describe("listObjects", () => {
       listObjects({ client, bucket: "b", delimiter: "" }),
     ).rejects.toBeInstanceOf(TypeError);
     expect(send).not.toHaveBeenCalled();
+  });
+});
+
+describe("summarizeBucketUsage", () => {
+  it("scans flat object pages and totals bytes", async () => {
+    const responses = [
+      {
+        Contents: [
+          { Key: "a.txt", Size: 10 },
+          { Key: "nested/b.bin", Size: 20 },
+        ],
+        IsTruncated: true,
+        NextContinuationToken: "next-1",
+      },
+      {
+        Contents: [{ Key: "c.txt", Size: 5 }],
+        IsTruncated: false,
+      },
+    ];
+    const { client, send } = makeClient(() => responses.shift() ?? {});
+
+    await expect(
+      summarizeBucketUsage({
+        client,
+        bucket: "assets",
+        maxObjects: 20_000,
+        maxPages: 20,
+      }),
+    ).resolves.toEqual({ objectCount: 3, totalBytes: 35, truncated: false });
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect((send.mock.calls[0]![0] as ListObjectsV2Command).input).toMatchObject({
+      Bucket: "assets",
+      MaxKeys: 1000,
+    });
+    expect((send.mock.calls[1]![0] as ListObjectsV2Command).input).toMatchObject({
+      Bucket: "assets",
+      ContinuationToken: "next-1",
+      MaxKeys: 1000,
+    });
+  });
+
+  it("marks results truncated when the object cap is reached", async () => {
+    const { client } = makeClient(() => ({
+      Contents: [
+        { Key: "a.txt", Size: 10 },
+        { Key: "b.txt", Size: 20 },
+      ],
+      IsTruncated: true,
+      NextContinuationToken: "next-1",
+    }));
+
+    await expect(
+      summarizeBucketUsage({
+        client,
+        bucket: "assets",
+        maxObjects: 1,
+        maxPages: 20,
+      }),
+    ).resolves.toEqual({ objectCount: 1, totalBytes: 10, truncated: true });
   });
 });
 

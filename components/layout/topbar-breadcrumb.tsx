@@ -5,9 +5,10 @@
 // 渲染顶栏面包屑。把 resolveSegments(pathname) 的输出转成具体节点:
 //   - connection → <TopbarConnectionPopover />
 //   - bucket → <TopbarBucketPopover currentBucket={name} />
-//   - prefix → 纯文本(最长保留最后两段,前面用 ".../")
+//   - prefix → 父级为可点击链接，当前级为纯文本
 //   - static → 纯文本
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 
@@ -45,7 +46,7 @@ function SegmentNode({ segment }: { segment: Segment }) {
     case "bucket":
       return <TopbarBucketPopover currentBucket={segment.name} />;
     case "prefix":
-      return <PrefixSegment path={segment.path} />;
+      return <PrefixSegment segment={segment} />;
     case "static":
       return (
         <span className="px-1 text-muted-foreground">{segment.label}</span>
@@ -53,21 +54,30 @@ function SegmentNode({ segment }: { segment: Segment }) {
   }
 }
 
-function PrefixSegment({ path }: { path: string }) {
-  // path 形如 "a/b/c/"。最长保留最后 2 段,前面用 .../
-  const parts = path.replace(/\/$/, "").split("/").filter(Boolean);
-  let display: string;
-  if (parts.length <= 2) {
-    display = `${parts.join("/")}/`;
-  } else {
-    display = `…/${parts.slice(-2).join("/")}/`;
+function PrefixSegment({
+  segment,
+}: {
+  segment: Extract<Segment, { kind: "prefix" }>;
+}) {
+  const label = `${segment.label}/`;
+  const className =
+    "max-w-[160px] truncate px-1 font-mono text-xs text-foreground";
+
+  if (segment.current) {
+    return (
+      <span className={className} title={segment.path}>
+        {label}
+      </span>
+    );
   }
+
   return (
-    <span
-      className="max-w-[280px] truncate px-1 font-mono text-xs text-foreground"
-      title={path}
+    <Link
+      className={`${className} rounded-sm hover:bg-accent hover:text-accent-foreground`}
+      href={segment.href}
+      title={segment.path}
     >
-      {display}
-    </span>
+      {segment.label}
+    </Link>
   );
 }

@@ -5,6 +5,7 @@ import { AlertCircle, Database, Loader2 } from "lucide-react";
 
 import { useBuckets } from "@/hooks/use-buckets";
 import { useActiveConnectionStore } from "@/stores/active-connection";
+import type { BucketUsageSummary } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 const T = {
@@ -17,8 +18,57 @@ const T = {
   retry: "重试",
   created: (ms: number | null) =>
     ms == null ? "—" : new Date(ms).toLocaleDateString("zh-CN"),
+  usageLoading: "统计中…",
+  usageUnavailable: "用量暂不可用",
+  objects: (count: number) => `${count.toLocaleString("zh-CN")} 个对象`,
   enter: "进入",
 } as const;
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB", "TB"] as const;
+  let value = bytes / 1024;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  const formatted =
+    value >= 10 || Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1);
+  return `${formatted} ${units[unitIndex]}`;
+}
+
+function UsageBadge({ usage }: { usage: BucketUsageSummary | null }) {
+  if (!usage) {
+    return (
+      <div className="text-right text-[11px] text-muted-foreground">
+        {T.usageLoading}
+      </div>
+    );
+  }
+
+  if (usage.error) {
+    return (
+      <div className="text-right text-[11px] text-muted-foreground">
+        {T.usageUnavailable}
+      </div>
+    );
+  }
+
+  const prefix = usage.truncated ? "≥ " : "";
+  return (
+    <div className="shrink-0 text-right tabular-nums">
+      <p className="text-xs font-medium text-foreground">
+        {prefix}
+        {formatBytes(usage.totalBytes)}
+      </p>
+      <p className="mt-0.5 text-[11px] text-muted-foreground">
+        {prefix}
+        {T.objects(usage.objectCount)}
+      </p>
+    </div>
+  );
+}
 
 export default function BucketsPage() {
   const activeId = useActiveConnectionStore((s) => s.activeConnectionId);
@@ -99,7 +149,7 @@ export default function BucketsPage() {
               "hover:before:bg-primary/60",
             )}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary text-primary transition-colors duration-200 group-hover:bg-primary/15">
                 <Database className="h-4 w-4" strokeWidth={1.75} />
               </div>
@@ -111,6 +161,7 @@ export default function BucketsPage() {
                   创建于 {T.created(bucket.createdAt)}
                 </p>
               </div>
+              <UsageBadge usage={bucket.usage} />
             </div>
             <div className="flex items-center justify-end gap-1 text-xs text-primary opacity-0 transition-opacity duration-200 group-hover:opacity-100">
               <span>{T.enter}</span>

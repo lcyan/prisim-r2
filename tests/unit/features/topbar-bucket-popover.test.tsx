@@ -37,21 +37,23 @@ describe("TopbarBucketPopover", () => {
     expect(screen.getByRole("button", { name: /assets/ })).toBeInTheDocument();
   });
 
-  it("lists all buckets in popover", async () => {
+  it("links to the current bucket root even when the bucket list is empty", async () => {
     const user = userEvent.setup();
     vi.mocked(useActiveConnectionStore).mockReturnValue({
       activeConnectionId: "01ABC",
-      activeBucket: "assets",
+      activeBucket: "my bucket",
     } as never);
     vi.mocked(useBuckets).mockReturnValue({
-      data: [
-        { name: "assets", createdAt: 0 },
-        { name: "backups", createdAt: 0 },
-      ],
+      data: [],
       isPending: false,
     } as never);
-    render(withQuery(<TopbarBucketPopover currentBucket="assets" />));
-    await user.click(screen.getByRole("button", { name: /assets/ }));
-    expect(screen.getByText("backups")).toBeInTheDocument();
+
+    render(withQuery(<TopbarBucketPopover currentBucket="my bucket" />));
+
+    await user.click(screen.getByRole("button", { name: /my bucket/ }));
+
+    expect(
+      screen.getByRole("link", { name: "打开 Bucket 根目录" }),
+    ).toHaveAttribute("href", "/buckets/my%20bucket");
   });
 });

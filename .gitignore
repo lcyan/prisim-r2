@@ -47,6 +47,9 @@ pnpm-debug.log*
 # cloudflare wrangler (required by task spec)
 .wrangler/
 
+# claude local workspace/tooling state
+.claude/
+
 # taskmaster local
 .taskmaster/
 

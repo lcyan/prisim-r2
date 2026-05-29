@@ -146,6 +146,37 @@ export const rateLimitBuckets = sqliteTable("rate_limit_buckets", {
   windowStart: integer("window_start").notNull(),
 });
 
+export const bucketUsageCache = sqliteTable(
+  "bucket_usage_cache",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    connectionId: text("connection_id")
+      .notNull()
+      .references(() => connections.id, { onDelete: "cascade" }),
+    bucket: text("bucket").notNull(),
+    objectCount: integer("object_count").notNull().default(0),
+    totalBytes: integer("total_bytes").notNull().default(0),
+    scannedAt: integer("scanned_at", { mode: "timestamp" }),
+    stale: integer("stale", { mode: "boolean" }).notNull().default(false),
+    truncated: integer("truncated", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    errorMsg: text("error_msg"),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [
+    uniqueIndex("pk_bucket_usage_cache").on(t.userId, t.connectionId, t.bucket),
+    index("idx_bucket_usage_connection").on(t.connectionId),
+  ],
+);
+
 /* ─── sessions ───────────────────────────────────────────────── */
 
 export const sessions = sqliteTable("sessions", {
@@ -268,6 +299,8 @@ export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type RateLimitBucket = typeof rateLimitBuckets.$inferSelect;
 export type NewRateLimitBucket = typeof rateLimitBuckets.$inferInsert;
+export type BucketUsageCache = typeof bucketUsageCache.$inferSelect;
+export type NewBucketUsageCache = typeof bucketUsageCache.$inferInsert;
 export type TotpEnrollment = typeof totpEnrollments.$inferSelect;
 export type NewTotpEnrollment = typeof totpEnrollments.$inferInsert;
 export type RecoveryCode = typeof recoveryCodes.$inferSelect;
@@ -286,6 +319,7 @@ export const schema = {
   auditLog,
   sessions,
   rateLimitBuckets,
+  bucketUsageCache,
   totpEnrollments,
   recoveryCodes,
   totpReplayGuard,

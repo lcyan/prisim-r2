@@ -60,9 +60,19 @@ export interface ConnectionSummary {
  * The route NEVER includes anything credential-derived here — only the
  * bucket-level metadata R2 itself returns.
  */
+export interface BucketUsageSummary {
+  objectCount: number;
+  totalBytes: number;
+  scannedAt: number | null;
+  stale: boolean;
+  truncated: boolean;
+  error: string | null;
+}
+
 export interface BucketSummary {
   name: string;
   createdAt: number | null;
+  usage: BucketUsageSummary | null;
 }
 
 /**

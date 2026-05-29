@@ -164,6 +164,77 @@ export async function listObjects(
   }
 }
 
+// ─── summarizeBucketUsage ───────────────────────────────────────────────
+
+export interface SummarizeBucketUsageParams {
+  client: S3Client;
+  bucket: string;
+  maxObjects: number;
+  maxPages: number;
+}
+
+export interface SummarizeBucketUsageResult {
+  objectCount: number;
+  totalBytes: number;
+  truncated: boolean;
+}
+
+export async function summarizeBucketUsage(
+  params: SummarizeBucketUsageParams,
+): Promise<SummarizeBucketUsageResult> {
+  requireNonEmpty(params?.bucket, "bucket");
+  requirePositiveInt(params.maxObjects, "maxObjects");
+  requirePositiveInt(params.maxPages, "maxPages");
+
+  let continuationToken: string | undefined;
+  let objectCount = 0;
+  let totalBytes = 0;
+  let pages = 0;
+  let truncated = false;
+
+  try {
+    do {
+      pages += 1;
+      const res = await params.client.send(
+        new ListObjectsV2Command({
+          Bucket: params.bucket,
+          ContinuationToken: continuationToken,
+          MaxKeys: Math.min(1000, params.maxObjects - objectCount),
+        }),
+      );
+
+      for (const obj of res.Contents ?? []) {
+        if (typeof obj.Key !== "string" || obj.Key.length === 0) continue;
+        if (objectCount >= params.maxObjects) {
+          truncated = true;
+          break;
+        }
+        objectCount += 1;
+        totalBytes += typeof obj.Size === "number" ? obj.Size : 0;
+      }
+
+      continuationToken = res.NextContinuationToken;
+      if (res.IsTruncated && continuationToken && objectCount < params.maxObjects) {
+        truncated = pages >= params.maxPages;
+      } else {
+        truncated = Boolean(res.IsTruncated && continuationToken);
+      }
+    } while (
+      continuationToken &&
+      objectCount < params.maxObjects &&
+      pages < params.maxPages
+    );
+
+    if (continuationToken && (objectCount >= params.maxObjects || pages >= params.maxPages)) {
+      truncated = true;
+    }
+
+    return { objectCount, totalBytes, truncated };
+  } catch (err) {
+    throw mapR2Error(err);
+  }
+}
+
 // ─── deleteObjects ──────────────────────────────────────────────────────
 
 export interface DeleteObjectsParams {

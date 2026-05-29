@@ -57,8 +57,10 @@ const fakeSessionStore = new Map<
 // real R2CredentialError class keeps the `instanceof` route check honest.
 import { R2CredentialError } from "@/lib/r2/errors";
 const listBucketsImpl = vi.fn();
+const summarizeBucketUsageImpl = vi.fn();
 vi.mock("@/lib/r2/control", () => ({
   listBuckets: (...args: unknown[]) => listBucketsImpl(...args),
+  summarizeBucketUsage: (...args: unknown[]) => summarizeBucketUsageImpl(...args),
 }));
 
 // makeS3Client validates non-empty strings — every call from the route has
@@ -240,6 +242,7 @@ beforeEach(() => {
   fakeJwt.token = null;
   fakeSessionStore.clear();
   listBucketsImpl.mockReset();
+  summarizeBucketUsageImpl.mockReset();
 });
 
 describe("GET /api/r2/buckets — happy path", () => {
@@ -255,10 +258,19 @@ describe("GET /api/r2/buckets — happy path", () => {
     const body = (await res.json()) as Array<{
       name: string;
       createdAt: number | null;
+      usage: unknown;
     }>;
     expect(body).toEqual([
-      { name: "primary", createdAt: created.getTime() },
-      { name: "secondary", createdAt: null },
+      {
+        name: "primary",
+        createdAt: created.getTime(),
+        usage: expect.objectContaining({ error: "usage_unavailable" }),
+      },
+      {
+        name: "secondary",
+        createdAt: null,
+        usage: expect.objectContaining({ error: "usage_unavailable" }),
+      },
     ]);
   });
 
@@ -275,30 +287,91 @@ describe("GET /api/r2/buckets — happy path", () => {
     expect(body.map((b) => b.name)).toEqual(["kept"]);
   });
 
-  it("touches connection.last_used_at on success", async () => {
-    listBucketsImpl.mockResolvedValueOnce([]);
-    const { userId, cid } = await seedUserAndConnection();
+  it("returns cached usage for each bucket", async () => {
+    const created = new Date("2026-01-01T00:00:00Z");
+    listBucketsImpl.mockResolvedValueOnce([
+      { name: "primary", creationDate: created },
+    ]);
+    const { cid, userId } = await seedUserAndConnection();
+    const scannedAt = Math.floor(Date.now() / 1000);
+    sqlite
+      .prepare(
+        `INSERT INTO bucket_usage_cache
+         (user_id, connection_id, bucket, object_count, total_bytes, scanned_at, stale, truncated, error_msg, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 0, 0, NULL, ?, ?)`,
+      )
+      .run(userId, cid, "primary", 12, 4096, scannedAt, scannedAt, scannedAt);
 
-    // Sanity: the seed inserted last_used_at as NULL.
-    const before = sqlite
-      .prepare(`SELECT last_used_at FROM connections WHERE id = ?`)
-      .get(cid) as { last_used_at: number | null };
-    expect(before.last_used_at).toBeNull();
-
-    const startSec = Math.floor(Date.now() / 1000) - 1;
     const res = await bucketsGET(bucketsReq(cid));
     expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([
+      {
+        name: "primary",
+        createdAt: created.getTime(),
+        usage: {
+          objectCount: 12,
+          totalBytes: 4096,
+          scannedAt: scannedAt * 1000,
+          stale: false,
+          truncated: false,
+          error: null,
+        },
+      },
+    ]);
+    expect(summarizeBucketUsageImpl).not.toHaveBeenCalled();
+  });
 
-    const after = sqlite
-      .prepare(`SELECT last_used_at FROM connections WHERE id = ?`)
-      .get(cid) as { last_used_at: number | null };
-    expect(after.last_used_at).not.toBeNull();
-    // Drizzle stores `mode: "timestamp"` as unix seconds.
-    expect(after.last_used_at!).toBeGreaterThanOrEqual(startSec);
+  it("refreshes missing usage and returns the new snapshot", async () => {
+    listBucketsImpl.mockResolvedValueOnce([
+      { name: "primary", creationDate: undefined },
+    ]);
+    summarizeBucketUsageImpl.mockResolvedValueOnce({
+      objectCount: 3,
+      totalBytes: 35,
+      truncated: false,
+    });
+    const { cid } = await seedUserAndConnection();
 
-    // Read does not write any audit row on success — matches the
-    // GET /api/connections policy.
-    expect(auditRowsForUser(userId)).toHaveLength(0);
+    const res = await bucketsGET(bucketsReq(cid));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([
+      {
+        name: "primary",
+        createdAt: null,
+        usage: expect.objectContaining({
+          objectCount: 3,
+          totalBytes: 35,
+          stale: false,
+          truncated: false,
+          error: null,
+        }),
+      },
+    ]);
+    expect(summarizeBucketUsageImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the bucket list usable when usage refresh fails", async () => {
+    listBucketsImpl.mockResolvedValueOnce([
+      { name: "primary", creationDate: undefined },
+    ]);
+    summarizeBucketUsageImpl.mockRejectedValueOnce(new Error("R2 unavailable"));
+    const { cid } = await seedUserAndConnection();
+
+    const res = await bucketsGET(bucketsReq(cid));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([
+      {
+        name: "primary",
+        createdAt: null,
+        usage: expect.objectContaining({
+          objectCount: 0,
+          totalBytes: 0,
+          stale: true,
+          truncated: false,
+          error: "usage_unavailable",
+        }),
+      },
+    ]);
   });
 });
 

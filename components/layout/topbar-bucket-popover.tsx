@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, Database, ListIcon } from "lucide-react";
+import { Check, ChevronDown, Database, FolderOpen, ListIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +22,7 @@ import { useActiveConnectionStore } from "@/stores/active-connection";
 
 const T = {
   current: "当前 Bucket",
+  openRoot: "打开 Bucket 根目录",
   viewAll: "查看全部 Bucket",
   empty: "暂无 Bucket",
 } as const;
@@ -70,6 +71,16 @@ export function TopbarBucketPopover({
             </DropdownMenuItem>
           ))
         )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="p-0">
+          <Link
+            href={`/buckets/${encodeURIComponent(currentBucket)}`}
+            className="flex w-full items-center gap-2 px-2 py-1.5"
+          >
+            <FolderOpen className="h-3.5 w-3.5" />
+            {T.openRoot}
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="p-0">
           <Link

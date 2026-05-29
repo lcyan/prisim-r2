@@ -20,16 +20,29 @@ describe("resolveSegments — connection-scoped routes", () => {
     expect(resolveSegments("/buckets/my-bucket")).toEqual([
       { kind: "connection" },
       { kind: "static", label: "存储桶" },
-      { kind: "bucket", name: "my-bucket" },
+      { kind: "bucket", name: "my-bucket", href: "/buckets/my-bucket" },
     ]);
   });
 
-  it("/buckets/my-bucket/foo/bar → conn + 存储桶 + bucket + prefix", () => {
+  it("/buckets/my-bucket/foo/bar → conn + 存储桶 + bucket + clickable prefix levels", () => {
     expect(resolveSegments("/buckets/my-bucket/foo/bar")).toEqual([
       { kind: "connection" },
       { kind: "static", label: "存储桶" },
-      { kind: "bucket", name: "my-bucket" },
-      { kind: "prefix", path: "foo/bar/" },
+      { kind: "bucket", name: "my-bucket", href: "/buckets/my-bucket" },
+      {
+        kind: "prefix",
+        label: "foo",
+        path: "foo/",
+        href: "/buckets/my-bucket/foo",
+        current: false,
+      },
+      {
+        kind: "prefix",
+        label: "bar",
+        path: "foo/bar/",
+        href: "/buckets/my-bucket/foo/bar",
+        current: true,
+      },
     ]);
   });
 
@@ -37,8 +50,36 @@ describe("resolveSegments — connection-scoped routes", () => {
     expect(resolveSegments("/buckets/my-bucket/foo/")).toEqual([
       { kind: "connection" },
       { kind: "static", label: "存储桶" },
-      { kind: "bucket", name: "my-bucket" },
-      { kind: "prefix", path: "foo/" },
+      { kind: "bucket", name: "my-bucket", href: "/buckets/my-bucket" },
+      {
+        kind: "prefix",
+        label: "foo",
+        path: "foo/",
+        href: "/buckets/my-bucket/foo",
+        current: true,
+      },
+    ]);
+  });
+
+  it("encodes bucket and prefix href segments independently", () => {
+    expect(resolveSegments("/buckets/my%20bucket/a%2Bb/c%20d")).toEqual([
+      { kind: "connection" },
+      { kind: "static", label: "存储桶" },
+      { kind: "bucket", name: "my bucket", href: "/buckets/my%20bucket" },
+      {
+        kind: "prefix",
+        label: "a+b",
+        path: "a+b/",
+        href: "/buckets/my%20bucket/a%2Bb",
+        current: false,
+      },
+      {
+        kind: "prefix",
+        label: "c d",
+        path: "a+b/c d/",
+        href: "/buckets/my%20bucket/a%2Bb/c%20d",
+        current: true,
+      },
     ]);
   });
 

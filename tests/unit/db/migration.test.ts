@@ -38,7 +38,7 @@ describe("D1 migration 0000_init", () => {
     applyMigrations(db);
   });
 
-  it("creates all ten tables", () => {
+  it("creates all eleven tables", () => {
     const rows = db
       .prepare(
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
@@ -47,6 +47,7 @@ describe("D1 migration 0000_init", () => {
     const names = rows.map((r) => r.name).sort();
     expect(names).toEqual([
       "audit_log",
+      "bucket_usage_cache",
       "connections",
       "rate_limit_buckets",
       "recovery_codes",

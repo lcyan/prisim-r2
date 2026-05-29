@@ -7,8 +7,14 @@
 
 export type Segment =
   | { kind: "connection" }
-  | { kind: "bucket"; name: string }
-  | { kind: "prefix"; path: string }
+  | { kind: "bucket"; name: string; href: string }
+  | {
+      kind: "prefix";
+      label: string;
+      path: string;
+      href: string;
+      current: boolean;
+    }
   | { kind: "static"; label: string };
 
 const SCOPED_ROUTES: Array<{ prefix: string; label: string }> = [
@@ -16,6 +22,18 @@ const SCOPED_ROUTES: Array<{ prefix: string; label: string }> = [
   { prefix: "/shares", label: "分享链接" },
   { prefix: "/audit", label: "审计日志" },
 ];
+
+function browseHref(bucket: string, prefixSegments: string[] = []) {
+  const encodedBucket = encodeURIComponent(bucket);
+  const encodedPrefix = prefixSegments.map(encodeURIComponent).join("/");
+  return encodedPrefix.length > 0
+    ? `/buckets/${encodedBucket}/${encodedPrefix}`
+    : `/buckets/${encodedBucket}`;
+}
+
+function prefixPath(segments: string[]) {
+  return `${segments.join("/")}/`;
+}
 
 export function resolveSegments(pathname: string): Segment[] {
   // 顺序敏感:/settings/connections 必须在 /settings 与 /connections 之前判断
@@ -43,18 +61,30 @@ export function resolveSegments(pathname: string): Segment[] {
     ];
     const rest = pathname.slice("/buckets".length);
     if (rest.length === 0 || rest === "/") return segs;
+
     const parts = rest.replace(/^\//, "").split("/");
-    const bucket = parts[0];
-    if (bucket) segs.push({ kind: "bucket", name: decodeURIComponent(bucket) });
-    if (parts.length > 1) {
-      const prefixSegments = parts.slice(1).filter((p) => p.length > 0);
-      if (prefixSegments.length > 0) {
-        segs.push({
-          kind: "prefix",
-          path: `${prefixSegments.map(decodeURIComponent).join("/")}/`,
-        });
-      }
-    }
+    const bucketPart = parts[0];
+    if (!bucketPart) return segs;
+
+    const bucket = decodeURIComponent(bucketPart);
+    segs.push({ kind: "bucket", name: bucket, href: browseHref(bucket) });
+
+    const prefixSegments = parts
+      .slice(1)
+      .filter((p) => p.length > 0)
+      .map(decodeURIComponent);
+
+    prefixSegments.forEach((label, idx) => {
+      const pathSegments = prefixSegments.slice(0, idx + 1);
+      segs.push({
+        kind: "prefix",
+        label,
+        path: prefixPath(pathSegments),
+        href: browseHref(bucket, pathSegments),
+        current: idx === prefixSegments.length - 1,
+      });
+    });
+
     return segs;
   }
 
